@@ -1,19 +1,54 @@
-import ImageKit from "imagekit";
+import crypto from 'node:crypto';
+import path from 'node:path';
 
-export const imagekit = new ImageKit({
-  publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
-  privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
-  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
-});
+import { imagekit } from '../config/imagekit.js';
 
-console.log("ImageKit object:", imagekit);
+const DEFAULT_UPLOAD_FOLDER = '/recruitkr';
 
-export const getImageKitAuthParams = () => {
-  return imagekit.getAuthenticationParameters();
+const sanitizeSegment = (value = '') =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'file';
+
+const normalizeFolder = (value = DEFAULT_UPLOAD_FOLDER) => {
+  const trimmed = String(value || DEFAULT_UPLOAD_FOLDER).trim();
+  const normalized = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return normalized.replace(/\/{2,}/g, '/').replace(/\/$/, '') || DEFAULT_UPLOAD_FOLDER;
+};
+
+export const buildUniqueUploadName = (originalName = 'file') => {
+  const parsed = path.parse(String(originalName || 'file'));
+  const baseName = sanitizeSegment(parsed.name || 'file');
+  const extension = sanitizeSegment(parsed.ext.replace(/^\./, ''));
+  const uniqueSuffix = `${Date.now()}-${crypto.randomUUID()}`;
+
+  return extension ? `${baseName}-${uniqueSuffix}.${extension}` : `${baseName}-${uniqueSuffix}`;
+};
+
+export const uploadBufferToImageKit = async ({
+  buffer,
+  originalName,
+  folder = DEFAULT_UPLOAD_FOLDER,
+}) => {
+  const fileName = buildUniqueUploadName(originalName);
+  const response = await imagekit.upload({
+    file: buffer,
+    fileName,
+    folder: normalizeFolder(folder),
+    useUniqueFileName: false,
+  });
+
+  return {
+    url: response.url,
+    fileId: response.fileId,
+    name: response.name || fileName,
+  };
 };
 
 export const deleteImageKitFile = async (fileId) => {
-  const safeFileId = String(fileId || "").trim();
+  const safeFileId = String(fileId || '').trim();
   if (!safeFileId) return;
 
   await imagekit.deleteFile(safeFileId);

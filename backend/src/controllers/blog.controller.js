@@ -1,9 +1,9 @@
 import mongoose from 'mongoose';
 import { StatusCodes } from 'http-status-codes';
 
-import { env } from '../config/env.js';
 import { BlogImageAsset } from '../models/BlogImageAsset.js';
 import { BlogPost } from '../models/BlogPost.js';
+import { uploadBufferToImageKit } from '../services/imagekit.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -154,19 +154,6 @@ const buildPublishedBlogQuery = () => ({
   ],
 });
 
-const getPublicBaseUrl = (req) => {
-  if (env.BACKEND_PUBLIC_URL) {
-    return env.BACKEND_PUBLIC_URL.replace(/\/$/, '');
-  }
-
-  const forwardedProto = req.get('x-forwarded-proto');
-  const forwardedHost = req.get('x-forwarded-host');
-  const protocol = forwardedProto?.split(',')[0]?.trim() || req.protocol;
-  const host = forwardedHost?.split(',')[0]?.trim() || req.get('host');
-
-  return `${protocol}://${host}`.replace(/\/$/, '');
-};
-
 export const listPublishedBlogPosts = asyncHandler(async (req, res) => {
   const publishedOnly = `${req.query?.published ?? ''}` === 'true';
   const query = publishedOnly ? buildPublishedBlogQuery() : {};
@@ -205,36 +192,38 @@ export const uploadBlogImage = asyncHandler(async (req, res) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Blog image file is required');
   }
 
-  const asset = await BlogImageAsset.create({
-    fileName: req.file.originalname,
-    mimeType: req.file.mimetype,
-    size: req.file.size,
-    data: req.file.buffer,
-    uploadedBy: req.user.id,
+  const uploadedAsset = await uploadBufferToImageKit({
+    buffer: req.file.buffer,
+    originalName: req.file.originalname,
+    folder: '/recruitkr/blogs',
   });
 
-  const baseUrl = getPublicBaseUrl(req);
-  const imageUrl = `${baseUrl}/api/blogposts/images/${asset.id}`;
+  const asset = await BlogImageAsset.create({
+    name: uploadedAsset.name,
+    url: uploadedAsset.url,
+    fileId: uploadedAsset.fileId,
+    type: req.file.mimetype,
+    size: req.file.size,
+    uploadedBy: req.user.id,
+  });
 
   res.status(StatusCodes.CREATED).json({
     success: true,
     data: {
-      imageUrl,
+      imageUrl: uploadedAsset.url,
       imageId: asset.id,
+      fileId: uploadedAsset.fileId,
     },
   });
 });
 
 export const getBlogImage = asyncHandler(async (req, res) => {
-  const asset = await BlogImageAsset.findById(req.params.imageId).select('+data');
-  if (!asset?.data) {
+  const asset = await BlogImageAsset.findById(req.params.imageId).select('url');
+  if (!asset?.url) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Blog image not found');
   }
 
-  res.setHeader('Content-Type', asset.mimeType);
-  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-  res.setHeader('Content-Disposition', `inline; filename="${asset.fileName}"`);
-  res.send(asset.data);
+  return res.redirect(asset.url);
 });
 
 export const listAdminBlogPosts = asyncHandler(async (_req, res) => {

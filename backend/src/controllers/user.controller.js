@@ -5,7 +5,7 @@ import { ClientProfile } from '../models/ClientProfile.js';
 import { Resume } from '../models/Resume.js';
 import { User } from '../models/User.js';
 import { buildGeneratedResumeData } from '../services/resume.service.js';
-import { deleteImageKitFile } from '../services/imagekit.js';
+import { deleteImageKitFile, uploadBufferToImageKit } from '../services/imagekit.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -271,45 +271,74 @@ export const uploadClientProfileImage = asyncHandler(async (req, res) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Profile image file is required');
   }
 
-  const profile = await ClientProfile.findOne({ userId: req.user.id }).select('+profileImage.data');
+  const profile = await ClientProfile.findOne({ userId: req.user.id });
   if (!profile) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Client profile not found');
   }
 
+  const previousFileId = String(profile.profileImage?.fileId || '').trim();
+  const asset = await uploadBufferToImageKit({
+    buffer: req.file.buffer,
+    originalName: req.file.originalname,
+    folder: '/recruitkr/profiles',
+  });
+
+  if (previousFileId && previousFileId !== asset.fileId) {
+    try {
+      await deleteImageKitFile(previousFileId);
+    } catch (error) {
+      console.error('[client-profile-image] failed to delete previous file', error);
+    }
+  }
+
   profile.profileImage = {
-    fileName: req.file.originalname,
-    mimeType: req.file.mimetype,
+    name: asset.name,
+    url: asset.url,
+    fileId: asset.fileId,
     size: req.file.size,
-    data: req.file.buffer,
+    type: req.file.mimetype,
   };
 
   await profile.save();
 
-  res.json({ success: true, message: 'Profile image uploaded' });
+  res.status(StatusCodes.CREATED).json({
+    success: true,
+    data: {
+      profileImage: profile.profileImage,
+    },
+  });
 });
 
 export const getClientProfileImage = asyncHandler(async (req, res) => {
-  const profile = await ClientProfile.findOne({ userId: req.user.id }).select('+profileImage.data');
-  if (!profile?.profileImage?.data || !profile.profileImage?.mimeType) {
+  const profile = await ClientProfile.findOne({ userId: req.user.id }).select('profileImage');
+  if (!profile?.profileImage?.url) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Profile image not found');
   }
 
-  res.setHeader('Content-Type', profile.profileImage.mimeType);
-  res.setHeader('Content-Disposition', `inline; filename="${profile.profileImage.fileName || 'profile-image'}"`);
-  res.send(profile.profileImage.data);
+  return res.redirect(profile.profileImage.url);
 });
 
 export const deleteClientProfileImage = asyncHandler(async (req, res) => {
-  const profile = await ClientProfile.findOne({ userId: req.user.id }).select('+profileImage.data');
+  const profile = await ClientProfile.findOne({ userId: req.user.id });
   if (!profile) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Client profile not found');
   }
 
+  const previousFileId = String(profile.profileImage?.fileId || '').trim();
+  if (previousFileId) {
+    try {
+      await deleteImageKitFile(previousFileId);
+    } catch (error) {
+      console.error('[client-profile-image] failed to delete file', error);
+    }
+  }
+
   profile.profileImage = {
-    fileName: '',
-    mimeType: '',
+    name: '',
+    url: '',
+    fileId: '',
     size: 0,
-    data: undefined,
+    type: '',
   };
 
   await profile.save();

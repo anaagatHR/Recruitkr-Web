@@ -154,8 +154,10 @@ type ClientProfileResponse = {
       email?: string;
     };
     profileImage?: {
-      fileName?: string;
-      mimeType?: string;
+      name?: string;
+      url?: string;
+      fileId?: string;
+      type?: string;
       size?: number;
     };
   };
@@ -350,8 +352,10 @@ const ClientDashboard = () => {
         company: profileRes.data?.companyName || prev.company,
         contactEmail: profileRes.data?.spoc?.email || profileRes.data?.email || prev.contactEmail,
       }));
+      return profileRes.data;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load dashboard");
+      return null;
     } finally {
       setLoading(false);
     }
@@ -381,38 +385,11 @@ const ClientDashboard = () => {
     }
   }, [selectedApplicationId]);
 
-  const loadProfileImage = async () => {
+  const loadProfileImage = async (profileData?: ClientProfileResponse["data"] | null) => {
     setProfileImageLoading(true);
     try {
-      const session = getSession();
-      if (!session?.accessToken) {
-        setProfileImageUrl((prev) => {
-          if (prev) URL.revokeObjectURL(prev);
-          return null;
-        });
-        return;
-      }
-
-      const res = await fetch(`${API_BASE}/users/client/profile-image`, {
-        method: "GET",
-        credentials: "include",
-        headers: { Authorization: `Bearer ${session.accessToken}` },
-      });
-
-      if (!res.ok) {
-        setProfileImageUrl((prev) => {
-          if (prev) URL.revokeObjectURL(prev);
-          return null;
-        });
-        return;
-      }
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      setProfileImageUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return url;
-      });
+      const nextUrl = profileData?.profileImage?.url || profile?.profileImage?.url || null;
+      setProfileImageUrl(nextUrl);
     } finally {
       setProfileImageLoading(false);
     }
@@ -432,8 +409,8 @@ const ClientDashboard = () => {
         return;
       }
 
-      await loadData();
-      void loadProfileImage();
+      const profileData = await loadData();
+      void loadProfileImage(profileData);
     };
 
     void boot();
@@ -477,13 +454,6 @@ const ClientDashboard = () => {
       }
     },
   });
-
-  useEffect(() => () => {
-    setProfileImageUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-  }, []);
 
   const updateRequirementStatus = async (jobId: string, status: "active" | "on-hold" | "closed") => {
     setError("");
@@ -908,9 +878,17 @@ const ClientDashboard = () => {
     try {
       const fd = new FormData();
       fd.append("photo", file);
-      await apiPost("/users/client/profile-image", fd, true);
-      await loadData();
-      await loadProfileImage();
+      const response = await apiPost<{
+        success: boolean;
+        data: {
+          profileImage: NonNullable<ClientProfileResponse["data"]["profileImage"]>;
+        };
+      }>("/users/client/profile-image", fd, true);
+      const nextProfile = profile
+        ? { ...profile, profileImage: response.data.profileImage }
+        : { profileImage: response.data.profileImage };
+      setProfile(nextProfile);
+      await loadProfileImage(nextProfile);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to upload profile image");
     }
@@ -920,11 +898,12 @@ const ClientDashboard = () => {
     setError("");
     try {
       await apiDelete("/users/client/profile-image", true);
-      setProfileImageUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
-      await loadData();
+      setProfileImageUrl(null);
+      setProfile((current) =>
+        current
+          ? { ...current, profileImage: { name: "", url: "", fileId: "", size: 0, type: "" } }
+          : current,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to remove profile image");
     }

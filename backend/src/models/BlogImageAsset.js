@@ -2,12 +2,22 @@ import mongoose from 'mongoose';
 
 const blogImageAssetSchema = new mongoose.Schema(
   {
-    fileName: {
+    name: {
       type: String,
       required: true,
       trim: true,
     },
-    mimeType: {
+    url: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    fileId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    type: {
       type: String,
       required: true,
       trim: true,
@@ -16,11 +26,6 @@ const blogImageAssetSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 1,
-    },
-    data: {
-      type: Buffer,
-      required: true,
-      select: false,
     },
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,

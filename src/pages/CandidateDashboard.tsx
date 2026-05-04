@@ -365,6 +365,8 @@ type CandidateCertificatesResponse = {
     id: string;
     title?: string;
     fileName: string;
+    url?: string;
+    fileId?: string;
     mimeType: string;
     size: number;
     createdAt: string;
@@ -1216,29 +1218,18 @@ const CandidateDashboard = () => {
     }
   };
 
-  const downloadCertificate = async (certificateId: string, fileName: string) => {
+  const downloadCertificate = async (certificateUrl: string | undefined, fileName: string) => {
     setError("");
     try {
-      const session = getSession();
-      if (!session?.accessToken) throw new Error("Not authenticated");
-
-      const res = await fetch(`${API_BASE}/users/candidate/certificates/${certificateId}`, {
-        method: "GET",
-        credentials: "include",
-        headers: { Authorization: `Bearer ${session.accessToken}` },
-      });
-
-      if (!res.ok) throw new Error("Failed to download certificate");
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
+      if (!certificateUrl) throw new Error("Certificate URL not found");
+      a.href = certificateUrl;
       a.download = fileName || "certificate";
+      a.target = "_blank";
+      a.rel = "noreferrer";
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to download certificate");
     }
@@ -3141,7 +3132,7 @@ const CandidateDashboard = () => {
                       <div className="flex gap-2">
                         <button
                           className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
-                          onClick={() => void downloadCertificate(c.id, c.fileName)}
+                          onClick={() => void downloadCertificate(c.url, c.fileName)}
                         >
                           Download
                         </button>

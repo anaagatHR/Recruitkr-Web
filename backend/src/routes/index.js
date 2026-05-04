@@ -7,8 +7,8 @@ import dashboardRoutes from './dashboard.routes.js';
 import eventsRoutes from './events.routes.js';
 import jobsRoutes from './jobs.routes.js';
 import resumeRoutes from './resume.routes.js';
+import uploadRoutes from './upload.routes.js';
 import { downloadResumeById } from '../controllers/resume.controller.js';
-import { getUploadAuth } from '../controllers/upload.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.js';
 import userRoutes from './user.routes.js';
 
@@ -20,7 +20,6 @@ router.get('/health', (_req, res) => {
 router.get('/ping', (_req, res) => {
   res.json({ success: true, message: 'pong' });
 });
-router.get('/upload-auth', getUploadAuth);
 router.get(
   '/resume/download/:id',
   requireAuth,
@@ -36,5 +35,6 @@ router.use('/events', eventsRoutes);
 router.use('/resumes', resumeRoutes);
 router.use('/dashboards', dashboardRoutes);
 router.use('/contact', contactRoutes);
+router.use('/uploads', uploadRoutes);
 
 export default router;

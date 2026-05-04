@@ -1,6 +1,8 @@
 import { StatusCodes } from 'http-status-codes';
 
+import { CandidateProfile } from '../models/CandidateProfile.js';
 import { CandidateFile } from '../models/CandidateFile.js';
+import { deleteImageKitFile, uploadBufferToImageKit } from '../services/imagekit.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -9,42 +11,73 @@ export const uploadMyProfilePhoto = asyncHandler(async (req, res) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Profile photo file is required');
   }
 
-  await CandidateFile.findOneAndUpdate(
-    { candidateUserId: req.user.id, kind: 'profile_photo' },
-    {
-      candidateUserId: req.user.id,
-      kind: 'profile_photo',
-      title: '',
-      fileName: req.file.originalname,
-      mimeType: req.file.mimetype,
-      size: req.file.size,
-      data: req.file.buffer,
-    },
-    { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true },
-  ).exec();
+  const profile = await CandidateProfile.findOne({ userId: req.user.id }).exec();
+  if (!profile) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Candidate profile not found');
+  }
 
-  res.json({ success: true, message: 'Profile photo uploaded' });
+  const previousFileId = String(profile.profilePhotoFileId || '').trim();
+  const asset = await uploadBufferToImageKit({
+    buffer: req.file.buffer,
+    originalName: req.file.originalname,
+    folder: '/recruitkr/profiles',
+  });
+
+  if (previousFileId && previousFileId !== asset.fileId) {
+    try {
+      await deleteImageKitFile(previousFileId);
+    } catch (error) {
+      console.error('[candidate-profile-photo] failed to delete previous file', error);
+    }
+  }
+
+  profile.profilePhotoUrl = asset.url;
+  profile.profilePhotoFileId = asset.fileId;
+  await profile.save();
+
+  res.status(StatusCodes.CREATED).json({
+    success: true,
+    data: {
+      url: asset.url,
+      fileId: asset.fileId,
+      name: asset.name,
+      size: req.file.size,
+      type: req.file.mimetype,
+    },
+  });
 });
 
 export const getMyProfilePhoto = asyncHandler(async (req, res) => {
-  const file = await CandidateFile.findOne({
-    candidateUserId: req.user.id,
-    kind: 'profile_photo',
-  })
-    .select('+data')
+  const profile = await CandidateProfile.findOne({ userId: req.user.id })
+    .select('profilePhotoUrl')
+    .lean()
     .exec();
 
-  if (!file) {
+  if (!profile?.profilePhotoUrl) {
     return res.status(StatusCodes.NO_CONTENT).send();
   }
 
-  res.setHeader('Content-Type', file.mimeType);
-  res.setHeader('Content-Disposition', `inline; filename="${file.fileName}"`);
-  res.send(file.data);
+  return res.redirect(profile.profilePhotoUrl);
 });
 
 export const deleteMyProfilePhoto = asyncHandler(async (req, res) => {
-  await CandidateFile.deleteOne({ candidateUserId: req.user.id, kind: 'profile_photo' }).exec();
+  const profile = await CandidateProfile.findOne({ userId: req.user.id }).exec();
+  if (!profile) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Candidate profile not found');
+  }
+
+  const previousFileId = String(profile.profilePhotoFileId || '').trim();
+  if (previousFileId) {
+    try {
+      await deleteImageKitFile(previousFileId);
+    } catch (error) {
+      console.error('[candidate-profile-photo] failed to delete file', error);
+    }
+  }
+
+  profile.profilePhotoUrl = '';
+  profile.profilePhotoFileId = '';
+  await profile.save();
   res.json({ success: true, message: 'Profile photo removed' });
 });
 
@@ -55,14 +88,21 @@ export const uploadMyCertificate = asyncHandler(async (req, res) => {
 
   const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
 
+  const asset = await uploadBufferToImageKit({
+    buffer: req.file.buffer,
+    originalName: req.file.originalname,
+    folder: '/recruitkr/certificates',
+  });
+
   const doc = await CandidateFile.create({
     candidateUserId: req.user.id,
     kind: 'certificate',
     title,
-    fileName: req.file.originalname,
-    mimeType: req.file.mimetype,
+    name: asset.name,
+    url: asset.url,
+    fileId: asset.fileId,
     size: req.file.size,
-    data: req.file.buffer,
+    type: req.file.mimetype,
   });
 
   res.status(StatusCodes.CREATED).json({
@@ -70,8 +110,10 @@ export const uploadMyCertificate = asyncHandler(async (req, res) => {
     data: {
       id: doc.id,
       title: doc.title,
-      fileName: doc.fileName,
-      mimeType: doc.mimeType,
+      fileName: doc.name,
+      url: doc.url,
+      fileId: doc.fileId,
+      mimeType: doc.type,
       size: doc.size,
       createdAt: doc.createdAt,
     },
@@ -80,7 +122,7 @@ export const uploadMyCertificate = asyncHandler(async (req, res) => {
 
 export const listMyCertificates = asyncHandler(async (req, res) => {
   const items = await CandidateFile.find({ candidateUserId: req.user.id, kind: 'certificate' })
-    .select('_id title fileName mimeType size createdAt')
+    .select('_id title name url fileId type size createdAt')
     .sort({ createdAt: -1 })
     .exec();
 
@@ -89,8 +131,10 @@ export const listMyCertificates = asyncHandler(async (req, res) => {
     data: items.map((i) => ({
       id: i.id,
       title: i.title,
-      fileName: i.fileName,
-      mimeType: i.mimeType,
+      fileName: i.name,
+      url: i.url,
+      fileId: i.fileId,
+      mimeType: i.type,
       size: i.size,
       createdAt: i.createdAt,
     })),
@@ -102,29 +146,32 @@ export const downloadMyCertificate = asyncHandler(async (req, res) => {
     _id: req.params.certificateId,
     candidateUserId: req.user.id,
     kind: 'certificate',
-  })
-    .select('+data')
-    .exec();
+  }).exec();
 
   if (!file) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Certificate not found');
   }
 
-  res.setHeader('Content-Type', file.mimeType);
-  res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
-  res.send(file.data);
+  return res.redirect(file.url);
 });
 
 export const deleteMyCertificate = asyncHandler(async (req, res) => {
-  const result = await CandidateFile.deleteOne({
+  const file = await CandidateFile.findOne({
     _id: req.params.certificateId,
     candidateUserId: req.user.id,
     kind: 'certificate',
   }).exec();
 
-  if (!result.deletedCount) {
+  if (!file) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Certificate not found');
   }
 
+  try {
+    await deleteImageKitFile(file.fileId);
+  } catch (error) {
+    console.error('[candidate-certificate] failed to delete file', error);
+  }
+
+  await CandidateFile.deleteOne({ _id: file._id }).exec();
   res.json({ success: true, message: 'Certificate deleted' });
 });

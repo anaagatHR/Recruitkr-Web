@@ -15,6 +15,7 @@ import blogRoutes from './routes/blog.routes.js';
 import contactRoutes from './routes/contact.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import apiRoutes from './routes/index.js';
+import uploadRoutes from './routes/upload.routes.js';
 
 const app = express();
 const allowedOrigins = env.CORS_ORIGIN.split(',').map((v) => v.trim()).filter(Boolean);
@@ -81,6 +82,7 @@ app.use(['/api/v1/blogs', '/api/blogposts'], (req, _res, next) => {
 });
 
 app.use('/api/v1', apiRoutes);
+app.use('/api/uploads', uploadRoutes);
 // Backwards-compatible auth alias for clients expecting /api/auth/... instead of /api/v1/auth/...
 app.use('/api/auth', authRoutes);
 app.use('/api/blogposts', blogRoutes);

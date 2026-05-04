@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "tsx watch src/server.js",
     "start": "node src/server.js",
+    "migrate:imagekit": "node scripts/migrateToImageKitProduction.js",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

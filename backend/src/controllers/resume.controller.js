@@ -235,7 +235,7 @@ export const downloadMyGeneratedResume = asyncHandler(async (req, res) => {
     User.findById(req.user.id).select('_id email mobile').exec(),
     CandidateProfile.findOne({ userId: req.user.id }).exec(),
     CandidateFile.find({ candidateUserId: req.user.id, kind: 'certificate' })
-      .select('title fileName createdAt')
+      .select('title name createdAt')
       .sort({ createdAt: -1 })
       .exec(),
     Resume.findOne({ candidateUserId: req.user.id }).exec(),
@@ -256,7 +256,7 @@ export const downloadMyGeneratedResume = asyncHandler(async (req, res) => {
 
   const uploadedCertifications = (certificateFiles || [])
     .map((file) => ({
-      name: file.title?.trim() || file.fileName?.trim() || 'Certificate',
+      name: file.title?.trim() || file.name?.trim() || 'Certificate',
       institute: '',
     }))
     .filter((item) => item.name || item.institute);
