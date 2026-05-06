@@ -28,13 +28,22 @@ export const fetchTeamMembers = async () => {
   const members = Array.isArray(response) ? response : [];
 
   if (typeof window !== "undefined") {
-    sessionStorage.setItem(
-      TEAM_CACHE_KEY,
-      JSON.stringify({
-        savedAt: Date.now(),
-        members,
-      }),
-    );
+    try {
+      sessionStorage.setItem(
+        TEAM_CACHE_KEY,
+        JSON.stringify({
+          savedAt: Date.now(),
+          members,
+        }),
+      );
+    } catch (error) {
+      console.warn("[team] unable to persist team cache", error);
+      try {
+        sessionStorage.removeItem(TEAM_CACHE_KEY);
+      } catch {
+        // Ignore storage cleanup failures.
+      }
+    }
   }
 
   return members;
