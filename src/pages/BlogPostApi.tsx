@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import BlogCard from "@/components/blogCard";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
+import PageSeo from "@/components/PageSeo";
 import { getRenderableBlogHtml } from "@/lib/blogHtml";
 import { fetchBlogPost, fetchBlogPosts, type BlogPost } from "@/lib/blog";
 
@@ -18,6 +19,32 @@ const BlogPostApi = () => {
   const [error, setError] = useState("");
   const publishedDate = post?.publishedAt
     ? new Date(post.publishedAt).toLocaleDateString()
+    : null;
+  const seoDescription = post?.excerpt?.trim() || "Read the latest hiring and workforce insights from RecruitKr.";
+  const canonicalPath = post?.slug ? `/blog/${post.slug}` : "/blog";
+  const articleStructuredData = post
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        headline: post.title,
+        description: seoDescription,
+        image: post.coverImage ? [post.coverImage] : undefined,
+        author: {
+          "@type": "Organization",
+          name: post.authorName || "RecruitKr Editorial",
+        },
+        publisher: {
+          "@type": "Organization",
+          name: "RecruitKr",
+          logo: {
+            "@type": "ImageObject",
+            url: "https://www.recruitkr.com/favicon.png?v=5",
+          },
+        },
+        datePublished: post.publishedAt || undefined,
+        dateModified: post.updatedAt || post.publishedAt || undefined,
+        mainEntityOfPage: `https://www.recruitkr.com${canonicalPath}`,
+      }
     : null;
 
   useEffect(() => {
@@ -54,6 +81,14 @@ const BlogPostApi = () => {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f7fafc_0%,#ffffff_22%,#f7fbff_100%)]">
+      <PageSeo
+        title={post ? `${post.title} | RecruitKr Blog` : "RecruitKr Blog"}
+        description={seoDescription}
+        canonicalPath={canonicalPath}
+        image={post?.coverImage || undefined}
+        type="article"
+        structuredData={articleStructuredData}
+      />
       <Navbar />
 
       <main className="py-6 pt-28">

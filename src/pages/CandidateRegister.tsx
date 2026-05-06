@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import { setSession } from "@/lib/auth";
-import { apiPost } from "@/lib/api";
+import { apiPatch, apiPost } from "@/lib/api";
 import { normalizeOptionalHttpUrl, normalizeOptionalLinkedinUrl } from "@/lib/url";
 import {
   uploadFile,
@@ -83,6 +83,7 @@ const CandidateRegister = () => {
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -241,8 +242,17 @@ const CandidateRegister = () => {
           ].filter((item) => item.title || item.company || item.duration || item.description)
         : [];
 
+    const summaryParts = [
+      form.preferredRole.trim() ? `Seeking ${form.preferredRole.trim()} opportunities.` : "",
+      form.experienceStatus === "experienced"
+        ? [form.designation.trim(), form.currentCompany.trim()].filter(Boolean).join(" at ")
+        : "Fresher candidate.",
+      form.preferredLocation.trim() ? `Preferred location: ${form.preferredLocation.trim()}.` : "",
+    ].filter(Boolean);
+
     return {
       name: form.fullName.trim(),
+      summary: summaryParts.join(" "),
       skills,
       education,
       experience,
@@ -285,15 +295,7 @@ const CandidateRegister = () => {
         return;
       }
 
-      let resumeAsset: Awaited<ReturnType<typeof uploadFile>> | null = null;
-
-      if (resumeFile) {
-        setUploadingResume(true);
-        setStatusMessage("Uploading resume...");
-        resumeAsset = await uploadFile(resumeFile, "resumes");
-      }
-
-      const resumeType = resumeAsset ? "uploaded" : "generated";
+      const generatedResumeData = buildGeneratedResumeData();
 
       const payload: Record<string, unknown> = {
         email: form.email.trim().toLowerCase(),
@@ -316,7 +318,8 @@ const CandidateRegister = () => {
         },
         declarationAccepted,
         representationAuthorized,
-        resumeType,
+        resumeType: "generated",
+        resumeData: generatedResumeData,
       };
 
       if (isExperienced) {
@@ -331,14 +334,6 @@ const CandidateRegister = () => {
           noticePeriod: form.noticePeriod,
           lastWorkingDay: form.lastWorkingDay || undefined,
         };
-      }
-
-      if (resumeType === "uploaded") {
-        payload.resumeUrl = resumeAsset.url;
-        payload.resumeFileId = resumeAsset.fileId;
-        payload.resumeFileName = resumeFile?.name || "candidate_resume.pdf";
-      } else {
-        payload.resumeData = buildGeneratedResumeData();
       }
 
       setStatusMessage("Submitting registration...");
@@ -362,6 +357,38 @@ const CandidateRegister = () => {
         user: json.data.user,
       });
 
+      let nextSuccessMessage = "Registration completed. Redirecting you to your dashboard...";
+
+      if (resumeFile) {
+        try {
+          setUploadingResume(true);
+          setStatusMessage("Uploading resume...");
+          const resumeAsset = await uploadFile(resumeFile, "resumes");
+
+          setStatusMessage("Finalizing uploaded resume...");
+          await apiPatch(
+            "/users/candidate/me",
+            {
+              resumeType: "uploaded",
+              resumeUrl: resumeAsset.url,
+              resumeFileId: resumeAsset.fileId,
+              resumeFileName: resumeFile.name || "candidate_resume.pdf",
+            },
+            { auth: true, onRetry },
+          );
+
+          nextSuccessMessage = "Registration completed and your uploaded resume was saved successfully.";
+        } catch (uploadError) {
+          console.error("[candidate-register] resume upload after registration failed", uploadError);
+          nextSuccessMessage =
+            "Registration completed, but the PDF resume could not be uploaded. We kept your generated resume, and you can upload the PDF later from your dashboard.";
+        }
+      } else {
+        nextSuccessMessage =
+          "Registration completed. Your resume will be generated automatically from the form details.";
+      }
+
+      setSuccessMessage(nextSuccessMessage);
       setSubmitted(true);
       setTimeout(() => navigate("/dashboard/candidate"), 1200);
     } catch (error) {
@@ -384,7 +411,7 @@ const CandidateRegister = () => {
             <span className="text-3xl font-bold text-white">OK</span>
           </div>
           <h2 className="mb-3 font-heading text-3xl font-bold">Registration Submitted</h2>
-          <p className="text-muted-foreground">Redirecting you to the dashboard...</p>
+          <p className="text-muted-foreground">{successMessage || "Redirecting you to the dashboard..."}</p>
         </div>
       </div>
     );

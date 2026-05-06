@@ -78,7 +78,6 @@ const normalizeBlogPost = (post: Partial<BlogPost>, index = 0): BlogPost => ({
 
 export const fetchBlogPosts = async () => {
   const response = await apiGet<BlogListResponse>("/api/blogposts?published=true");
-  console.log("API RESPONSE:", response);
 
   const rawPosts = Array.isArray(response.blogPosts)
     ? response.blogPosts

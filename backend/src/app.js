@@ -37,12 +37,12 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization'],
   }),
 );
-
-app.use((req, _res, next) => {
-  console.log('Request:', req.method, req.url);
-  next();
-});
-app.use(helmet());
+app.use(
+  helmet({
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    crossOriginResourcePolicy: false,
+  }),
+);
 app.use(
   compression({
     filter: (req, res) => {

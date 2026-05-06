@@ -4,6 +4,7 @@ import { Search } from "lucide-react";
 import BlogCard from "@/components/blogCard";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
+import PageSeo from "@/components/PageSeo";
 import { fetchBlogPosts, type BlogPost } from "@/lib/blog";
 
 const Blog = () => {
@@ -46,6 +47,20 @@ const Blog = () => {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f7fafc_0%,#ffffff_22%,#f7fbff_100%)]">
+      <PageSeo
+        title="RecruitKr Blog | Hiring, Recruitment and HR Insights"
+        description="Read RecruitKr blog articles on hiring, recruitment strategy, employer branding, staffing, payroll, and workforce growth."
+        canonicalPath="/blog"
+        type="website"
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "Blog",
+          name: "RecruitKr Blog",
+          description:
+            "Hiring, recruitment, staffing, payroll, and employer branding insights from RecruitKr.",
+          url: "https://www.recruitkr.com/blog",
+        }}
+      />
       <Navbar />
 
       <main className="pt-28 pb-20">

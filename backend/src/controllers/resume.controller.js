@@ -219,8 +219,33 @@ export const downloadResumeById = asyncHandler(async (req, res) => {
     return res.redirect(resume.resumeUrl);
   }
 
-  const html = generateResumeHTML(resume.resumeData || {});
-  const pdf = await generatePDF(html);
+  const [candidateProfile, candidateUser, certificateFiles] = await Promise.all([
+    CandidateProfile.findOne({ userId: resume.candidateUserId }).exec(),
+    User.findById(resume.candidateUserId).select('_id email mobile').exec(),
+    CandidateFile.find({ candidateUserId: resume.candidateUserId, kind: 'certificate' })
+      .select('title name createdAt')
+      .sort({ createdAt: -1 })
+      .exec(),
+  ]);
+
+  const uploadedCertifications = (certificateFiles || [])
+    .map((file) => ({
+      name: file.title?.trim() || file.name?.trim() || 'Certificate',
+      institute: '',
+    }))
+    .filter((item) => item.name || item.institute);
+
+  const pdf =
+    candidateProfile && candidateUser
+      ? await generateResumePdfBuffer({
+          ...candidateProfile.toObject(),
+          email: candidateUser.email,
+          mobile: candidateUser.mobile,
+          certifications: uploadedCertifications,
+        })
+      : resume.resumeData?.name
+        ? await generateStructuredResumePdfBuffer(resume.resumeData)
+        : await generatePDF(generateResumeHTML(resume.resumeData || {}));
 
   res.set({
     'Content-Type': 'application/pdf',

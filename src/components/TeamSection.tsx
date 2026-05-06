@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BriefcaseBusiness, Linkedin, Mail } from "lucide-react";
 
-import { fetchTeamMembers, type TeamMember } from "@/lib/team";
+import { fetchTeamMembers, getCachedTeamMembers, type TeamMember } from "@/lib/team";
 
 const getInitials = (name: string) =>
   name
@@ -12,14 +12,17 @@ const getInitials = (name: string) =>
     .toUpperCase();
 
 const TeamSection = () => {
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedTeamMembers = getCachedTeamMembers();
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(cachedTeamMembers);
+  const [loading, setLoading] = useState(cachedTeamMembers.length === 0);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const loadTeamMembers = async () => {
       try {
-        setLoading(true);
+        if (cachedTeamMembers.length === 0) {
+          setLoading(true);
+        }
         setError("");
         const response = await fetchTeamMembers();
         setTeamMembers(response);
@@ -125,7 +128,13 @@ const TeamSection = () => {
                       }`}
                     >
                       {hasImage ? (
-                        <img src={member.image} alt={member.name} className="h-full w-full object-cover" />
+                        <img
+                          src={member.image}
+                          alt={member.name}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
                         initials || "TM"
                       )}
