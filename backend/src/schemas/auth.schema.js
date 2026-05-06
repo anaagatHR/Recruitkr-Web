@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { normalizeOptionalHttpUrl, normalizeOptionalLinkedinUrl } from '../utils/url.js';
 
-const email = z.string().email().toLowerCase().trim();
-const mobile = z.string().trim().regex(/^\d{10}$/);
+const email = z.string().trim().email('Enter a valid email address').toLowerCase();
+const mobile = z.string().trim().regex(/^\d{10}$/, 'Enter a valid 10 digit mobile number');
 const password = z
   .string()
-  .min(8)
+  .min(8, 'Password must be at least 8 characters long')
   .max(128)
   .regex(/[a-z]/, 'Password must include a lowercase letter')
   .regex(/[A-Z]/, 'Password must include an uppercase letter')
@@ -14,12 +14,12 @@ const password = z
 
 const optionalHttpUrl = z.preprocess(
   normalizeOptionalHttpUrl,
-  z.string().url().optional().or(z.literal('')),
+  z.string().url('Enter a valid website URL').optional().or(z.literal('')),
 );
 
 const optionalLinkedinUrl = z.preprocess(
   normalizeOptionalLinkedinUrl,
-  z.string().url().optional().or(z.literal('')),
+  z.string().url('Enter a valid LinkedIn URL').optional().or(z.literal('')),
 );
 
 const generatedResumeDataSchema = z
@@ -71,7 +71,7 @@ export const candidateRegisterSchema = z
     dateOfBirth: z.coerce.date(),
     gender: z.enum(['Male', 'Female', 'Other', 'Prefer Not to Say']),
     address: z.string().trim().min(5).max(500),
-    pincode: z.string().regex(/^\d{6}$/),
+    pincode: z.string().regex(/^\d{6}$/, 'Enter a valid 6 digit pincode'),
     linkedinUrl: optionalLinkedinUrl,
     portfolioUrl: optionalHttpUrl,
     highestQualification: z.string().trim().min(2).max(100),
@@ -150,7 +150,7 @@ export const clientRegisterSchema = z
     billing: z
       .object({
         billingCompanyName: z.string().trim().min(2).max(180),
-        gstNumber: z.string().trim().toUpperCase().regex(/^[0-9A-Z]{15}$/),
+        gstNumber: z.string().trim().toUpperCase().regex(/^[0-9A-Z]{15}$/, 'Enter a valid 15 character GST number'),
         billingAddress: z.string().trim().min(5).max(500),
         billingEmail: email,
       })
