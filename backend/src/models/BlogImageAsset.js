@@ -27,12 +27,6 @@ const blogImageAssetSchema = new mongoose.Schema(
       required: true,
       min: 1,
     },
-    uploadedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-      index: true,
-    },
   },
   { timestamps: true },
 );

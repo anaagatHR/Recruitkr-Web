@@ -23,9 +23,9 @@ function BlogCardComponent({ blog }: BlogCardProps) {
       onClick={openPost}
       className="group min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg"
     >
-      {blog.coverImage ? (
+      {blog.coverImage?.url ? (
         <img
-          src={blog.coverImage}
+          src={blog.coverImage.url}
           alt={blog.title}
           width={1200}
           height={675}

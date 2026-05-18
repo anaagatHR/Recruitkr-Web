@@ -1,11 +1,22 @@
 import { z } from 'zod';
 
 const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const imageKitUrlRegex = /^https?:\/\/.+/i;
 const emptyStringToUndefined = (value) => {
   if (typeof value !== 'string') return value;
   const trimmed = value.trim();
   return trimmed.length === 0 ? undefined : trimmed;
 };
+
+const imageAssetSchema = z
+  .object({
+    url: z.string().trim().regex(imageKitUrlRegex, 'Image URL must be absolute'),
+    fileId: z.string().trim().min(1),
+    name: z.string().trim().min(1).max(255),
+    size: z.coerce.number().int().positive(),
+    type: z.string().trim().min(1).max(120),
+  })
+  .strict();
 
 const baseCreateBlogPostSchema = z
   .object({
@@ -13,9 +24,10 @@ const baseCreateBlogPostSchema = z
     slug: z.string().trim().toLowerCase().regex(slugRegex, 'Slug must be URL friendly').optional(),
     excerpt: z.string().trim().min(20).max(320),
     authorName: z.preprocess(emptyStringToUndefined, z.string().trim().min(2).max(120).optional()),
-    coverImage: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
+    coverImage: imageAssetSchema.optional().nullable(),
     contentHtml: z.preprocess(emptyStringToUndefined, z.string().trim().min(1).max(200000).optional()),
     content: z.array(z.string().trim().min(1).max(4000)).min(1).optional(),
+    contentImages: z.array(imageAssetSchema).default([]),
     tags: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
     readingTime: z.string().trim().min(3).max(40),
     status: z.enum(['draft', 'published']).default('draft'),
@@ -37,9 +49,10 @@ export const updateBlogPostSchema = z
     slug: z.string().trim().toLowerCase().regex(slugRegex, 'Slug must be URL friendly').optional(),
     excerpt: z.string().trim().min(20).max(320).optional(),
     authorName: z.preprocess(emptyStringToUndefined, z.string().trim().min(2).max(120).optional()),
-    coverImage: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
+    coverImage: imageAssetSchema.optional().nullable(),
     contentHtml: z.preprocess(emptyStringToUndefined, z.string().trim().min(1).max(200000).optional()),
     content: z.array(z.string().trim().min(1).max(4000)).min(1).optional(),
+    contentImages: z.array(imageAssetSchema).optional(),
     tags: z.array(z.string().trim().min(1).max(40)).max(10).optional(),
     readingTime: z.string().trim().min(3).max(40).optional(),
     status: z.enum(['draft', 'published']).optional(),

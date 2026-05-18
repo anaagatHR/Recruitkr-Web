@@ -1,8 +1,18 @@
 import { apiGet } from "@/lib/api";
 import { apiPatch, apiPost } from "@/lib/api";
 import { API_ROOT } from "@/lib/api";
-import { getRenderableBlogHtml } from "@/lib/blogHtml";
-import { uploadFile } from "@/lib/uploadFile";
+import {
+  getRenderableBlogHtml,
+  normalizeBlogAssetUrl,
+} from "@/lib/blogHtml";
+
+export type BlogImageAsset = {
+  url: string;
+  fileId: string;
+  name: string;
+  size: number;
+  type: string;
+};
 
 export type BlogPost = {
   _id?: string;
@@ -10,12 +20,13 @@ export type BlogPost = {
   title: string;
   excerpt: string;
   authorName?: string;
-  coverImage?: string | null;
+  coverImage?: BlogImageAsset | null;
   contentHtml?: string;
   publishedAt: string | null;
   readingTime: string;
   tags: string[];
   content: string[];
+  contentImages: BlogImageAsset[];
   status?: "draft" | "published";
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -47,34 +58,79 @@ export type BlogEditorPayload = {
   slug?: string;
   excerpt: string;
   authorName?: string;
-  coverImage?: string;
+  coverImage?: BlogImageAsset | null;
   contentHtml: string;
+  contentImages: BlogImageAsset[];
   tags: string[];
   readingTime: string;
   status: "draft" | "published";
   publishedAt?: string | null;
 };
 
-const normalizeBlogPost = (post: Partial<BlogPost>, index = 0): BlogPost => ({
-  _id: post._id,
-  slug: post.slug?.trim() || `blog-post-${index + 1}`,
-  title: post.title?.trim() || "Untitled blog post",
-  excerpt: post.excerpt?.trim() || "No description available.",
-  authorName: post.authorName?.trim() || "RecruitKr Editorial",
-  coverImage: post.coverImage || null,
-  contentHtml: getRenderableBlogHtml(
+const normalizeBlogImageAsset = (asset?: Partial<BlogImageAsset> | string | null): BlogImageAsset | null => {
+  if (!asset) return null;
+
+  if (typeof asset === "string") {
+    const normalizedUrl = normalizeBlogAssetUrl(asset, API_ROOT);
+    return normalizedUrl
+      ? {
+          url: normalizedUrl,
+          fileId: "",
+          name: "legacy-blog-image",
+          size: 1,
+          type: "image/*",
+        }
+      : null;
+  }
+
+  const normalizedUrl = normalizeBlogAssetUrl(asset.url, API_ROOT);
+  const fileId = asset.fileId?.trim();
+  const name = asset.name?.trim();
+  const type = asset.type?.trim();
+  const size = Number(asset.size);
+
+  if (!normalizedUrl || !fileId || !name || !type || !Number.isFinite(size) || size <= 0) {
+    return null;
+  }
+
+  return {
+    url: normalizedUrl,
+    fileId,
+    name,
+    size,
+    type,
+  };
+};
+
+const normalizeBlogPost = (post: Partial<BlogPost>, index = 0): BlogPost => {
+  const renderedContentHtml = getRenderableBlogHtml(
     post.contentHtml,
     Array.isArray(post.content) ? post.content : [],
     API_ROOT,
-  ),
-  publishedAt: post.publishedAt ?? null,
-  readingTime: post.readingTime?.trim() || "5 min read",
-  tags: Array.isArray(post.tags) ? post.tags.filter(Boolean) : [],
-  content: Array.isArray(post.content) ? post.content.filter(Boolean) : [],
-  status: post.status,
-  createdAt: post.createdAt ?? null,
-  updatedAt: post.updatedAt ?? null,
-});
+  );
+  const normalizedCoverImage = normalizeBlogImageAsset(post.coverImage);
+  const normalizedContentImages = Array.isArray(post.contentImages)
+    ? post.contentImages.map((asset) => normalizeBlogImageAsset(asset)).filter(Boolean) as BlogImageAsset[]
+    : [];
+
+  return {
+    _id: post._id,
+    slug: post.slug?.trim() || `blog-post-${index + 1}`,
+    title: post.title?.trim() || "Untitled blog post",
+    excerpt: post.excerpt?.trim() || "No description available.",
+    authorName: post.authorName?.trim() || "RecruitKr Editorial",
+    coverImage: normalizedCoverImage,
+    contentHtml: renderedContentHtml,
+    publishedAt: post.publishedAt ?? null,
+    readingTime: post.readingTime?.trim() || "5 min read",
+    tags: Array.isArray(post.tags) ? post.tags.filter(Boolean) : [],
+    content: Array.isArray(post.content) ? post.content.filter(Boolean) : [],
+    contentImages: normalizedContentImages,
+    status: post.status,
+    createdAt: post.createdAt ?? null,
+    updatedAt: post.updatedAt ?? null,
+  };
+};
 
 export const fetchBlogPosts = async () => {
   const response = await apiGet<BlogListResponse>("/api/blogposts?published=true");
@@ -123,6 +179,18 @@ export const updateAdminBlogPost = async (blogId: string, payload: Partial<BlogE
 };
 
 export const uploadBlogEditorImage = async (file: File) => {
-  const asset = await uploadFile(file, "blogs");
-  return asset.url;
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const response = await apiPost<{
+    success?: boolean;
+    data?: Partial<BlogImageAsset>;
+  }>("/api/blogposts/images", formData, true);
+
+  const asset = normalizeBlogImageAsset(response.data);
+  if (!response.success || !asset) {
+    throw new Error("Failed to upload blog image");
+  }
+
+  return asset;
 };

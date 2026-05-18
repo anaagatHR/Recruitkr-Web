@@ -5,6 +5,7 @@ import BlogCard from "@/components/blogCard";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import PageSeo from "@/components/PageSeo";
+import { API_ROOT } from "@/lib/api";
 import { getRenderableBlogHtml } from "@/lib/blogHtml";
 import { fetchBlogPost, fetchBlogPosts, type BlogPost } from "@/lib/blog";
 
@@ -28,7 +29,7 @@ const BlogPostApi = () => {
         "@type": "Article",
         headline: post.title,
         description: seoDescription,
-        image: post.coverImage ? [post.coverImage] : undefined,
+        image: post.coverImage?.url ? [post.coverImage.url] : undefined,
         author: {
           "@type": "Organization",
           name: post.authorName || "RecruitKr Editorial",
@@ -85,7 +86,7 @@ const BlogPostApi = () => {
         title={post ? `${post.title} | RecruitKr Blog` : "RecruitKr Blog"}
         description={seoDescription}
         canonicalPath={canonicalPath}
-        image={post?.coverImage || undefined}
+        image={post?.coverImage?.url || undefined}
         type="article"
         structuredData={articleStructuredData}
       />
@@ -111,9 +112,9 @@ const BlogPostApi = () => {
           ) : (
             <article className="space-y-5 sm:space-y-6">
               <div className="rounded-2xl border border-[#264a7f]/10 bg-white p-4 shadow-sm sm:p-5">
-                {post.coverImage ? (
+                {post.coverImage?.url ? (
                   <img
-                    src={post.coverImage}
+                    src={post.coverImage.url}
                     alt={post.title}
                     width={1200}
                     height={675}
@@ -156,7 +157,7 @@ const BlogPostApi = () => {
                 <div
                   className="blog-prose prose prose-sm mt-4 max-w-none overflow-hidden break-words text-slate-700 prose-headings:mt-4 prose-headings:scroll-mt-28 prose-headings:font-semibold prose-headings:text-slate-900 prose-h2:text-xl prose-h3:text-lg prose-p:mt-2 prose-p:text-sm prose-p:leading-relaxed prose-ul:mt-3 prose-ul:pl-5 prose-ol:mt-3 prose-ol:pl-5 prose-li:mt-1 prose-img:my-4 prose-img:w-full prose-img:max-w-full prose-img:rounded-xl prose-img:object-contain prose-a:text-primary md:prose-base"
                   dangerouslySetInnerHTML={{
-                    __html: getRenderableBlogHtml(post.contentHtml, post.content),
+                    __html: getRenderableBlogHtml(post.contentHtml, post.content, API_ROOT),
                   }}
                 />
 

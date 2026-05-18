@@ -1,4 +1,5 @@
 const base64ImagePattern = /<img[^>]+src=["']data:image\/[^"']+["'][^>]*>/gi;
+const imageSrcPattern = /<img[^>]+src=(["'])([^"']+)\1[^>]*>/gi;
 
 const decodeHtmlEntities = (html: string) =>
   html
@@ -27,6 +28,28 @@ export const paragraphsToHtml = (paragraphs: string[] = []) =>
     .map((paragraph) => `<p>${paragraph}</p>`)
     .join("");
 
+export const normalizeBlogAssetUrl = (rawUrl?: string | null, assetBaseUrl = "") => {
+  const trimmedUrl = rawUrl?.trim();
+
+  if (!trimmedUrl) return null;
+  if (!assetBaseUrl) return trimmedUrl;
+
+  if (trimmedUrl.startsWith("/api/blogposts/images/")) {
+    return `${assetBaseUrl.replace(/\/$/, "")}${trimmedUrl}`;
+  }
+
+  try {
+    const parsed = new URL(trimmedUrl);
+    if (parsed.pathname.startsWith("/api/blogposts/images/")) {
+      return `${assetBaseUrl.replace(/\/$/, "")}${parsed.pathname}`;
+    }
+  } catch {
+    return trimmedUrl;
+  }
+
+  return trimmedUrl;
+};
+
 export const normalizeBlogImageUrls = (html: string, assetBaseUrl = "") =>
   html.replace(/<img([^>]*?)src=(["'])([^"']+)\2([^>]*)>/gi, (_match, beforeSrc, quote, rawSrc, afterSrc) => {
     const trimmedSrc = rawSrc.trim();
@@ -37,18 +60,7 @@ export const normalizeBlogImageUrls = (html: string, assetBaseUrl = "") =>
 
     let normalizedSrc = trimmedSrc;
 
-    if (trimmedSrc.startsWith("/api/blogposts/images/") && assetBaseUrl) {
-      normalizedSrc = `${assetBaseUrl.replace(/\/$/, "")}${trimmedSrc}`;
-    } else {
-      try {
-        const parsed = new URL(trimmedSrc);
-        if (parsed.pathname.startsWith("/api/blogposts/images/") && assetBaseUrl) {
-          normalizedSrc = `${assetBaseUrl.replace(/\/$/, "")}${parsed.pathname}`;
-        }
-      } catch {
-        normalizedSrc = trimmedSrc;
-      }
-    }
+    normalizedSrc = normalizeBlogAssetUrl(trimmedSrc, assetBaseUrl) || trimmedSrc;
 
     const normalizedAttributes = `${beforeSrc}${afterSrc}`
       .replace(/\sloading=(["']).*?\1/gi, "")
@@ -59,6 +71,18 @@ export const normalizeBlogImageUrls = (html: string, assetBaseUrl = "") =>
 
     return `<img${normalizedAttributes} src=${quote}${normalizedSrc}${quote} loading="lazy" decoding="async" width="1200" height="675">`;
   });
+
+export const getFirstImageFromBlogHtml = (html: string, assetBaseUrl = "") => {
+  const match = html.match(/<img[^>]+src=(["'])([^"']+)\1/i);
+  if (!match?.[2]) return null;
+
+  return normalizeBlogAssetUrl(match[2], assetBaseUrl);
+};
+
+export const extractImageUrlsFromBlogHtml = (html: string) =>
+  Array.from(html.matchAll(imageSrcPattern), (match) => match[2]?.trim()).filter(
+    (value): value is string => Boolean(value),
+  );
 
 export const getRenderableBlogHtml = (contentHtml?: string, content: string[] = [], assetBaseUrl = "") =>
   normalizeBlogImageUrls(cleanBlogHtml(contentHtml?.trim() || "") || paragraphsToHtml(content), assetBaseUrl);

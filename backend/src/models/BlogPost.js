@@ -1,5 +1,36 @@
 import mongoose from 'mongoose';
 
+const imageAssetSchema = new mongoose.Schema(
+  {
+    url: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    fileId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    size: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+    type: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+  },
+  { _id: false },
+);
+
 const blogPostSchema = new mongoose.Schema(
   {
     title: {
@@ -29,8 +60,7 @@ const blogPostSchema = new mongoose.Schema(
       maxlength: 120,
     },
     coverImage: {
-      type: String,
-      trim: true,
+      type: imageAssetSchema,
       default: null,
     },
     contentHtml: {
@@ -48,6 +78,10 @@ const blogPostSchema = new mongoose.Schema(
     },
     tags: {
       type: [String],
+      default: [],
+    },
+    contentImages: {
+      type: [imageAssetSchema],
       default: [],
     },
     readingTime: {

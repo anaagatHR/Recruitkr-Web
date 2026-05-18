@@ -5,9 +5,17 @@ import "react-quill/dist/quill.snow.css";
 
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
+import { API_ROOT } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { cleanBlogHtml, getPlainTextFromHtml, getRenderableBlogHtml } from "@/lib/blogHtml";
 import {
+  cleanBlogHtml,
+  extractImageUrlsFromBlogHtml,
+  getPlainTextFromHtml,
+  getRenderableBlogHtml,
+  normalizeBlogAssetUrl,
+} from "@/lib/blogHtml";
+import {
+  type BlogImageAsset,
   createAdminBlogPost,
   fetchAdminBlogPosts,
   type BlogEditorPayload,
@@ -22,13 +30,22 @@ const estimateReadingTime = (html: string) => {
   return `${Math.max(1, Math.ceil(wordCount / 200))} min read`;
 };
 
+const dedupeBlogImageAssets = (assets: BlogImageAsset[] = []) =>
+  Array.from(new Map(assets.map((asset) => [asset.url, asset])).values());
+
+const syncTrackedContentImages = (html: string, assets: BlogImageAsset[] = []) => {
+  const imageUrls = new Set(extractImageUrlsFromBlogHtml(html));
+  return dedupeBlogImageAssets(assets.filter((asset) => imageUrls.has(asset.url)));
+};
+
 const initialForm: BlogEditorPayload = {
   title: "",
   slug: "",
   excerpt: "",
   authorName: "RecruitKr Editorial",
-  coverImage: "",
+  coverImage: null,
   contentHtml: "",
+  contentImages: [],
   tags: [],
   readingTime: "1 min read",
   status: "draft",
@@ -38,12 +55,14 @@ const initialForm: BlogEditorPayload = {
 const AdminBlogEditor = () => {
   const navigate = useNavigate();
   const quillRef = useRef<ReactQuill | null>(null);
+  const coverImageInputRef = useRef<HTMLInputElement | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [selectedBlogId, setSelectedBlogId] = useState<string | null>(null);
   const [form, setForm] = useState<BlogEditorPayload>(initialForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingCoverImage, setUploadingCoverImage] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -74,27 +93,14 @@ const AdminBlogEditor = () => {
     void loadBlogs();
   }, [sessionChecked]);
 
+  const coverImagePreviewUrl = normalizeBlogAssetUrl(form.coverImage?.url, API_ROOT);
+
   const handleImageInsert = async () => {
     const editor = quillRef.current?.getEditor();
     if (!editor) return;
 
-    const imageUrl = window.prompt("Paste image URL. Leave blank to upload an image file.")?.trim();
     const range = editor.getSelection(true);
     const insertAt = range?.index ?? editor.getLength();
-
-    if (imageUrl) {
-      if (imageUrl.startsWith("data:image/")) {
-        setError("Base64 images are not allowed. Please use an uploaded image URL.");
-        return;
-      }
-      if (!/^https?:\/\//i.test(imageUrl) && !imageUrl.startsWith("/api/blogposts/images/")) {
-        setError("Please use a valid image URL starting with https://, http://, or /api/blogposts/images/.");
-        return;
-      }
-      editor.insertEmbed(insertAt, "image", imageUrl, "user");
-      editor.setSelection(insertAt + 1, 0);
-      return;
-    }
 
     const input = document.createElement("input");
     input.type = "file";
@@ -105,9 +111,13 @@ const AdminBlogEditor = () => {
 
       try {
         setError("");
-        const uploadedImageUrl = await uploadBlogEditorImage(file);
-        editor.insertEmbed(insertAt, "image", uploadedImageUrl, "user");
+        const uploadedImage = await uploadBlogEditorImage(file);
+        editor.insertEmbed(insertAt, "image", uploadedImage.url, "user");
         editor.setSelection(insertAt + 1, 0);
+        setForm((current) => ({
+          ...current,
+          contentImages: dedupeBlogImageAssets([...current.contentImages, uploadedImage]),
+        }));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to upload image");
       }
@@ -129,11 +139,15 @@ const AdminBlogEditor = () => {
 
       try {
         setError("");
-        const uploadedImageUrl = await uploadBlogEditorImage(file);
+        const uploadedImage = await uploadBlogEditorImage(file);
         const range = editor.getSelection(true);
         const insertAt = range?.index ?? editor.getLength();
-        editor.insertEmbed(insertAt, "image", uploadedImageUrl, "user");
+        editor.insertEmbed(insertAt, "image", uploadedImage.url, "user");
         editor.setSelection(insertAt + 1, 0);
+        setForm((current) => ({
+          ...current,
+          contentImages: dedupeBlogImageAssets([...current.contentImages, uploadedImage]),
+        }));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to upload pasted image");
       }
@@ -146,11 +160,15 @@ const AdminBlogEditor = () => {
 
       try {
         setError("");
-        const uploadedImageUrl = await uploadBlogEditorImage(file);
+        const uploadedImage = await uploadBlogEditorImage(file);
         const selection = editor.getSelection(true);
         const insertAt = selection?.index ?? editor.getLength();
-        editor.insertEmbed(insertAt, "image", uploadedImageUrl, "user");
+        editor.insertEmbed(insertAt, "image", uploadedImage.url, "user");
         editor.setSelection(insertAt + 1, 0);
+        setForm((current) => ({
+          ...current,
+          contentImages: dedupeBlogImageAssets([...current.contentImages, uploadedImage]),
+        }));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to upload dropped image");
       }
@@ -191,8 +209,9 @@ const AdminBlogEditor = () => {
       slug: blog.slug,
       excerpt: blog.excerpt,
       authorName: blog.authorName || "RecruitKr Editorial",
-      coverImage: blog.coverImage || "",
+      coverImage: blog.coverImage || null,
       contentHtml: getRenderableBlogHtml(blog.contentHtml, blog.content),
+      contentImages: blog.contentImages || [],
       tags: blog.tags,
       readingTime: blog.readingTime,
       status: blog.status || "draft",
@@ -207,6 +226,19 @@ const AdminBlogEditor = () => {
     setError("");
   };
 
+  const handleCoverImageUpload = async (file: File) => {
+    try {
+      setUploadingCoverImage(true);
+      setError("");
+      const uploadedImage = await uploadBlogEditorImage(file);
+      setForm((current) => ({ ...current, coverImage: uploadedImage }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload cover image");
+    } finally {
+      setUploadingCoverImage(false);
+    }
+  };
+
   const handleSave = async () => {
     const cleanedContentHtml = cleanBlogHtml(form.contentHtml);
     if (!cleanedContentHtml) {
@@ -217,8 +249,19 @@ const AdminBlogEditor = () => {
       setError("Base64 images are not allowed. Please upload images and use their URL.");
       return;
     }
-    if (form.coverImage.trim().startsWith("data:image/")) {
-      setError("Base64 cover images are not allowed. Please use a normal image URL.");
+    if (form.coverImage?.url?.trim().startsWith("data:image/")) {
+      setError("Base64 cover images are not allowed. Please upload the cover image.");
+      return;
+    }
+
+    const trackedContentImages = syncTrackedContentImages(cleanedContentHtml, form.contentImages);
+    const htmlImageUrls = extractImageUrlsFromBlogHtml(cleanedContentHtml);
+    const hasUntrackedContentImage = htmlImageUrls.some(
+      (imageUrl) => !trackedContentImages.some((asset) => asset.url === imageUrl),
+    );
+
+    if (hasUntrackedContentImage) {
+      setError("Every image inside the blog content must be uploaded through the blog image uploader.");
       return;
     }
 
@@ -228,8 +271,9 @@ const AdminBlogEditor = () => {
       slug: form.slug?.trim() || undefined,
       excerpt: form.excerpt.trim(),
       authorName: form.authorName?.trim() || "RecruitKr Editorial",
-      coverImage: form.coverImage?.trim() || undefined,
+      coverImage: form.coverImage || null,
       contentHtml: cleanedContentHtml,
+      contentImages: trackedContentImages,
       tags: form.tags.map((tag) => tag.trim()).filter(Boolean),
       readingTime: form.readingTime.trim() || estimateReadingTime(cleanedContentHtml),
       publishedAt: form.status === "published" ? form.publishedAt || new Date().toISOString() : null,
@@ -364,14 +408,57 @@ const AdminBlogEditor = () => {
                   </label>
 
                   <label className="grid gap-2">
-                    <span className="text-sm font-medium text-slate-800">Cover image URL</span>
-                    <input
-                      value={form.coverImage}
-                      onChange={(event) =>
-                        setForm((current) => ({ ...current, coverImage: event.target.value }))
-                      }
-                      className="rounded-xl border border-border px-4 py-3 text-sm outline-none transition focus:border-primary"
-                    />
+                    <span className="text-sm font-medium text-slate-800">Cover image</span>
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-border bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        {form.coverImage?.url || "Upload a cover image to store it in ImageKit."}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <input
+                          ref={coverImageInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          className="hidden"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) {
+                              void handleCoverImageUpload(file);
+                            }
+                            event.target.value = "";
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => coverImageInputRef.current?.click()}
+                          disabled={uploadingCoverImage}
+                          className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {uploadingCoverImage ? "Uploading..." : "Upload cover image"}
+                        </button>
+                        {form.coverImage ? (
+                          <button
+                            type="button"
+                            onClick={() => setForm((current) => ({ ...current, coverImage: null }))}
+                            className="rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                          >
+                            Remove cover image
+                          </button>
+                        ) : null}
+                      </div>
+
+                      {coverImagePreviewUrl ? (
+                        <img
+                          src={coverImagePreviewUrl}
+                          alt="Blog cover preview"
+                          className="h-40 w-full rounded-2xl border border-border object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-40 w-full items-center justify-center rounded-2xl border border-dashed border-border bg-slate-50 text-sm text-muted-foreground">
+                          Cover image preview will appear here
+                        </div>
+                      )}
+                    </div>
                   </label>
 
                   <label className="grid gap-2">
@@ -417,6 +504,7 @@ const AdminBlogEditor = () => {
                       setForm((current) => ({
                         ...current,
                         contentHtml: cleanedValue,
+                        contentImages: syncTrackedContentImages(cleanedValue, current.contentImages),
                         readingTime: estimateReadingTime(cleanedValue),
                       }));
                     }}
@@ -427,7 +515,7 @@ const AdminBlogEditor = () => {
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-                  <p>Images are stored via uploaded URL only. Base64 content is blocked automatically.</p>
+                  <p>Blog images must be uploaded here first. External, local, and base64 images are blocked.</p>
                   <p>{form.readingTime}</p>
                 </div>
 

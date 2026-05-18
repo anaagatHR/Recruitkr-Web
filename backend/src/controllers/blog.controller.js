@@ -1,11 +1,18 @@
 import mongoose from 'mongoose';
 import { StatusCodes } from 'http-status-codes';
 
+import { env } from '../config/env.js';
 import { BlogImageAsset } from '../models/BlogImageAsset.js';
 import { BlogPost } from '../models/BlogPost.js';
 import { uploadBufferToImageKit } from '../services/imagekit.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+
+const BLOG_IMAGE_FOLDER = '/recruitkr_blog';
+const imageKitEndpointUrl = new URL(env.IMAGEKIT_URL_ENDPOINT);
+const imageKitHost = imageKitEndpointUrl.host;
+const imageKitBasePath = imageKitEndpointUrl.pathname.replace(/\/$/, '');
+const blogImagePathPrefix = `${imageKitBasePath}${BLOG_IMAGE_FOLDER}/`.replace(/\/{2,}/g, '/');
 
 const toSlug = (value) =>
   value
@@ -33,6 +40,7 @@ const ensureUniqueSlug = async (baseSlug, excludeId) => {
 };
 
 const containsBase64Image = (value = '') => /<img[^>]+src=["']data:image\/[^"']+["'][^>]*>/i.test(value);
+const imageTagPattern = /<img[^>]+src=(["'])([^"']+)\1[^>]*>/gi;
 
 const cleanHtml = (value = '') =>
   value
@@ -64,13 +72,98 @@ const paragraphsToHtml = (paragraphs = []) =>
     .map((paragraph) => `<p>${paragraph}</p>`)
     .join('');
 
+const normalizeImageAsset = (asset) => {
+  if (!asset || typeof asset !== 'object') return null;
+
+  const url = String(asset.url || '').trim();
+  const fileId = String(asset.fileId || '').trim();
+  const name = String(asset.name || '').trim();
+  const type = String(asset.type || '').trim();
+  const size = Number(asset.size);
+
+  if (!url || !fileId || !name || !type || !Number.isFinite(size) || size <= 0) {
+    return null;
+  }
+
+  return {
+    url,
+    fileId,
+    name,
+    size,
+    type,
+  };
+};
+
+const isTrackedBlogImageUrl = (value = '') => {
+  try {
+    const parsed = new URL(String(value || '').trim());
+    return parsed.host === imageKitHost && parsed.pathname.startsWith(blogImagePathPrefix);
+  } catch {
+    return false;
+  }
+};
+
+const extractImageUrlsFromHtml = (html = '') => {
+  const urls = [];
+  for (const match of String(html || '').matchAll(imageTagPattern)) {
+    const src = String(match[2] || '').trim();
+    if (src) urls.push(src);
+  }
+  return urls;
+};
+
+const validateTrackedBlogImages = ({ contentHtml = '', contentImages = [], coverImage = null }) => {
+  const imageUrlsInHtml = extractImageUrlsFromHtml(contentHtml);
+  const invalidHtmlImageUrl = imageUrlsInHtml.find((url) => !isTrackedBlogImageUrl(url));
+  if (invalidHtmlImageUrl) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'All blog content images must be uploaded through the blog uploader before saving.',
+    );
+  }
+
+  const normalizedContentImages = contentImages
+    .map(normalizeImageAsset)
+    .filter(Boolean);
+  const contentImageMap = new Map(normalizedContentImages.map((asset) => [asset.url, asset]));
+
+  const missingImageMetadata = imageUrlsInHtml.find((url) => !contentImageMap.has(url));
+  if (missingImageMetadata) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Every image used in blog content must have matching metadata in contentImages.',
+    );
+  }
+
+  const normalizedCoverImage = normalizeImageAsset(coverImage);
+  if (coverImage !== null && coverImage !== undefined && !normalizedCoverImage) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Cover image metadata is incomplete.');
+  }
+  if (normalizedCoverImage && !isTrackedBlogImageUrl(normalizedCoverImage.url)) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Cover image must be uploaded through the blog uploader before saving.',
+    );
+  }
+
+  const usedContentImages = imageUrlsInHtml.map((url) => contentImageMap.get(url));
+  const uniqueContentImages = Array.from(
+    new Map(usedContentImages.filter(Boolean).map((asset) => [asset.url, asset])).values(),
+  );
+
+  return {
+    coverImage: normalizedCoverImage,
+    contentImages: uniqueContentImages,
+  };
+};
+
 const normalizePayload = async (payload, existingPost) => {
   const incomingHtml = payload.contentHtml?.trim();
   if (incomingHtml && containsBase64Image(incomingHtml)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Base64 images are not allowed. Please upload images and use their URL.');
   }
-  if (payload.coverImage?.trim?.().startsWith('data:image/')) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Base64 cover images are not allowed. Please use an image URL.');
+  if (typeof payload.coverImage === 'string' && payload.coverImage.trim().startsWith('data:image/')) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Base64 cover images are not allowed. Please upload the image first.');
   }
 
   const contentHtml = incomingHtml
@@ -106,14 +199,24 @@ const normalizePayload = async (payload, existingPost) => {
     publishedAt = null;
   }
 
+  const trackedImages = validateTrackedBlogImages({
+    contentHtml: contentHtml || paragraphsToHtml(content || []),
+    contentImages: payload.contentImages ?? existingPost?.contentImages ?? [],
+    coverImage:
+      payload.coverImage === null
+        ? null
+        : payload.coverImage ?? existingPost?.coverImage ?? null,
+  });
+
   return {
     title,
     slug,
     excerpt: payload.excerpt?.trim() ?? existingPost?.excerpt,
     authorName: payload.authorName?.trim() ?? existingPost?.authorName ?? 'RecruitKr Editorial',
-    coverImage: payload.coverImage?.trim() ?? existingPost?.coverImage ?? null,
+    coverImage: trackedImages.coverImage,
     contentHtml: contentHtml || paragraphsToHtml(content || []),
     content,
+    contentImages: trackedImages.contentImages,
     tags,
     readingTime: payload.readingTime?.trim() ?? existingPost?.readingTime,
     status,
@@ -132,8 +235,9 @@ const serializeBlogPost = (post) => {
     title: raw?.title || 'Untitled blog post',
     excerpt: raw?.excerpt || content[0]?.slice(0, 220) || 'No description available.',
     authorName: raw?.authorName || 'RecruitKr Editorial',
-    coverImage: raw?.coverImage || null,
+    coverImage: normalizeImageAsset(raw?.coverImage),
     contentHtml: raw?.contentHtml || paragraphsToHtml(content),
+    contentImages: Array.isArray(raw?.contentImages) ? raw.contentImages.map(normalizeImageAsset).filter(Boolean) : [],
     publishedAt: raw?.publishedAt || null,
     readingTime: raw?.readingTime || '5 min read',
     tags,
@@ -195,7 +299,7 @@ export const uploadBlogImage = asyncHandler(async (req, res) => {
   const uploadedAsset = await uploadBufferToImageKit({
     buffer: req.file.buffer,
     originalName: req.file.originalname,
-    folder: '/recruitkr/blogs',
+    folder: BLOG_IMAGE_FOLDER,
   });
 
   const asset = await BlogImageAsset.create({
@@ -204,15 +308,17 @@ export const uploadBlogImage = asyncHandler(async (req, res) => {
     fileId: uploadedAsset.fileId,
     type: req.file.mimetype,
     size: req.file.size,
-    uploadedBy: req.user.id,
   });
 
   res.status(StatusCodes.CREATED).json({
     success: true,
     data: {
-      imageUrl: uploadedAsset.url,
+      url: uploadedAsset.url,
+      name: asset.name,
+      size: asset.size,
+      type: asset.type,
       imageId: asset.id,
-      fileId: uploadedAsset.fileId,
+      fileId: asset.fileId,
     },
   });
 });

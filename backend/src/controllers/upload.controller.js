@@ -9,7 +9,7 @@ const allowedFolders = new Map([
   ['resumes', '/recruitkr/resumes'],
   ['profiles', '/recruitkr/profiles'],
   ['team', '/recruitkr/team'],
-  ['blogs', '/recruitkr/blogs'],
+  ['blogs', '/recruitkr_blog'],
   ['certificates', '/recruitkr/certificates'],
 ]);
 
