@@ -1,6 +1,29 @@
+import {
+  BadgeDollarSign,
+  Bolt,
+  Briefcase,
+  Building2,
+  Factory,
+  Headphones,
+  HeartPulse,
+  Package,
+  Shield,
+  ShoppingBag,
+  Stethoscope,
+} from "lucide-react";
+
 const sectors = [
-  "Power", "BPO", "Retail", "Hospitality", "Insurance",
-  "Banking", "IT", "Manufacturing", "Logistics", "Healthcare", "FMCG",
+  { name: "Power", icon: Bolt },
+  { name: "BPO", icon: Headphones },
+  { name: "Retail", icon: ShoppingBag },
+  { name: "Hospitality", icon: Building2 },
+  { name: "Insurance", icon: Shield },
+  { name: "Banking", icon: BadgeDollarSign },
+  { name: "IT", icon: Briefcase },
+  { name: "Manufacturing", icon: Factory },
+  { name: "Logistics", icon: Package },
+  { name: "Healthcare", icon: Stethoscope },
+  { name: "FMCG", icon: HeartPulse },
 ];
 
 const SectorsSection = () => {
@@ -17,28 +40,22 @@ const SectorsSection = () => {
         </h2>
       </div>
 
-      <div className="relative hidden md:block">
-        <div className="flex animate-ticker gap-4 will-change-transform">
-          {doubled.map((sector, i) => (
-            <span
-              key={`${sector}-${i}`}
-              className="inline-flex shrink-0 items-center  px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
-            >
-              {sector}
-            </span>
-          ))}
-        </div>
-      </div>
+      <div className="relative overflow-hidden">
+        <div className="flex animate-sectors-ticker gap-4 will-change-transform">
+          {doubled.map((sector, i) => {
+            const Icon = sector.icon;
 
-      <div className="container mx-auto grid grid-cols-2 gap-3 px-4 md:hidden">
-        {sectors.map((sector) => (
-          <span
-            key={sector}
-            className="inline-flex items-center justify-center rounded-full border border-border bg-card px-4 py-3 text-sm font-semibold text-foreground"
-          >
-            {sector}
-          </span>
-        ))}
+            return (
+            <span
+              key={`${sector.name}-${i}`}
+              className="inline-flex shrink-0 items-center gap-2 px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:text-primary"
+            >
+              <Icon size={16} className="text-primary" />
+              {sector.name}
+            </span>
+            );
+          })}
+        </div>
       </div>
     </section>
   );

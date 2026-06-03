@@ -338,15 +338,16 @@ export const apiPut = <T>(path: string, body?: unknown, options?: ApiHelperOptio
 export const apiDelete = <T>(path: string, options?: ApiHelperOptions) =>
   apiRequest<T>(path, { method: "DELETE", ...normalizeHelperOptions(options) });
 
-export const createSseUrl = (path: string) => {
+export const createSseUrl = (path: string, accessToken?: string | null) => {
   const session = getSession();
-  if (!session?.accessToken) {
+  const token = accessToken || session?.accessToken;
+  if (!token) {
     throw new Error("Not authenticated");
   }
 
   const separator = path.includes("?") ? "&" : "?";
   const url = path.startsWith("/api/") ? `${API_ROOT}${path}` : `${API_BASE}${path}`;
-  return `${url}${separator}token=${encodeURIComponent(session.accessToken)}`;
+  return `${url}${separator}token=${encodeURIComponent(token)}`;
 };
 
 export const checkApiHealth = async () => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { createSseUrl } from "@/lib/api";
+import { getSession } from "@/lib/auth";
 
 export type SseConnectionStatus =
   | "connecting"
@@ -18,17 +19,20 @@ type UseServerEventsOptions = {
   path?: string;
   eventNames?: string[];
   onEvent?: (event: SseEventPayload) => void;
+  onError?: (message: string) => void;
 };
 
 const DEFAULT_PATH = "/events/stream";
 const DEFAULT_EVENTS = ["connected", "heartbeat", "application-created", "application-updated"];
 const RECONNECT_DELAYS_MS = [3000, 5000, 10000];
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 export const useServerEvents = ({
   enabled = true,
   path = DEFAULT_PATH,
   eventNames = DEFAULT_EVENTS,
   onEvent,
+  onError,
 }: UseServerEventsOptions = {}) => {
   const [status, setStatus] = useState<SseConnectionStatus>(enabled ? "connecting" : "disconnected");
   const sourceRef = useRef<EventSource | null>(null);
@@ -36,13 +40,21 @@ export const useServerEvents = ({
   const attemptRef = useRef(0);
   const manuallyClosedRef = useRef(false);
   const onEventRef = useRef(onEvent);
+  const onErrorRef = useRef(onError);
 
   useEffect(() => {
     onEventRef.current = onEvent;
   }, [onEvent]);
 
   useEffect(() => {
-    if (!enabled) {
+    onErrorRef.current = onError;
+  }, [onError]);
+
+  useEffect(() => {
+    const session = getSession();
+    const token = session?.accessToken || null;
+
+    if (!enabled || !token) {
       manuallyClosedRef.current = true;
       sourceRef.current?.close();
       sourceRef.current = null;
@@ -72,6 +84,12 @@ export const useServerEvents = ({
 
     const scheduleReconnect = () => {
       if (manuallyClosedRef.current || reconnectTimerRef.current !== null) return;
+      if (attemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
+        console.warn("[sse] reconnect attempts exhausted");
+        onErrorRef.current?.("Live updates are unavailable right now. Please refresh the page.");
+        setStatus("disconnected");
+        return;
+      }
 
       const nextDelay = RECONNECT_DELAYS_MS[Math.min(attemptRef.current, RECONNECT_DELAYS_MS.length - 1)];
       setStatus("reconnecting");
@@ -100,8 +118,12 @@ export const useServerEvents = ({
 
       let eventSource: EventSource;
       try {
-        eventSource = new EventSource(createSseUrl(path), { withCredentials: true });
-      } catch {
+        eventSource = new EventSource(createSseUrl(path, getSession()?.accessToken || token), {
+          withCredentials: true,
+        });
+      } catch (error) {
+        console.error("[sse] failed to create EventSource", error);
+        onErrorRef.current?.("Please sign in again to reconnect live updates.");
         scheduleReconnect();
         return;
       }
@@ -110,6 +132,7 @@ export const useServerEvents = ({
 
       eventSource.onopen = () => {
         attemptRef.current = 0;
+        console.info("[sse] connected", { path });
         setStatus("connected");
       };
 
@@ -124,10 +147,22 @@ export const useServerEvents = ({
       }
 
       eventSource.onerror = () => {
+        console.warn("[sse] connection error", {
+          path,
+          attempt: attemptRef.current + 1,
+          hasSession: Boolean(getSession()?.accessToken),
+        });
         cleanupSource();
         attemptRef.current += 1;
 
         if (manuallyClosedRef.current) {
+          setStatus("disconnected");
+          return;
+        }
+
+        if (!getSession()?.accessToken) {
+          manuallyClosedRef.current = true;
+          onErrorRef.current?.("Live updates require an active login.");
           setStatus("disconnected");
           return;
         }

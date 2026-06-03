@@ -1,4 +1,5 @@
 import { ArrowRight, Briefcase } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const stats = [
   { value: "500+", label: "Placements" },
@@ -27,20 +28,21 @@ const HeroSection = () => {
           </p>
 
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <a
-              href="#cta"
+            <Link
+              to="/login?role=client"
               className="btn-gradient group inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-lg px-6 py-4 text-base font-bold transition-transform hover:scale-105 sm:w-auto sm:px-8"
             >
               <Briefcase size={20} />
               Hire Talent
               <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-            </a>
-            <a
-              href="#cta"
-              className="btn-gradient inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-lg px-6 py-4 text-base font-bold transition-transform hover:scale-105 sm:w-auto sm:px-8"
+            </Link>
+            <Link
+              to="/register/candidate"
+              className="btn-gradient group inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-lg px-6 py-4 text-base font-bold transition-transform hover:scale-105 sm:w-auto sm:px-8"
             >
               Find a Job
-            </a>
+              <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+            </Link>
           </div>
         </div>
 

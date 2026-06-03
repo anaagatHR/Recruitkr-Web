@@ -40,6 +40,17 @@ const getRefreshCookieOptions = () => {
   };
 };
 
+const getAccessCookieOptions = () => {
+  const isProduction = env.NODE_ENV === 'production';
+
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    path: '/',
+  };
+};
+
 const setRefreshCookie = (res, refreshToken) => {
   res.cookie('refreshToken', refreshToken, {
     ...getRefreshCookieOptions(),
@@ -47,8 +58,19 @@ const setRefreshCookie = (res, refreshToken) => {
   });
 };
 
+const setAccessCookie = (res, accessToken) => {
+  res.cookie('accessToken', accessToken, {
+    ...getAccessCookieOptions(),
+    maxAge: parseDurationToMs(env.JWT_ACCESS_EXPIRES),
+  });
+};
+
 const clearRefreshCookie = (res) => {
   res.clearCookie('refreshToken', getRefreshCookieOptions());
+};
+
+const clearAccessCookie = (res) => {
+  res.clearCookie('accessToken', getAccessCookieOptions());
 };
 
 const issueTokensAndPersistRefresh = async (user) => {
@@ -192,6 +214,7 @@ export const registerCandidate = asyncHandler(async (req, res) => {
   await candidateProfile.save();
 
   const tokens = await issueTokensAndPersistRefresh(user);
+  setAccessCookie(res, tokens.accessToken);
   setRefreshCookie(res, tokens.refreshToken);
 
   res.status(StatusCodes.CREATED).json({
@@ -241,6 +264,7 @@ export const registerClient = asyncHandler(async (req, res) => {
   await clientProfile.save();
 
   const tokens = await issueTokensAndPersistRefresh(user);
+  setAccessCookie(res, tokens.accessToken);
   setRefreshCookie(res, tokens.refreshToken);
 
   res.status(StatusCodes.CREATED).json({
@@ -281,6 +305,7 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   const tokens = await issueTokensAndPersistRefresh(user);
+  setAccessCookie(res, tokens.accessToken);
   setRefreshCookie(res, tokens.refreshToken);
 
   res.json({
@@ -353,6 +378,7 @@ export const logout = asyncHandler(async (req, res) => {
   }
 
   clearRefreshCookie(res);
+  clearAccessCookie(res);
   res.json({ success: true, message: 'Logged out' });
 });
 
@@ -376,6 +402,7 @@ export const changePassword = asyncHandler(async (req, res) => {
   user.refreshTokenExpiresAt = undefined;
   await user.save();
 
+  clearAccessCookie(res);
   clearRefreshCookie(res);
   res.json({ success: true, message: 'Password updated. Please log in again.' });
 });
@@ -447,6 +474,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
   user.refreshTokenExpiresAt = undefined;
   await user.save();
 
+  clearAccessCookie(res);
   clearRefreshCookie(res);
   res.json({ success: true, message: 'Password reset successful. Please log in again.' });
 });

@@ -1,25 +1,34 @@
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { Search } from "lucide-react";
 
 import BlogCard from "@/components/blogCard";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import PageSeo from "@/components/PageSeo";
-import { fetchBlogPosts, type BlogPost } from "@/lib/blog";
+import { fetchBlogPosts, getCachedBlogPosts, type BlogPost } from "@/lib/blog";
+
+const INITIAL_BLOG_COUNT = 6;
+const BLOG_COUNT_STEP = 6;
+const SITE_URL = "https://www.recruitkr.com";
 
 const Blog = () => {
-  const [blogs, setBlogs] = useState<BlogPost[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedBlogs = getCachedBlogPosts();
+  const [blogs, setBlogs] = useState<BlogPost[]>(cachedBlogs);
+  const [loading, setLoading] = useState(cachedBlogs.length === 0);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [visibleCount, setVisibleCount] = useState(INITIAL_BLOG_COUNT);
 
   const loadPosts = async () => {
     try {
       setLoading(true);
       setError("");
       const response = await fetchBlogPosts();
-      setBlogs(response);
+      startTransition(() => {
+        setBlogs(response);
+        setVisibleCount(INITIAL_BLOG_COUNT);
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load blog posts";
       console.error("[BlogPage] failed to load blogs", err);
@@ -33,6 +42,10 @@ const Blog = () => {
     void loadPosts();
   }, []);
 
+  useEffect(() => {
+    setVisibleCount(INITIAL_BLOG_COUNT);
+  }, [searchQuery, selectedCategory]);
+
   const categories = ["All", ...Array.from(new Set(blogs.flatMap((blog) => blog.tags).filter(Boolean)))];
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredBlogs = blogs.filter((blog) => {
@@ -44,6 +57,50 @@ const Blog = () => {
 
     return matchesSearch && matchesCategory;
   });
+  const displayedBlogs = filteredBlogs.slice(0, visibleCount);
+  const hasMoreBlogs = visibleCount < filteredBlogs.length;
+  const pageStructuredData = [
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: "RecruitKr Journal",
+      description: "Hiring, recruitment, staffing, payroll, and employer branding insights from RecruitKr.",
+      url: `${SITE_URL}/blog`,
+      isPartOf: {
+        "@type": "WebSite",
+        name: "RecruitKr",
+        url: SITE_URL,
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: "Home",
+          item: SITE_URL,
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: "Blog",
+          item: `${SITE_URL}/blog`,
+        },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      itemListElement: blogs.slice(0, 10).map((blog, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        url: `${SITE_URL}/blog/${blog.slug}`,
+        name: blog.title,
+      })),
+    },
+  ];
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f7fafc_0%,#ffffff_22%,#f7fbff_100%)]">
@@ -51,15 +108,16 @@ const Blog = () => {
         title="RecruitKr Blog | Hiring, Recruitment and HR Insights"
         description="Read RecruitKr blog articles on hiring, recruitment strategy, employer branding, staffing, payroll, and workforce growth."
         canonicalPath="/blog"
+        keywords={[
+          "RecruitKr blog",
+          "hiring blog India",
+          "recruitment insights",
+          "staffing blog",
+          "payroll and HR articles",
+          "employer branding blog",
+        ]}
         type="website"
-        structuredData={{
-          "@context": "https://schema.org",
-          "@type": "Blog",
-          name: "RecruitKr Blog",
-          description:
-            "Hiring, recruitment, staffing, payroll, and employer branding insights from RecruitKr.",
-          url: "https://www.recruitkr.com/blog",
-        }}
+        structuredData={pageStructuredData}
       />
       <Navbar />
 
@@ -145,6 +203,7 @@ const Blog = () => {
                     onClick={() => {
                       setSearchQuery("");
                       setSelectedCategory("All");
+                      setVisibleCount(INITIAL_BLOG_COUNT);
                     }}
                     className="rounded-full border border-border bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-foreground transition hover:border-primary/40 hover:text-primary"
                   >
@@ -154,8 +213,8 @@ const Blog = () => {
               </div>
 
               <section className="mx-auto mt-6 grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-5 lg:gap-6">
-                {filteredBlogs.map((post) => (
-                  <BlogCard key={post.slug} blog={post} />
+                {displayedBlogs.map((post, index) => (
+                  <BlogCard key={post.slug} blog={post} prioritizeImage={index < 3} />
                 ))}
 
                 {filteredBlogs.length === 0 && (
@@ -167,6 +226,28 @@ const Blog = () => {
                   </div>
                 )}
               </section>
+
+              {filteredBlogs.length > INITIAL_BLOG_COUNT && (
+                <div className="mx-auto mt-8 flex max-w-6xl justify-center">
+                  {hasMoreBlogs ? (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCount((current) => Math.min(current + BLOG_COUNT_STEP, filteredBlogs.length))}
+                      className="btn-gradient rounded-full px-6 py-3 text-sm font-semibold transition-transform hover:scale-[1.02]"
+                    >
+                      Show More Articles
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCount(INITIAL_BLOG_COUNT)}
+                      className="rounded-full border border-border bg-white px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                    >
+                      Show Less
+                    </button>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

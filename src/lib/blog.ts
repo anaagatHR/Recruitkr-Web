@@ -6,6 +6,9 @@ import {
   normalizeBlogAssetUrl,
 } from "@/lib/blogHtml";
 
+const BLOG_CACHE_KEY = "recruitkr.blog.cache.v1";
+const BLOG_CACHE_TTL_MS = 5 * 60 * 1000;
+
 export type BlogImageAsset = {
   url: string;
   fileId: string;
@@ -102,6 +105,31 @@ const normalizeBlogImageAsset = (asset?: Partial<BlogImageAsset> | string | null
   };
 };
 
+const normalizeSlug = (slug?: string | null, fallbackTitle?: string | null, index = 0) => {
+  const source = (slug?.trim() || fallbackTitle?.trim() || `blog-post-${index + 1}`).toLowerCase();
+
+  const normalized = source
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+  return normalized || `blog-post-${index + 1}`;
+};
+
+const compareByPublishedDateDesc = (a: BlogPost, b: BlogPost) => {
+  const aTime = Date.parse(a.publishedAt || a.updatedAt || a.createdAt || "");
+  const bTime = Date.parse(b.publishedAt || b.updatedAt || b.createdAt || "");
+
+  if (Number.isFinite(aTime) && Number.isFinite(bTime)) {
+    return bTime - aTime;
+  }
+
+  if (Number.isFinite(aTime)) return -1;
+  if (Number.isFinite(bTime)) return 1;
+  return a.title.localeCompare(b.title);
+};
+
 const normalizeBlogPost = (post: Partial<BlogPost>, index = 0): BlogPost => {
   const renderedContentHtml = getRenderableBlogHtml(
     post.contentHtml,
@@ -115,7 +143,7 @@ const normalizeBlogPost = (post: Partial<BlogPost>, index = 0): BlogPost => {
 
   return {
     _id: post._id,
-    slug: post.slug?.trim() || `blog-post-${index + 1}`,
+    slug: normalizeSlug(post.slug, post.title, index),
     title: post.title?.trim() || "Untitled blog post",
     excerpt: post.excerpt?.trim() || "No description available.",
     authorName: post.authorName?.trim() || "RecruitKr Editorial",
@@ -132,6 +160,50 @@ const normalizeBlogPost = (post: Partial<BlogPost>, index = 0): BlogPost => {
   };
 };
 
+const persistBlogCache = (posts: BlogPost[]) => {
+  if (typeof window === "undefined") return;
+
+  try {
+    sessionStorage.setItem(
+      BLOG_CACHE_KEY,
+      JSON.stringify({
+        savedAt: Date.now(),
+        posts,
+      }),
+    );
+  } catch (error) {
+    console.warn("[blog] unable to persist blog cache", error);
+    try {
+      sessionStorage.removeItem(BLOG_CACHE_KEY);
+    } catch {
+      // Ignore storage cleanup failures.
+    }
+  }
+};
+
+export const getCachedBlogPosts = (): BlogPost[] => {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = sessionStorage.getItem(BLOG_CACHE_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw) as {
+      savedAt?: number;
+      posts?: BlogPost[];
+    };
+
+    if (!parsed?.savedAt || Date.now() - parsed.savedAt > BLOG_CACHE_TTL_MS) {
+      sessionStorage.removeItem(BLOG_CACHE_KEY);
+      return [];
+    }
+
+    return Array.isArray(parsed.posts) ? parsed.posts : [];
+  } catch {
+    return [];
+  }
+};
+
 export const fetchBlogPosts = async () => {
   const response = await apiGet<BlogListResponse>("/api/blogposts?published=true");
 
@@ -142,6 +214,8 @@ export const fetchBlogPosts = async () => {
   const posts = Array.isArray(rawPosts)
     ? rawPosts.map((post, index) => normalizeBlogPost(post, index))
     : [];
+  posts.sort(compareByPublishedDateDesc);
+  persistBlogCache(posts);
   console.info("[blog] fetched blog posts", {
     count: posts.length,
     slugs: posts.map((post) => post.slug),

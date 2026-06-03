@@ -7,10 +7,11 @@ import Navbar from "@/components/Navbar";
 import PageSeo from "@/components/PageSeo";
 import { API_ROOT } from "@/lib/api";
 import { getRenderableBlogHtml } from "@/lib/blogHtml";
-import { fetchBlogPost, fetchBlogPosts, type BlogPost } from "@/lib/blog";
+import { fetchBlogPost, fetchBlogPosts, getCachedBlogPosts, type BlogPost } from "@/lib/blog";
 
 const detailPlaceholderImageClass =
   "flex w-full items-end rounded-xl bg-[radial-gradient(circle_at_top,_rgba(38,74,127,0.96),_rgba(38,74,127,0.82)_42%,_rgba(105,164,79,0.9)_100%)] p-6 text-2xl font-bold leading-tight text-white";
+const SITE_URL = "https://www.recruitkr.com";
 
 const BlogPostApi = () => {
   const { slug } = useParams();
@@ -24,14 +25,15 @@ const BlogPostApi = () => {
   const seoDescription = post?.excerpt?.trim() || "Read the latest hiring and workforce insights from RecruitKr.";
   const canonicalPath = post?.slug ? `/blog/${post.slug}` : "/blog";
   const articleStructuredData = post
-    ? {
+    ? [
+        {
         "@context": "https://schema.org",
-        "@type": "Article",
+        "@type": "BlogPosting",
         headline: post.title,
         description: seoDescription,
         image: post.coverImage?.url ? [post.coverImage.url] : undefined,
         author: {
-          "@type": "Organization",
+          "@type": "Person",
           name: post.authorName || "RecruitKr Editorial",
         },
         publisher: {
@@ -44,8 +46,35 @@ const BlogPostApi = () => {
         },
         datePublished: post.publishedAt || undefined,
         dateModified: post.updatedAt || post.publishedAt || undefined,
-        mainEntityOfPage: `https://www.recruitkr.com${canonicalPath}`,
+        mainEntityOfPage: `${SITE_URL}${canonicalPath}`,
+        keywords: post.tags.join(", "),
+        articleSection: post.tags[0] || "Recruitment",
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Home",
+            item: SITE_URL,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Blog",
+            item: `${SITE_URL}/blog`,
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: post.title,
+            item: `${SITE_URL}${canonicalPath}`,
+          },
+        ],
       }
+    ]
     : null;
 
   useEffect(() => {
@@ -58,7 +87,11 @@ const BlogPostApi = () => {
       try {
         setLoading(true);
         setError("");
-        const [data, allBlogs] = await Promise.all([fetchBlogPost(slug), fetchBlogPosts()]);
+        const cachedBlogs = getCachedBlogPosts();
+        const [data, allBlogs] = await Promise.all([
+          fetchBlogPost(slug),
+          cachedBlogs.length > 0 ? Promise.resolve(cachedBlogs) : fetchBlogPosts(),
+        ]);
         setPost(data);
         setRelatedBlogs(
           allBlogs
@@ -87,7 +120,13 @@ const BlogPostApi = () => {
         description={seoDescription}
         canonicalPath={canonicalPath}
         image={post?.coverImage?.url || undefined}
+        imageAlt={post?.title || "RecruitKr blog post"}
+        keywords={post?.tags?.length ? post.tags : ["RecruitKr blog", "recruitment insights"]}
         type="article"
+        publishedTime={post?.publishedAt || null}
+        modifiedTime={post?.updatedAt || post?.publishedAt || null}
+        section={post?.tags?.[0] || "RecruitKr Journal"}
+        tags={post?.tags || []}
         structuredData={articleStructuredData}
       />
       <Navbar />

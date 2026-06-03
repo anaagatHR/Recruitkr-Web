@@ -2,6 +2,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DualCtaSection from "@/components/DualCtaSection";
 import { getService } from "@/lib/services";
+import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 
 const toKebab = (value: string) =>
@@ -13,6 +14,10 @@ const toKebab = (value: string) =>
 const ServiceDetails = () => {
   const { id } = useParams();
   const service = id ? getService(id) : undefined;
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [id]);
 
   return (
     <div className="min-h-screen bg-background">

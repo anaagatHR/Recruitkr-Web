@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { BriefcaseBusiness, Linkedin, Mail } from "lucide-react";
 
 import { fetchTeamMembers, getCachedTeamMembers, type TeamMember } from "@/lib/team";
+
+const INITIAL_TEAM_COUNT = 8;
+const TEAM_COUNT_STEP = 8;
 
 const getInitials = (name: string) =>
   name
@@ -16,6 +19,7 @@ const TeamSection = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(cachedTeamMembers);
   const [loading, setLoading] = useState(cachedTeamMembers.length === 0);
   const [error, setError] = useState("");
+  const [visibleCount, setVisibleCount] = useState(INITIAL_TEAM_COUNT);
 
   useEffect(() => {
     const loadTeamMembers = async () => {
@@ -25,7 +29,10 @@ const TeamSection = () => {
         }
         setError("");
         const response = await fetchTeamMembers();
-        setTeamMembers(response);
+        startTransition(() => {
+          setTeamMembers(response);
+          setVisibleCount(INITIAL_TEAM_COUNT);
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load team members";
         console.error("[TeamSection] failed to load team members", err);
@@ -37,6 +44,9 @@ const TeamSection = () => {
 
     void loadTeamMembers();
   }, []);
+
+  const displayedTeamMembers = teamMembers.slice(0, visibleCount);
+  const hasMoreMembers = visibleCount < teamMembers.length;
 
   return (
     <section className="relative overflow-hidden bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4fb_44%,#ffffff_100%)] py-24">
@@ -90,7 +100,7 @@ const TeamSection = () => {
             ))}
 
           {!loading &&
-            teamMembers.map((member) => {
+            displayedTeamMembers.map((member) => {
               const initials = getInitials(member.name);
               const hasImage = Boolean(member.image);
               const actions = [
@@ -117,7 +127,7 @@ const TeamSection = () => {
               return (
                 <article
                   key={member._id}
-                  className="group flex h-full flex-col rounded-[28px] border border-slate-100 bg-white p-6 shadow-[0_24px_70px_-40px_rgba(15,23,42,0.45)] transition-transform duration-300 hover:-translate-y-1"
+                  className="content-auto group flex h-full flex-col rounded-[28px] border border-slate-100 bg-white p-6 shadow-[0_24px_70px_-40px_rgba(15,23,42,0.45)] transition-transform duration-300 hover:-translate-y-1"
                 >
                   <div className="flex flex-col items-center text-center">
                     <div
@@ -133,6 +143,7 @@ const TeamSection = () => {
                           alt={member.name}
                           loading="lazy"
                           decoding="async"
+                          fetchPriority="low"
                           className="h-full w-full object-cover"
                         />
                       ) : (
@@ -192,6 +203,28 @@ const TeamSection = () => {
             </div>
           )}
         </div>
+
+        {!loading && teamMembers.length > INITIAL_TEAM_COUNT && (
+          <div className="mt-10 flex justify-center">
+            {hasMoreMembers ? (
+              <button
+                type="button"
+                onClick={() => setVisibleCount((current) => Math.min(current + TEAM_COUNT_STEP, teamMembers.length))}
+                className="btn-gradient rounded-full px-6 py-3 text-sm font-semibold transition-transform hover:scale-[1.02]"
+              >
+                Show More Team Members
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setVisibleCount(INITIAL_TEAM_COUNT)}
+                className="rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition-colors hover:border-primary/30 hover:text-primary"
+              >
+                Show Less
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

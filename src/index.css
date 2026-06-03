@@ -181,7 +181,11 @@
 }
 
 .animate-ticker {
-  animation: ticker 30s linear infinite;
+  animation: ticker 10s linear infinite;
+}
+
+.animate-sectors-ticker {
+  animation: ticker 18s linear infinite;
 }
 
 .animate-float {
@@ -209,7 +213,6 @@
 }
 
 @media (max-width: 767px) {
-  .animate-ticker,
   .animate-float,
   .animate-fade-up,
   .animate-fade-up-delay-1,
@@ -223,6 +226,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .animate-ticker,
+  .animate-sectors-ticker,
   .animate-float,
   .animate-fade-up,
   .animate-fade-up-delay-1,

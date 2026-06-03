@@ -5,13 +5,25 @@ type PageSeoProps = {
   description: string;
   canonicalPath?: string;
   image?: string;
+  imageAlt?: string;
   type?: "website" | "article";
-  structuredData?: Record<string, unknown> | null;
+  keywords?: string[];
+  noindex?: boolean;
+  publishedTime?: string | null;
+  modifiedTime?: string | null;
+  section?: string;
+  tags?: string[];
+  structuredData?: Record<string, unknown> | Array<Record<string, unknown>> | null;
 };
 
 const SITE_NAME = "RecruitKr";
 const SITE_URL = "https://www.recruitkr.com";
 const DEFAULT_IMAGE = `${SITE_URL}/favicon.png?v=5`;
+
+const removeElement = (selector: string) => {
+  const element = document.head.querySelector(selector);
+  element?.remove();
+};
 
 const upsertMeta = (selector: string, attributes: Record<string, string>) => {
   let element = document.head.querySelector(selector) as HTMLMetaElement | null;
@@ -44,7 +56,14 @@ const PageSeo = ({
   description,
   canonicalPath = "/",
   image,
+  imageAlt,
   type = "website",
+  keywords = [],
+  noindex = false,
+  publishedTime = null,
+  modifiedTime = null,
+  section,
+  tags = [],
   structuredData = null,
 }: PageSeoProps) => {
   useEffect(() => {
@@ -52,6 +71,13 @@ const PageSeo = ({
       ? canonicalPath
       : `${SITE_URL}${canonicalPath.startsWith("/") ? canonicalPath : `/${canonicalPath}`}`;
     const resolvedImage = image?.trim() || DEFAULT_IMAGE;
+    const robotsContent = noindex
+      ? "noindex,nofollow,max-image-preview:large,max-snippet:-1,max-video-preview:-1"
+      : "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1";
+    const normalizedKeywords = keywords
+      .map((keyword) => keyword.trim())
+      .filter(Boolean)
+      .join(", ");
 
     document.title = title;
 
@@ -63,6 +89,22 @@ const PageSeo = ({
       name: "author",
       content: SITE_NAME,
     });
+    upsertMeta('meta[name="robots"]', {
+      name: "robots",
+      content: robotsContent,
+    });
+    upsertMeta('meta[name="googlebot"]', {
+      name: "googlebot",
+      content: robotsContent,
+    });
+    if (normalizedKeywords) {
+      upsertMeta('meta[name="keywords"]', {
+        name: "keywords",
+        content: normalizedKeywords,
+      });
+    } else {
+      removeElement('meta[name="keywords"]');
+    }
     upsertMeta('meta[property="og:title"]', {
       property: "og:title",
       content: title,
@@ -87,6 +129,14 @@ const PageSeo = ({
       property: "og:site_name",
       content: SITE_NAME,
     });
+    upsertMeta('meta[property="og:locale"]', {
+      property: "og:locale",
+      content: "en_IN",
+    });
+    upsertMeta('meta[property="og:image:alt"]', {
+      property: "og:image:alt",
+      content: imageAlt?.trim() || title,
+    });
     upsertMeta('meta[name="twitter:card"]', {
       name: "twitter:card",
       content: "summary_large_image",
@@ -103,9 +153,50 @@ const PageSeo = ({
       name: "twitter:image",
       content: resolvedImage,
     });
+    upsertMeta('meta[name="twitter:image:alt"]', {
+      name: "twitter:image:alt",
+      content: imageAlt?.trim() || title,
+    });
     upsertLink('link[rel="canonical"]', {
       rel: "canonical",
       href: canonicalUrl,
+    });
+
+    if (type === "article" && publishedTime) {
+      upsertMeta('meta[property="article:published_time"]', {
+        property: "article:published_time",
+        content: publishedTime,
+      });
+    } else {
+      removeElement('meta[property="article:published_time"]');
+    }
+
+    if (type === "article" && modifiedTime) {
+      upsertMeta('meta[property="article:modified_time"]', {
+        property: "article:modified_time",
+        content: modifiedTime,
+      });
+    } else {
+      removeElement('meta[property="article:modified_time"]');
+    }
+
+    if (type === "article" && section?.trim()) {
+      upsertMeta('meta[property="article:section"]', {
+        property: "article:section",
+        content: section.trim(),
+      });
+    } else {
+      removeElement('meta[property="article:section"]');
+    }
+
+    const normalizedTags = tags.map((tag) => tag.trim()).filter(Boolean);
+    const existingTagMetas = Array.from(document.head.querySelectorAll('meta[property="article:tag"]'));
+    existingTagMetas.forEach((tagMeta) => tagMeta.remove());
+    normalizedTags.forEach((tag) => {
+      const meta = document.createElement("meta");
+      meta.setAttribute("property", "article:tag");
+      meta.setAttribute("content", tag);
+      document.head.appendChild(meta);
     });
 
     const existingScript = document.getElementById("page-seo-structured-data");
@@ -120,7 +211,21 @@ const PageSeo = ({
     } else if (existingScript) {
       existingScript.remove();
     }
-  }, [canonicalPath, description, image, structuredData, title, type]);
+  }, [
+    canonicalPath,
+    description,
+    image,
+    imageAlt,
+    keywords,
+    modifiedTime,
+    noindex,
+    publishedTime,
+    section,
+    structuredData,
+    tags,
+    title,
+    type,
+  ]);
 
   return null;
 };

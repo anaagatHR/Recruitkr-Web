@@ -14,19 +14,31 @@ const flushIfSupported = (res) => {
   }
 };
 
+const canWriteToResponse = (res) => !res.writableEnded && !res.destroyed;
+
 const writeSseEvent = (res, event, payload) => {
+  if (!canWriteToResponse(res)) {
+    return false;
+  }
+
   if (event) {
     res.write(`event: ${event}\n`);
   }
 
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
   flushIfSupported(res);
+  return true;
 };
 
 const writeHeartbeat = (res) => {
+  if (!canWriteToResponse(res)) {
+    return false;
+  }
+
   res.write(`event: heartbeat\n`);
   res.write(`data: ${JSON.stringify({ ts: Date.now() })}\n\n`);
   flushIfSupported(res);
+  return true;
 };
 
 export const addLiveUpdateSubscriber = ({ userId, role, res }) => {
@@ -48,7 +60,7 @@ export const addLiveUpdateSubscriber = ({ userId, role, res }) => {
     `[SSE] Client connected role=${role} userId=${normalizedUserId} clientId=${clientId} activeClients=${getActiveClientCount()}`,
   );
 
-  writeSseEvent(res, 'connected', {
+  const connected = writeSseEvent(res, 'connected', {
     ok: true,
     clientId,
     userId: normalizedUserId,
@@ -56,8 +68,18 @@ export const addLiveUpdateSubscriber = ({ userId, role, res }) => {
     connectedAt: new Date().toISOString(),
   });
 
+  if (!connected) {
+    bucket.delete(clientId);
+    if (bucket.size === 0) {
+      subscribers.delete(key);
+    }
+    return () => undefined;
+  }
+
   const heartbeatId = setInterval(() => {
-    writeHeartbeat(res);
+    if (!writeHeartbeat(res)) {
+      clearInterval(heartbeatId);
+    }
   }, HEARTBEAT_INTERVAL_MS);
 
   return () => {
@@ -90,11 +112,19 @@ export const publishLiveUpdate = ({ userId, role, event, payload }) => {
 
   if (!bucket?.size) return;
 
-  for (const subscriber of bucket.values()) {
-    writeSseEvent(subscriber.res, event, {
+  for (const [clientId, subscriber] of bucket.entries()) {
+    const delivered = writeSseEvent(subscriber.res, event, {
       ...payload,
       sentAt: new Date().toISOString(),
     });
+
+    if (!delivered) {
+      bucket.delete(clientId);
+    }
+  }
+
+  if (bucket.size === 0) {
+    subscribers.delete(key);
   }
 };
 
