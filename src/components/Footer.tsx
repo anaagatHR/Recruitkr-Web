@@ -31,6 +31,7 @@ const footerLinks = [
   { label: "Gig Placement", to: "/services" },
   { label: "HR Solutions", to: "/services" },
   { label: "Career Counselling", to: "/services" },
+  { label: "Internship", to: "/internship" },
   { label: "FAQs", to: "/faqs" },
   { label: "Blog", to: "/blog" },
 ];
