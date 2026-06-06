@@ -95,7 +95,7 @@ const CandidateRegister = () => {
     "w-full rounded-lg border border-border bg-secondary/50 px-4 py-3 text-sm text-foreground placeholder-muted-foreground transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary";
   const labelClass = "mb-1.5 block text-sm font-medium text-foreground";
   const errorInputClass = "border-red-500 focus:border-red-500 focus:ring-red-500";
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$/;
+  const isPasswordValid = (value: string) => value.length >= 8;
 
   const onRetry = () => setStatusMessage(retryMessage);
 
@@ -109,21 +109,14 @@ const CandidateRegister = () => {
   ) => {
     if (!submitAttempted) return "";
 
+    // Only email + password are mandatory now. Every other field is optional and
+    // is only validated for format when the candidate actually fills it in.
     switch (field) {
-      case "fullName":
-      case "dateOfBirth":
-      case "gender":
-      case "address":
-      case "highestQualification":
-      case "preferredLocation":
-      case "preferredIndustry":
-      case "preferredRole":
-        return form[field].trim() ? "" : "This field is required.";
       case "pincode":
-        if (!form.pincode.trim()) return "Pincode is required.";
+        if (!form.pincode.trim()) return "";
         return /^\d{6}$/.test(form.pincode.trim()) ? "" : "Enter a valid 6 digit pincode.";
       case "mobile":
-        if (!form.mobile.trim()) return "Mobile number is required.";
+        if (!form.mobile.trim()) return "";
         return /^\d{10}$/.test(form.mobile.trim()) ? "" : "Enter a valid 10 digit mobile number.";
       case "email":
         if (!form.email.trim()) return "Email is required.";
@@ -134,32 +127,9 @@ const CandidateRegister = () => {
       case "portfolioUrl":
         if (!form.portfolioUrl.trim()) return "";
         return normalizeOptionalHttpUrl(form.portfolioUrl) ? "" : "Enter a valid portfolio URL.";
-      case "currentCompany":
-      case "designation":
-      case "totalExperience":
-      case "industry":
-      case "currentCtcLpa":
-      case "expectedCtcLpa":
-      case "minimumCtcLpa":
-      case "noticePeriod":
-        if (!isExperienced) return "";
-        return form[field].trim() ? "" : "This field is required for experienced candidates.";
-      case "lastWorkingDay":
-        if (!isExperienced || !servingNotice) return "";
-        return form.lastWorkingDay ? "" : "Please select your last working day.";
-      case "workModes":
-        return workModes.length > 0 ? "" : "Select at least one work mode.";
-      case "declarationAccepted":
-        return declarationAccepted ? "" : "Please accept the declaration.";
-      case "representationAuthorized":
-        return representationAuthorized ? "" : "Please authorize representation.";
-      case "resumeFile":
-        return "";
       case "password":
         if (!form.password) return "Password is required.";
-        return passwordRegex.test(form.password)
-          ? ""
-          : "Use 8+ characters with uppercase, lowercase, number, and special character.";
+        return isPasswordValid(form.password) ? "" : "Use at least 8 characters.";
       case "confirmPassword":
         if (!form.confirmPassword) return "Please confirm your password.";
         return form.password === form.confirmPassword ? "" : "Passwords must match.";
@@ -185,12 +155,10 @@ const CandidateRegister = () => {
 
   const canSubmit = useMemo(
     () =>
-      declarationAccepted &&
-      representationAuthorized &&
-      workModes.length > 0 &&
-      passwordRegex.test(form.password) &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) &&
+      isPasswordValid(form.password) &&
       form.password === form.confirmPassword,
-    [declarationAccepted, representationAuthorized, workModes.length, form.password, form.confirmPassword],
+    [form.email, form.password, form.confirmPassword],
   );
   const showApiSpinner = uploadingResume || submitting;
 
@@ -295,45 +263,56 @@ const CandidateRegister = () => {
         return;
       }
 
-      const generatedResumeData = buildGeneratedResumeData();
-
+      // Only email + password are mandatory. Everything else is attached only when
+      // the candidate actually filled it in, so partial sign-ups go through cleanly.
       const payload: Record<string, unknown> = {
         email: form.email.trim().toLowerCase(),
-        mobile: form.mobile.trim(),
         password: form.password,
-        fullName: form.fullName.trim(),
-        dateOfBirth: form.dateOfBirth,
-        gender: form.gender,
-        address: form.address.trim(),
-        pincode: form.pincode.trim(),
-        linkedinUrl,
-        portfolioUrl,
-        highestQualification: form.highestQualification,
         experienceStatus: form.experienceStatus,
-        preferences: {
-          preferredLocation: form.preferredLocation.trim(),
-          preferredIndustry: form.preferredIndustry.trim(),
-          preferredRole: form.preferredRole.trim(),
-          workModes,
-        },
         declarationAccepted,
         representationAuthorized,
-        resumeType: "generated",
-        resumeData: generatedResumeData,
       };
 
+      const addIf = (key: string, value: string) => {
+        if (value && value.trim()) payload[key] = value.trim();
+      };
+
+      addIf("mobile", form.mobile);
+      addIf("fullName", form.fullName);
+      addIf("gender", form.gender);
+      addIf("address", form.address);
+      addIf("pincode", form.pincode);
+      addIf("highestQualification", form.highestQualification);
+      if (form.dateOfBirth) payload.dateOfBirth = form.dateOfBirth;
+      if (linkedinUrl) payload.linkedinUrl = linkedinUrl;
+      if (portfolioUrl) payload.portfolioUrl = portfolioUrl;
+
+      const preferences: Record<string, unknown> = {};
+      if (form.preferredLocation.trim()) preferences.preferredLocation = form.preferredLocation.trim();
+      if (form.preferredIndustry.trim()) preferences.preferredIndustry = form.preferredIndustry.trim();
+      if (form.preferredRole.trim()) preferences.preferredRole = form.preferredRole.trim();
+      if (workModes.length > 0) preferences.workModes = workModes;
+      if (Object.keys(preferences).length > 0) payload.preferences = preferences;
+
       if (isExperienced) {
-        payload.experienceDetails = {
-          currentCompany: form.currentCompany.trim(),
-          designation: form.designation.trim(),
-          totalExperience: form.totalExperience.trim(),
-          industry: form.industry.trim(),
-          currentCtcLpa: Number(form.currentCtcLpa || 0),
-          expectedCtcLpa: Number(form.expectedCtcLpa || 0),
-          minimumCtcLpa: Number(form.minimumCtcLpa || 0),
-          noticePeriod: form.noticePeriod,
-          lastWorkingDay: form.lastWorkingDay || undefined,
-        };
+        const experienceDetails: Record<string, unknown> = {};
+        if (form.currentCompany.trim()) experienceDetails.currentCompany = form.currentCompany.trim();
+        if (form.designation.trim()) experienceDetails.designation = form.designation.trim();
+        if (form.totalExperience.trim()) experienceDetails.totalExperience = form.totalExperience.trim();
+        if (form.industry.trim()) experienceDetails.industry = form.industry.trim();
+        if (form.currentCtcLpa) experienceDetails.currentCtcLpa = Number(form.currentCtcLpa);
+        if (form.expectedCtcLpa) experienceDetails.expectedCtcLpa = Number(form.expectedCtcLpa);
+        if (form.minimumCtcLpa) experienceDetails.minimumCtcLpa = Number(form.minimumCtcLpa);
+        if (form.noticePeriod) experienceDetails.noticePeriod = form.noticePeriod;
+        if (form.lastWorkingDay) experienceDetails.lastWorkingDay = form.lastWorkingDay;
+        if (Object.keys(experienceDetails).length > 0) payload.experienceDetails = experienceDetails;
+      }
+
+      // Attach a generated resume only when we have a usable name to build it from.
+      const generatedResumeData = buildGeneratedResumeData();
+      if (generatedResumeData.name && generatedResumeData.name.trim().length >= 2) {
+        payload.resumeType = "generated";
+        payload.resumeData = generatedResumeData;
       }
 
       setStatusMessage("Submitting registration...");
@@ -430,7 +409,7 @@ const CandidateRegister = () => {
             <p className="text-muted-foreground">ANAAGAT HUMANPOWER PRIVATE LIMITED</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} noValidate className="space-y-8">
             <div className="rounded-2xl border border-border bg-card p-6 md:p-8">
               {sectionHeader(0, "Resume")}
               <p className="mb-4 text-sm text-muted-foreground">
@@ -741,7 +720,7 @@ const CandidateRegister = () => {
                   </div>
                 </div>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Use at least 8 characters with uppercase, lowercase, number, and special character.</p>
+              <p className="mt-2 text-xs text-muted-foreground">Use at least 8 characters. Only your email and password are required &mdash; every other detail is optional.</p>
               {getFieldError("password") ? <p className="mt-3 text-sm text-red-500">{getFieldError("password")}</p> : null}
               {getFieldError("confirmPassword") ? <p className="mt-3 text-sm text-red-500">{getFieldError("confirmPassword")}</p> : null}
               {serverError ? <p className="mt-3 text-sm text-red-500">{serverError}</p> : null}

@@ -73,8 +73,6 @@ const initialForm: ClientForm = {
   confirmPassword: "",
 };
 
-const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$/;
-
 const ClientRegister = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState<ClientForm>(initialForm);
@@ -91,11 +89,26 @@ const ClientRegister = () => {
     setWorkModes((prev) => (prev.includes(mode) ? prev.filter((m) => m !== mode) : [...prev, mode]));
   };
 
+  const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
+
+  // Only email + password are mandatory. Job details are optional and can be
+  // posted later from the dashboard.
   const canSubmit =
-    declarationAccepted &&
-    workModes.length > 0 &&
-    form.password === form.confirmPassword &&
-    strongPasswordRegex.test(form.password);
+    emailLooksValid && form.password === form.confirmPassword && form.password.length >= 8;
+
+  // A job is only posted at sign-up when the full required set is provided.
+  const hasCompleteJobDetails =
+    form.jobTitle.trim().length >= 2 &&
+    Number(form.openings) > 0 &&
+    form.department.trim().length >= 2 &&
+    form.jobLocation.trim().length >= 2 &&
+    form.employmentType.trim().length >= 2 &&
+    form.experienceRequired.trim().length >= 1 &&
+    form.minCtcLpa.trim() !== "" &&
+    form.maxCtcLpa.trim() !== "" &&
+    form.jobDescription.trim().length >= 10 &&
+    form.urgencyLevel.trim().length >= 1 &&
+    workModes.length > 0;
 
   const handleChange =
     (key: keyof ClientForm) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -106,7 +119,7 @@ const ClientRegister = () => {
     e.preventDefault();
     setSubmitAttempted(true);
     if (!canSubmit) {
-      setError("Please complete required fields and ensure password meets policy.");
+      setError("Please enter a valid email and a password of at least 8 characters.");
       return;
     }
 
@@ -160,26 +173,30 @@ const ClientRegister = () => {
         user: registerResponse.data.user,
       });
 
-      await apiPost(
-        "/jobs",
-        {
-          jobTitle: form.jobTitle.trim(),
-          openings: Number(form.openings),
-          department: form.department.trim(),
-          jobLocation: form.jobLocation.trim(),
-          employmentType: form.employmentType,
-          experienceRequired: form.experienceRequired.trim(),
-          minCtcLpa: Number(form.minCtcLpa),
-          maxCtcLpa: Number(form.maxCtcLpa),
-          preferredIndustryBackground: form.preferredIndustryBackground.trim() || undefined,
-          genderPreference: form.genderPreference && form.genderPreference !== "No Preference" ? form.genderPreference : undefined,
-          workModes,
-          jobDescription: form.jobDescription.trim(),
-          urgencyLevel: form.urgencyLevel,
-          expectedJoiningDate: form.expectedJoiningDate || undefined,
-        },
-        true,
-      );
+      // Only create a job requirement when the client filled the whole job section.
+      // Otherwise they can post it later from the dashboard.
+      if (hasCompleteJobDetails) {
+        await apiPost(
+          "/jobs",
+          {
+            jobTitle: form.jobTitle.trim(),
+            openings: Number(form.openings),
+            department: form.department.trim(),
+            jobLocation: form.jobLocation.trim(),
+            employmentType: form.employmentType,
+            experienceRequired: form.experienceRequired.trim(),
+            minCtcLpa: Number(form.minCtcLpa),
+            maxCtcLpa: Number(form.maxCtcLpa),
+            preferredIndustryBackground: form.preferredIndustryBackground.trim() || undefined,
+            genderPreference: form.genderPreference && form.genderPreference !== "No Preference" ? form.genderPreference : undefined,
+            workModes,
+            jobDescription: form.jobDescription.trim(),
+            urgencyLevel: form.urgencyLevel,
+            expectedJoiningDate: form.expectedJoiningDate || undefined,
+          },
+          true,
+        );
+      }
 
       setSubmitted(true);
       setTimeout(() => navigate("/dashboard/client"), 1200);
@@ -204,53 +221,27 @@ const ClientRegister = () => {
     if (!submitAttempted) return "";
 
     switch (field) {
-      case "companyName":
-      case "industry":
-      case "companySize":
-      case "companyType":
-      case "spocName":
-      case "spocDesignation":
-      case "jobTitle":
-      case "department":
-      case "jobLocation":
-      case "employmentType":
-      case "experienceRequired":
-      case "minCtcLpa":
-      case "maxCtcLpa":
-      case "urgencyLevel":
-      case "jobDescription":
-      case "recruitmentModel":
-      case "replacementPeriod":
-      case "paymentTerms":
-      case "billingCompanyName":
-      case "billingAddress":
-        return form[field].trim() ? "" : "This field is required.";
-      case "openings":
-        return Number(form.openings) > 0 ? "" : "Enter at least 1 opening.";
       case "mobile":
-        if (!form.mobile.trim()) return "Mobile number is required.";
+        if (!form.mobile.trim()) return "";
         return /^\d{10}$/.test(form.mobile.trim()) ? "" : "Enter a valid 10 digit mobile number.";
       case "email":
+        if (!form.email.trim()) return "Email is required.";
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) ? "" : "Enter a valid email address.";
       case "billingEmail":
-        if (!form[field].trim()) return "Email is required.";
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form[field].trim()) ? "" : "Enter a valid email address.";
+        if (!form.billingEmail.trim()) return "";
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.billingEmail.trim()) ? "" : "Enter a valid email address.";
       case "gstNumber":
-        if (!form.gstNumber.trim()) return "GST number is required.";
+        if (!form.gstNumber.trim()) return "";
         return /^[0-9A-Z]{15}$/.test(form.gstNumber.trim())
           ? ""
           : "GST number must be 15 characters using letters and numbers.";
-      case "workModes":
-        return workModes.length > 0 ? "" : "Select at least one work mode.";
       case "password":
         if (!form.password) return "Password is required.";
-        return strongPasswordRegex.test(form.password)
-          ? ""
-          : "Use 8+ characters with uppercase, lowercase, number, and special character.";
+        return form.password.length >= 8 ? "" : "Use at least 8 characters.";
       case "confirmPassword":
         if (!form.confirmPassword) return "Please confirm your password.";
         return form.password === form.confirmPassword ? "" : "Passwords do not match.";
-      case "declarationAccepted":
-        return declarationAccepted ? "" : "Please accept the client declaration.";
+      // Company, SPOC, commercial and billing details are optional now.
       default:
         return "";
     }
@@ -286,16 +277,16 @@ const ClientRegister = () => {
             <p className="text-muted-foreground">ANAAGAT HUMANPOWER PRIVATE LIMITED - Client Hiring Requirement Form</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} noValidate className="space-y-8">
             <div className="rounded-2xl border border-border bg-card p-6 md:p-8">
               <h3 className="text-lg font-heading font-semibold mb-5">Company Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div><label className={labelClass}>Company Name *</label><input required className={getInputClasses("companyName")} value={form.companyName} onChange={handleChange("companyName")} />{getFieldError("companyName") && <p className="mt-2 text-xs text-red-500">{getFieldError("companyName")}</p>}</div>
-                <div><label className={labelClass}>Industry *</label><input required className={getInputClasses("industry")} value={form.industry} onChange={handleChange("industry")} />{getFieldError("industry") && <p className="mt-2 text-xs text-red-500">{getFieldError("industry")}</p>}</div>
+                <div><label className={labelClass}>Company Name *</label><input className={getInputClasses("companyName")} value={form.companyName} onChange={handleChange("companyName")} />{getFieldError("companyName") && <p className="mt-2 text-xs text-red-500">{getFieldError("companyName")}</p>}</div>
+                <div><label className={labelClass}>Industry *</label><input className={getInputClasses("industry")} value={form.industry} onChange={handleChange("industry")} />{getFieldError("industry") && <p className="mt-2 text-xs text-red-500">{getFieldError("industry")}</p>}</div>
                 <div><label className={labelClass}>Company Website</label><input type="url" className={inputClass} value={form.companyWebsite} onChange={handleChange("companyWebsite")} /></div>
                 <div>
                   <label className={labelClass}>Company Size *</label>
-                  <select required className={getInputClasses("companySize")} value={form.companySize} onChange={handleChange("companySize")}>
+                  <select className={getInputClasses("companySize")} value={form.companySize} onChange={handleChange("companySize")}>
                     <option value="">Select</option>
                     <option>1–10 Employees</option>
                     <option>11–50 Employees</option>
@@ -307,7 +298,7 @@ const ClientRegister = () => {
                 </div>
                 <div className="md:col-span-2">
                   <label className={labelClass}>Company Type *</label>
-                  <select required className={getInputClasses("companyType")} value={form.companyType} onChange={handleChange("companyType")}>
+                  <select className={getInputClasses("companyType")} value={form.companyType} onChange={handleChange("companyType")}>
                     <option value="">Select</option>
                     <option>Startup</option>
                     <option>MSME</option>
@@ -325,12 +316,11 @@ const ClientRegister = () => {
             <div className="rounded-2xl border border-border bg-card p-6 md:p-8">
               <h3 className="text-lg font-heading font-semibold mb-5">SPOC / Hiring Contact</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div><label className={labelClass}>Name *</label><input required className={getInputClasses("spocName")} value={form.spocName} onChange={handleChange("spocName")} />{getFieldError("spocName") && <p className="mt-2 text-xs text-red-500">{getFieldError("spocName")}</p>}</div>
-                <div><label className={labelClass}>Designation *</label><input required className={getInputClasses("spocDesignation")} value={form.spocDesignation} onChange={handleChange("spocDesignation")} />{getFieldError("spocDesignation") && <p className="mt-2 text-xs text-red-500">{getFieldError("spocDesignation")}</p>}</div>
+                <div><label className={labelClass}>Name *</label><input className={getInputClasses("spocName")} value={form.spocName} onChange={handleChange("spocName")} />{getFieldError("spocName") && <p className="mt-2 text-xs text-red-500">{getFieldError("spocName")}</p>}</div>
+                <div><label className={labelClass}>Designation *</label><input className={getInputClasses("spocDesignation")} value={form.spocDesignation} onChange={handleChange("spocDesignation")} />{getFieldError("spocDesignation") && <p className="mt-2 text-xs text-red-500">{getFieldError("spocDesignation")}</p>}</div>
                 <div>
                   <label className={labelClass}>Mobile Number *</label>
                   <input
-                    required
                     inputMode="numeric"
                     pattern="^[0-9]{10}$"
                     title="Enter a 10 digit mobile number"
@@ -416,7 +406,7 @@ const ClientRegister = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className={labelClass}>Agreed Recruitment Model *</label>
-                  <select required className={getInputClasses("recruitmentModel")} value={form.recruitmentModel} onChange={handleChange("recruitmentModel")}>
+                  <select className={getInputClasses("recruitmentModel")} value={form.recruitmentModel} onChange={handleChange("recruitmentModel")}>
                     <option value="">Select</option>
                     <option>Success-Based</option>
                     <option>Retainer Model</option>
@@ -427,7 +417,7 @@ const ClientRegister = () => {
                 </div>
                 <div>
                   <label className={labelClass}>Replacement Period Required *</label>
-                  <select required className={getInputClasses("replacementPeriod")} value={form.replacementPeriod} onChange={handleChange("replacementPeriod")}>
+                  <select className={getInputClasses("replacementPeriod")} value={form.replacementPeriod} onChange={handleChange("replacementPeriod")}>
                     <option value="">Select</option>
                     <option>30 Days</option>
                     <option>60 Days</option>
@@ -438,7 +428,7 @@ const ClientRegister = () => {
                 </div>
                 <div className="md:col-span-2">
                   <label className={labelClass}>Payment Terms *</label>
-                  <select required className={getInputClasses("paymentTerms")} value={form.paymentTerms} onChange={handleChange("paymentTerms")}>
+                  <select className={getInputClasses("paymentTerms")} value={form.paymentTerms} onChange={handleChange("paymentTerms")}>
                     <option value="">Select</option>
                     <option>15 Days from Joining</option>
                     <option>30 Days from Joining</option>
@@ -447,11 +437,10 @@ const ClientRegister = () => {
                   </select>
                   {getFieldError("paymentTerms") && <p className="mt-2 text-xs text-red-500">{getFieldError("paymentTerms")}</p>}
                 </div>
-                <div><label className={labelClass}>Billing Company Name *</label><input required className={getInputClasses("billingCompanyName")} value={form.billingCompanyName} onChange={handleChange("billingCompanyName")} />{getFieldError("billingCompanyName") && <p className="mt-2 text-xs text-red-500">{getFieldError("billingCompanyName")}</p>}</div>
+                <div><label className={labelClass}>Billing Company Name *</label><input className={getInputClasses("billingCompanyName")} value={form.billingCompanyName} onChange={handleChange("billingCompanyName")} />{getFieldError("billingCompanyName") && <p className="mt-2 text-xs text-red-500">{getFieldError("billingCompanyName")}</p>}</div>
                 <div>
                   <label className={labelClass}>GST Number *</label>
                   <input
-                    required
                     className={getInputClasses("gstNumber")}
                     value={form.gstNumber}
                     onChange={(e) => setForm((p) => ({ ...p, gstNumber: e.target.value.toUpperCase().replace(/\s+/g, "").slice(0, 15) }))}
@@ -462,8 +451,8 @@ const ClientRegister = () => {
                   />
                   {getFieldError("gstNumber") && <p className="mt-2 text-xs text-red-500">{getFieldError("gstNumber")}</p>}
                 </div>
-                <div className="md:col-span-2"><label className={labelClass}>Billing Address *</label><textarea required rows={3} className={getInputClasses("billingAddress")} value={form.billingAddress} onChange={handleChange("billingAddress")} />{getFieldError("billingAddress") && <p className="mt-2 text-xs text-red-500">{getFieldError("billingAddress")}</p>}</div>
-                <div className="md:col-span-2"><label className={labelClass}>Billing Email *</label><input required type="email" className={getInputClasses("billingEmail")} value={form.billingEmail} onChange={handleChange("billingEmail")} />{getFieldError("billingEmail") && <p className="mt-2 text-xs text-red-500">{getFieldError("billingEmail")}</p>}</div>
+                <div className="md:col-span-2"><label className={labelClass}>Billing Address *</label><textarea rows={3} className={getInputClasses("billingAddress")} value={form.billingAddress} onChange={handleChange("billingAddress")} />{getFieldError("billingAddress") && <p className="mt-2 text-xs text-red-500">{getFieldError("billingAddress")}</p>}</div>
+                <div className="md:col-span-2"><label className={labelClass}>Billing Email *</label><input type="email" className={getInputClasses("billingEmail")} value={form.billingEmail} onChange={handleChange("billingEmail")} />{getFieldError("billingEmail") && <p className="mt-2 text-xs text-red-500">{getFieldError("billingEmail")}</p>}</div>
               </div>
             </div>
 

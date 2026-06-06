@@ -197,19 +197,28 @@ export const registerCandidate = asyncHandler(async (req, res) => {
         })
       : null;
 
-  await Resume.create({
-    candidateUserId: user.id,
-    resumeType: payload.resumeType,
-    resumeUrl: payload.resumeType === 'uploaded' ? payload.resumeUrl : '',
-    resumeFileId: payload.resumeType === 'uploaded' ? payload.resumeFileId : '',
-    resumeFileName: payload.resumeType === 'uploaded' ? payload.resumeFileName || '' : '',
-    resumeData: payload.resumeType === 'generated' ? generatedResumeData : undefined,
-  });
+  // A resume is optional at registration; only create one when the candidate
+  // supplied an uploaded file or asked us to generate one from form details.
+  if (payload.resumeType) {
+    await Resume.create({
+      candidateUserId: user.id,
+      resumeType: payload.resumeType,
+      resumeUrl: payload.resumeType === 'uploaded' ? payload.resumeUrl : '',
+      resumeFileId: payload.resumeType === 'uploaded' ? payload.resumeFileId : '',
+      resumeFileName: payload.resumeType === 'uploaded' ? payload.resumeFileName || '' : '',
+      resumeData: payload.resumeType === 'generated' ? generatedResumeData : undefined,
+    });
+  }
 
   syncCandidateLegacyFields({
     profile: candidateProfile,
     user,
-    resumeLocation: payload.resumeType === 'uploaded' ? payload.resumeUrl : 'generated',
+    resumeLocation:
+      payload.resumeType === 'uploaded'
+        ? payload.resumeUrl
+        : payload.resumeType === 'generated'
+          ? 'generated'
+          : '',
   });
   await candidateProfile.save();
 

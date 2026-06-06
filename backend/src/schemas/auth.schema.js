@@ -3,14 +3,11 @@ import { normalizeOptionalHttpUrl, normalizeOptionalLinkedinUrl } from '../utils
 
 const email = z.string().trim().email('Enter a valid email address').toLowerCase();
 const mobile = z.string().trim().regex(/^\d{10}$/, 'Enter a valid 10 digit mobile number');
-const password = z
-  .string()
-  .min(8, 'Password must be at least 8 characters long')
-  .max(128)
-  .regex(/[a-z]/, 'Password must include a lowercase letter')
-  .regex(/[A-Z]/, 'Password must include an uppercase letter')
-  .regex(/[0-9]/, 'Password must include a number')
-  .regex(/[^a-zA-Z0-9]/, 'Password must include a special character');
+// Optional mobile that also accepts an empty string (mobile is no longer mandatory).
+const optionalMobile = mobile.optional().or(z.literal(''));
+const optionalEmail = email.optional().or(z.literal(''));
+// Only a minimum length is enforced now; complexity requirements were removed by request.
+const password = z.string().min(8, 'Password must be at least 8 characters long').max(128);
 
 const optionalHttpUrl = z.preprocess(
   normalizeOptionalHttpUrl,
@@ -62,20 +59,26 @@ export const loginSchema = z
   })
   .strict();
 
+// Only email + password are mandatory. Every other detail is optional and can be
+// completed later from the candidate dashboard.
 export const candidateRegisterSchema = z
   .object({
     email,
-    mobile,
     password,
-    fullName: z.string().trim().min(2).max(120),
-    dateOfBirth: z.coerce.date(),
-    gender: z.enum(['Male', 'Female', 'Other', 'Prefer Not to Say']),
-    address: z.string().trim().min(5).max(500),
-    pincode: z.string().regex(/^\d{6}$/, 'Enter a valid 6 digit pincode'),
+    mobile: optionalMobile,
+    fullName: z.string().trim().min(2).max(120).optional(),
+    dateOfBirth: z.coerce.date().optional(),
+    gender: z.enum(['Male', 'Female', 'Other', 'Prefer Not to Say']).optional(),
+    address: z.string().trim().max(500).optional(),
+    pincode: z
+      .string()
+      .regex(/^\d{6}$/, 'Enter a valid 6 digit pincode')
+      .optional()
+      .or(z.literal('')),
     linkedinUrl: optionalLinkedinUrl,
     portfolioUrl: optionalHttpUrl,
-    highestQualification: z.string().trim().min(2).max(100),
-    experienceStatus: z.enum(['fresher', 'experienced']),
+    highestQualification: z.string().trim().min(2).max(100).optional(),
+    experienceStatus: z.enum(['fresher', 'experienced']).optional(),
     experienceDetails: z
       .object({
         currentCompany: z.string().trim().min(2).max(150).optional(),
@@ -91,22 +94,25 @@ export const candidateRegisterSchema = z
       .optional(),
     preferences: z
       .object({
-        preferredLocation: z.string().trim().min(2).max(100),
-        preferredIndustry: z.string().trim().min(2).max(100),
-        preferredRole: z.string().trim().min(2).max(100),
-        workModes: z.array(z.enum(['On-site', 'Hybrid', 'Remote'])).min(1),
+        preferredLocation: z.string().trim().max(100).optional(),
+        preferredIndustry: z.string().trim().max(100).optional(),
+        preferredRole: z.string().trim().max(100).optional(),
+        workModes: z.array(z.enum(['On-site', 'Hybrid', 'Remote'])).optional(),
       })
-      .strict(),
-    declarationAccepted: z.literal(true),
-    representationAuthorized: z.literal(true),
-    resumeType: z.enum(['uploaded', 'generated']),
+      .strict()
+      .optional(),
+    declarationAccepted: z.boolean().optional(),
+    representationAuthorized: z.boolean().optional(),
+    resumeType: z.enum(['uploaded', 'generated']).optional(),
     resumeUrl: optionalHttpUrl.optional(),
     resumeFileId: z.string().trim().min(3).max(255).optional(),
     resumeFileName: z.string().trim().min(1).max(255).optional(),
     resumeData: generatedResumeDataSchema.optional(),
   })
+  .strict()
   .refine(
     (payload) =>
+      !payload.resumeType ||
       (payload.resumeType === 'uploaded' &&
         Boolean(payload.resumeUrl) &&
         Boolean(payload.resumeFileId) &&
@@ -119,43 +125,53 @@ export const candidateRegisterSchema = z
       message: 'Send either resumeUrl + resumeFileId for uploaded resumes or resumeData for generated resumes',
       path: ['resumeType'],
     },
-  )
-  .strict();
+  );
 
+// Only email + password are mandatory. Company, SPOC, commercial and billing
+// details are optional and can be completed later from the client dashboard.
 export const clientRegisterSchema = z
   .object({
     email,
-    mobile,
     password,
-    companyName: z.string().trim().min(2).max(180),
-    industry: z.string().trim().min(2).max(100),
+    mobile: optionalMobile,
+    companyName: z.string().trim().max(180).optional(),
+    industry: z.string().trim().max(100).optional(),
     companyWebsite: optionalHttpUrl,
-    companySize: z.string().trim().min(1).max(80),
-    companyType: z.string().trim().min(1).max(80),
+    companySize: z.string().trim().max(80).optional(),
+    companyType: z.string().trim().max(80).optional(),
     spoc: z
       .object({
-        name: z.string().trim().min(2).max(120),
-        designation: z.string().trim().min(2).max(120),
-        mobile,
-        email,
+        name: z.string().trim().max(120).optional(),
+        designation: z.string().trim().max(120).optional(),
+        mobile: optionalMobile,
+        email: optionalEmail,
       })
-      .strict(),
+      .strict()
+      .optional(),
     commercial: z
       .object({
-        recruitmentModel: z.string().trim().min(1).max(80),
-        replacementPeriod: z.string().trim().min(1).max(80),
-        paymentTerms: z.string().trim().min(1).max(120),
+        recruitmentModel: z.string().trim().max(80).optional(),
+        replacementPeriod: z.string().trim().max(80).optional(),
+        paymentTerms: z.string().trim().max(120).optional(),
       })
-      .strict(),
+      .strict()
+      .optional(),
     billing: z
       .object({
-        billingCompanyName: z.string().trim().min(2).max(180),
-        gstNumber: z.string().trim().toUpperCase().regex(/^[0-9A-Z]{15}$/, 'Enter a valid 15 character GST number'),
-        billingAddress: z.string().trim().min(5).max(500),
-        billingEmail: email,
+        billingCompanyName: z.string().trim().max(180).optional(),
+        gstNumber: z
+          .string()
+          .trim()
+          .toUpperCase()
+          .regex(/^[0-9A-Z]{15}$/, 'Enter a valid 15 character GST number')
+          .optional()
+          .or(z.literal('')),
+        billingAddress: z.string().trim().max(500).optional(),
+        billingEmail: optionalEmail,
       })
-      .strict(),
-    declarationAccepted: z.literal(true),
+      .strict()
+      .optional(),
+    declarationAccepted: z.boolean().optional(),
   })
   .strict();
 
