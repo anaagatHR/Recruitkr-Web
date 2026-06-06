@@ -483,27 +483,18 @@ const ClientDashboard = () => {
     const normalizedDepartment = newRequirementForm.department.trim() || newRequirementForm.category.trim();
     const missingFields: string[] = [];
 
+    // Only Job Title and Job Description are mandatory now.
     if (!newRequirementForm.jobTitle.trim()) missingFields.push("Job Title");
-    if (!newRequirementForm.category.trim()) missingFields.push("Category");
-    if (!normalizedDepartment) missingFields.push("Department");
-    if (!newRequirementForm.jobLocation.trim()) missingFields.push("Job Location");
-    if (!newRequirementForm.employmentType) missingFields.push("Job Type");
-    if (!newRequirementForm.experienceRequired.trim()) missingFields.push("Experience Level");
-    if (!newRequirementForm.minCtcLpa.trim()) missingFields.push("Min CTC");
-    if (!newRequirementForm.maxCtcLpa.trim()) missingFields.push("Max CTC");
-    if (!newRequirementForm.jobDescription.trim() || newRequirementForm.jobDescription.trim().length < 10) {
-      missingFields.push("Job Description");
-    }
-    if (!newRequirementForm.urgencyLevel) missingFields.push("Urgency Level");
-    if (Number(newRequirementForm.openings) < 1) missingFields.push("Openings");
-    if (newRequirementWorkModes.length === 0) missingFields.push("Work Mode");
+    if (!newRequirementForm.jobDescription.trim()) missingFields.push("Job Description");
 
     if (missingFields.length > 0) {
       setError(`Please complete these required fields: ${missingFields.join(", ")}.`);
       return;
     }
 
-    if (Number(newRequirementForm.maxCtcLpa) < Number(newRequirementForm.minCtcLpa)) {
+    const hasMinCtc = newRequirementForm.minCtcLpa.trim() !== "";
+    const hasMaxCtc = newRequirementForm.maxCtcLpa.trim() !== "";
+    if (hasMinCtc && hasMaxCtc && Number(newRequirementForm.maxCtcLpa) < Number(newRequirementForm.minCtcLpa)) {
       setError("Max CTC should be greater than or equal to Min CTC.");
       return;
     }
@@ -516,18 +507,21 @@ const ClientDashboard = () => {
           .map((item) => item.trim())
           .filter(Boolean);
 
+      // Only the title + description are guaranteed; everything else is sent only
+      // when filled so the optional fields don't trip backend validation.
       const payload = {
         jobTitle: newRequirementForm.jobTitle.trim(),
-        category: newRequirementForm.category.trim(),
+        jobDescription: newRequirementForm.jobDescription.trim(),
+        category: newRequirementForm.category.trim() || undefined,
         company: newRequirementForm.company.trim() || undefined,
-        openings: Number(newRequirementForm.openings),
-        department: normalizedDepartment,
-        jobLocation: newRequirementForm.jobLocation.trim(),
-        employmentType: newRequirementForm.employmentType,
-        experienceRequired: newRequirementForm.experienceRequired.trim(),
+        openings: Number(newRequirementForm.openings) > 0 ? Number(newRequirementForm.openings) : undefined,
+        department: normalizedDepartment || undefined,
+        jobLocation: newRequirementForm.jobLocation.trim() || undefined,
+        employmentType: newRequirementForm.employmentType || undefined,
+        experienceRequired: newRequirementForm.experienceRequired.trim() || undefined,
         qualification: newRequirementForm.qualification.trim() || undefined,
-        minCtcLpa: Number(newRequirementForm.minCtcLpa),
-        maxCtcLpa: Number(newRequirementForm.maxCtcLpa),
+        minCtcLpa: newRequirementForm.minCtcLpa.trim() ? Number(newRequirementForm.minCtcLpa) : undefined,
+        maxCtcLpa: newRequirementForm.maxCtcLpa.trim() ? Number(newRequirementForm.maxCtcLpa) : undefined,
         fixedPrice: newRequirementForm.fixedPrice.trim() ? Number(newRequirementForm.fixedPrice) : undefined,
         ageRequirement: newRequirementForm.ageRequirement.trim() || undefined,
         contactEmail: newRequirementForm.contactEmail.trim() || undefined,
@@ -538,12 +532,11 @@ const ClientDashboard = () => {
           newRequirementForm.genderPreference !== "No Preference"
             ? newRequirementForm.genderPreference
             : undefined,
-        workModes: newRequirementWorkModes,
-        jobDescription: newRequirementForm.jobDescription.trim(),
+        workModes: newRequirementWorkModes.length > 0 ? newRequirementWorkModes : undefined,
         requirements: parseLines(newRequirementForm.requirementsText),
         responsibilities: parseLines(newRequirementForm.responsibilitiesText),
         skills: parseLines(newRequirementForm.skillsText),
-        urgencyLevel: newRequirementForm.urgencyLevel,
+        urgencyLevel: newRequirementForm.urgencyLevel || undefined,
         expectedJoiningDate: newRequirementForm.expectedJoiningDate || undefined,
       };
 
