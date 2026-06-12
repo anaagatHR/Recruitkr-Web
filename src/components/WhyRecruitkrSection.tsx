@@ -1,3 +1,4 @@
+﻿"use client";
 import { ShieldCheck, RefreshCcw, Globe, UserCog, Layers } from "lucide-react";
 
 const usps = [
@@ -10,7 +11,7 @@ const usps = [
 
 const WhyRecruitkrSection = () => {
   return (
-    <section id="why-us" className="content-auto py-24">
+    <section id="why-us" className="py-24">
       <div className="container mx-auto px-4">
         <div className="mb-16 text-center">
           <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-primary">
@@ -31,7 +32,7 @@ const WhyRecruitkrSection = () => {
                 <usp.icon size={24} />
               </div>
               <div>
-                <h3 className="mb-1 text-lg font-bold">{usp.title}</h3>
+                <h3 className="mb-1 text-lg font-bold text-foreground">{usp.title}</h3>
                 <p className="text-sm text-muted-foreground">{usp.desc}</p>
               </div>
             </div>

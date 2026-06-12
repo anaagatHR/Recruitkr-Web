@@ -1,7 +1,21 @@
 node_modules
+
+# Next.js
+.next
+out
+next-env.d.ts
+.vercel
+*.tsbuildinfo
+
+# build / misc
+dist
 backend/_render_pdf_screenshot.mjs
 backend/_tmp_*
-dist
+srv.out.log
+srv.err.log
+*.log
+
+# env
 .env
 .env.*
 !.env.example

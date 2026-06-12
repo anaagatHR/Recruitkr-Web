@@ -63,9 +63,13 @@
     text-rendering: optimizeSpeed;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1, h2 {
     @apply font-heading bg-clip-text text-transparent;
     background-image: var(--brand-gradient);
+  }
+
+  h3, h4, h5, h6 {
+    @apply font-heading text-foreground;
   }
 }
 
@@ -186,6 +190,22 @@
 
 .animate-sectors-ticker {
   animation: ticker 18s linear infinite;
+}
+
+/* Image scroller marquee (reuses the ticker keyframe). */
+.animate-marquee {
+  animation: ticker 40s linear infinite;
+  will-change: transform;
+}
+
+.marquee-pause:hover .animate-marquee {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
 }
 
 .animate-float {

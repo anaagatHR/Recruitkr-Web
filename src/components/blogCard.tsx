@@ -1,5 +1,6 @@
+﻿"use client";
 import { memo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@/compat/router";
 
 import type { BlogPost } from "@/lib/blog";
 

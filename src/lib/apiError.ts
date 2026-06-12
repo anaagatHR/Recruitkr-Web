@@ -2,7 +2,7 @@ export const DEFAULT_API_ERROR_MESSAGE = "Connection issue, retrying...";
 export const TIMEOUT_API_ERROR_MESSAGE = "Server is slow or unavailable";
 export const SERVER_API_ERROR_MESSAGE = "Server is slow or unavailable";
 export const API_MISCONFIGURED_MESSAGE =
-  "API misconfigured. Check VITE_API_URL or backend routing";
+  "API misconfigured. Check NEXT_PUBLIC_API_URL or backend routing";
 
 const TECHNICAL_MESSAGE_PATTERNS = [
   /vite_api_url/i,

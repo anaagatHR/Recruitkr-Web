@@ -1,7 +1,8 @@
+﻿"use client";
 import { Facebook, Instagram, Linkedin, Mail, Phone } from "lucide-react";
 import OptimizedLogo from "@/components/OptimizedLogo";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Link } from "react-router-dom";
+import { Link } from "@/compat/router";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const socialLinks = [
@@ -24,6 +25,8 @@ const socialLinks = [
 
 const footerLinks = [
   { label: "Home", to: "/" },
+  { label: "Browse Jobs", to: "/jobs" },
+  { label: "Companies", to: "/companies" },
   { label: "About Us", to: "/why-us" },
   { label: "Recruitment", to: "/services" },
   { label: "Payroll", to: "/services" },

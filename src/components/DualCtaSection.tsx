@@ -1,9 +1,10 @@
+﻿"use client";
 import { Briefcase, Upload } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "@/compat/router";
 
 const DualCtaSection = () => {
   return (
-    <section id="cta" className="content-auto py-24">
+    <section id="cta" className="py-24">
       <div className="container mx-auto px-4">
         <div className="grid gap-6 md:grid-cols-2">
           {/* Employers */}
@@ -11,7 +12,7 @@ const DualCtaSection = () => {
             <div className="mx-auto mb-5 inline-flex rounded-full bg-primary/20 p-4 text-primary">
               <Briefcase size={32} />
             </div>
-            <h3 className="mb-2 text-xl font-extrabold sm:text-2xl">For Employers</h3>
+            <h3 className="mb-2 text-xl font-extrabold text-foreground sm:text-2xl">For Employers</h3>
             <p className="mb-6 text-muted-foreground">
               Share your requirements and let us find the perfect fit.
             </p>
@@ -28,7 +29,7 @@ const DualCtaSection = () => {
             <div className="mx-auto mb-5 inline-flex rounded-full bg-accent/20 p-4 text-accent">
               <Upload size={32} />
             </div>
-            <h3 className="mb-2 text-xl font-extrabold sm:text-2xl">For Job Seekers</h3>
+            <h3 className="mb-2 text-xl font-extrabold text-foreground sm:text-2xl">For Job Seekers</h3>
             <p className="mb-6 text-muted-foreground">
               Upload your resume and let opportunities find you.
             </p>

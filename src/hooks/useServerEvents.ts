@@ -1,3 +1,4 @@
+﻿"use client";
 import { useEffect, useRef, useState } from "react";
 
 import { createSseUrl } from "@/lib/api";

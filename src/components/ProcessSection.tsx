@@ -1,3 +1,4 @@
+﻿"use client";
 const steps = [
   { num: "01", title: "Understand Requirement" },
   { num: "02", title: "Source Talent" },
@@ -8,7 +9,7 @@ const steps = [
 
 const ProcessSection = () => {
   return (
-    <section id="process" className="content-auto border-y border-border py-24">
+    <section id="process" className="border-y border-border py-24">
       <div className="container mx-auto px-4">
         <div className="mb-16 text-center">
           <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-accent">

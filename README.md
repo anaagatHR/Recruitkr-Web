@@ -1,46 +1,58 @@
-# Recruitkr Frontend
+# RecruitKr — Job Portal (Next.js + TypeScript)
 
-Recruitkr ka frontend application `Vite`, `React`, `TypeScript`, `Tailwind CSS`, aur `shadcn/ui` stack par built hai.
+RecruitKr is a job portal where candidates can **browse jobs and company ratings without logging in**, and only need an account to **apply**. Built with the Next.js App Router and TypeScript, with top-level SEO (per-route metadata, sitemap, robots, JSON-LD).
 
-## Local development
+## Tech stack
 
-Requirements:
+- **Next.js 14 (App Router)** + **TypeScript**
+- **Tailwind CSS** + **shadcn/ui** (Radix) components
+- Talks to the existing **Express backend** (`NEXT_PUBLIC_API_URL`) for auth, blog, contact, dashboards
+- Jobs / companies / ratings come from the backend (`/jobs`, `/companies`) with a **seed-data fallback** so the UI renders before those endpoints exist
 
-- Node.js
-- npm
+## Getting started
 
-Run locally:
-
-```sh
+```bash
 npm install
-npm run dev
+npm run dev      # http://localhost:3000
+npm run build    # production build
+npm start        # serve the production build
 ```
 
-Optional frontend env for local API:
+### Environment (`.env.local`)
 
-```sh
-VITE_API_URL=http://localhost:5000/api/v1
+```
+NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
+NEXT_PUBLIC_SITE_URL=https://www.recruitkr.com
+NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY=...
+NEXT_PUBLIC_GA_MEASUREMENT_ID=...   # optional
 ```
 
-If `VITE_API_URL` is not set:
-- local development uses `http://localhost:5000/api/v1`
-- production uses `/api/v1` on the same domain as the frontend
+## Key flows
 
-## Deployment
+- **Browse without login** — `/jobs`, `/jobs/[id]`, `/companies`, `/companies/[id]` are public.
+- **Login required to apply** — the "Apply" button redirects guests to `/login?redirect=...`.
+- **Simple signup** — `/signup` collects only **name, email, mobile, password**.
+- **FOMO** — live activity ticker, "new today / high demand" badges, applicant counts and scarcity nudges.
+- **Ratings** — star ratings on jobs and company pages.
+- **No admin** — admin screens were removed.
 
-For a separate frontend + backend deployment:
+## SEO
 
-- Set frontend `VITE_API_URL` to your public backend URL, for example `https://your-backend.example.com/api/v1`
-- Set backend `CORS_ORIGIN` to your frontend URL, for example `https://your-frontend.vercel.app`
-- After deploy, test `https://your-backend.example.com/api/v1/health`
+- Per-route `metadata` (title/description/canonical/OG/Twitter) via `src/lib/seo.ts`
+- Dynamic `src/app/sitemap.ts` and `src/app/robots.ts`
+- Organization + WebSite JSON-LD in the root layout; per-job/company metadata generated server-side
 
-If the frontend shows `Backend server is not reachable`, the most common cause is that the frontend was built without `VITE_API_URL` and is calling the wrong host.
+## Project structure
 
-## Available scripts
+```
+src/app/         App Router routes (each page sets SEO metadata, renders a screen)
+src/screens/     Page-level UI components (client)
+src/components/  Shared UI + job-portal pieces (JobCard, CompanyCard, StarRating, FomoTicker)
+src/compat/      react-router-dom -> next/navigation compatibility shim
+src/lib/         api client, auth, jobs/companies data layer, seo helpers
+```
 
-- `npm run dev` - start local dev server
-- `npm run build` - create production build
-- `npm run preview` - preview production build locally
-- `npm run lint` - run ESLint
-- `npm run test` - run Vitest once
-- `npm run test:watch` - run Vitest in watch mode
+## Migration note
+
+The project was migrated from Vite + React Router to Next.js. Existing pages keep the
+`react-router-dom` API through `src/compat/router.tsx`, so only import paths changed.

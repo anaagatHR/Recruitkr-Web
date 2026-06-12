@@ -5,7 +5,7 @@ declare global {
   }
 }
 
-const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID?.trim();
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim();
 
 let analyticsLoaded = false;
 let analyticsScheduled = false;
@@ -13,12 +13,12 @@ const pendingPageViews: string[] = [];
 const runWhenIdle = (callback: () => void) => {
   if (typeof window === "undefined") return;
 
-  if ("requestIdleCallback" in window) {
+  if (typeof window.requestIdleCallback === "function") {
     window.requestIdleCallback(callback, { timeout: 1500 });
     return;
   }
 
-  window.setTimeout(callback, 250);
+  setTimeout(callback, 250);
 };
 
 const injectAnalyticsScript = () => {

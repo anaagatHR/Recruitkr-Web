@@ -13,6 +13,9 @@ export type AuthSession = {
 const AUTH_STORAGE_KEY = 'recruitkr.auth.session';
 
 export const getSession = (): AuthSession | null => {
+  // SSR-safe: localStorage only exists in the browser.
+  if (typeof window === "undefined") return null;
+
   const raw = localStorage.getItem(AUTH_STORAGE_KEY);
   if (!raw) return null;
 
@@ -26,10 +29,12 @@ export const getSession = (): AuthSession | null => {
 };
 
 export const setSession = (session: AuthSession) => {
+  if (typeof window === "undefined") return;
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
 };
 
 export const clearSession = () => {
+  if (typeof window === "undefined") return;
   localStorage.removeItem(AUTH_STORAGE_KEY);
 };
 

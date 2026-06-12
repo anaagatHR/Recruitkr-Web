@@ -1,6 +1,7 @@
+﻿"use client";
 import { cn } from "@/lib/utils";
 import { services } from "@/lib/services";
-import { Link } from "react-router-dom";
+import { Link } from "@/compat/router";
 
 type ServicesSectionProps = {
   showHeading?: boolean;
@@ -9,7 +10,7 @@ type ServicesSectionProps = {
 
 const ServicesSection = ({ showHeading = true, className }: ServicesSectionProps) => {
   return (
-    <section id="services" className={cn("content-auto py-24", className)}>
+    <section id="services" className={cn("py-24", className)}>
       <div className="container mx-auto px-4">
         {showHeading && (
           <div className="mb-16 text-center">
@@ -29,7 +30,7 @@ const ServicesSection = ({ showHeading = true, className }: ServicesSectionProps
               <div className="mb-5 inline-flex rounded-lg bg-primary/10 p-3 text-primary transition-colors group-hover:bg-white/15 group-hover:text-white">
                 <service.icon size={28} />
               </div>
-              <h3 className="mb-2 text-xl font-bold group-hover:text-white">{service.cardTitle}</h3>
+              <h3 className="mb-2 text-xl font-bold text-foreground group-hover:text-white">{service.cardTitle}</h3>
               <p className="text-sm leading-relaxed text-muted-foreground group-hover:text-white/90">{service.cardDescription}</p>
             </Link>
           ))}

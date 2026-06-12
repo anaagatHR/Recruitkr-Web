@@ -1,5 +1,6 @@
+﻿"use client";
 import { useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "@/compat/router";
 import { analyticsEnabled, initializeAnalytics, trackPageView } from "@/lib/analytics";
 
 const AnalyticsTracker = () => {

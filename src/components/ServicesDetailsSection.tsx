@@ -1,3 +1,4 @@
+﻿"use client";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { services } from "@/lib/services";
 
@@ -9,7 +10,7 @@ const ServicesDetailsSection = () => {
           <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-primary">Details</p>
           <h2 className="text-4xl font-extrabold tracking-tight md:text-5xl">Service Details</h2>
           <p className="mt-4 text-base text-muted-foreground">
-            Explore what's included in each service and how RecruitKr supports your business or career journey.
+            Explore what&apos;s included in each service and how RecruitKr supports your business or career journey.
           </p>
         </div>
 

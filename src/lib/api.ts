@@ -14,11 +14,39 @@ const API_TIMEOUT_MS = 15000;
 const RETRY_DELAY_MS = 1500;
 const DEFAULT_RETRIES = 2;
 
-const baseURL = import.meta.env.VITE_API_URL || `${window.location.origin}/api/v1`;
-const API_BASE = trimTrailingSlash(baseURL);
+const resolveApiBase = (): string => {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
+
+  // Browser: use same-origin /api/v1 so Next.js rewrites proxy to the backend.
+  // Direct cross-origin calls (e.g. localhost:3000 -> localhost:5000) fail when
+  // CORS_ORIGIN on the backend does not include the frontend origin.
+  if (typeof window !== "undefined") {
+    const sameOriginBase = `${window.location.origin}/api/v1`;
+
+    if (!configured) {
+      return sameOriginBase;
+    }
+
+    try {
+      const configuredOrigin = new URL(configured).origin;
+      if (configuredOrigin !== window.location.origin) {
+        return sameOriginBase;
+      }
+    } catch {
+      return sameOriginBase;
+    }
+
+    return trimTrailingSlash(configured);
+  }
+
+  // Server (SSR): talk to the backend directly.
+  return trimTrailingSlash(configured || "http://localhost:5000/api/v1");
+};
+
+const API_BASE = resolveApiBase();
 const API_ROOT = API_BASE.replace(/\/api\/v\d+$/, "").replace(/\/$/, "");
 const IS_SAME_ORIGIN_PROD_API =
-  !import.meta.env.DEV &&
+  process.env.NODE_ENV !== "development" &&
   typeof window !== "undefined" &&
   API_BASE === `${window.location.origin}/api/v1`;
 
@@ -68,7 +96,7 @@ const normalizeHelperOptions = (options?: ApiHelperOptions): Omit<ApiOptions, "m
   return options || {};
 };
 
-const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const fetchWithTimeout = async (
   input: RequestInfo | URL,
@@ -76,7 +104,7 @@ const fetchWithTimeout = async (
   timeoutMs = API_TIMEOUT_MS,
 ) => {
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     return await fetch(input, {
@@ -84,7 +112,7 @@ const fetchWithTimeout = async (
       signal: controller.signal,
     });
   } finally {
-    window.clearTimeout(timeoutId);
+    clearTimeout(timeoutId);
   }
 };
 
@@ -127,7 +155,7 @@ const logProbableDeploymentHint = (url: string) => {
 
   console.warn("[api] probable deployment issue", {
     url,
-    hint: "Frontend is using the same-origin /api/v1 fallback. If backend is deployed separately, set VITE_API_URL to the backend public /api/v1 URL and allow the frontend origin in CORS_ORIGIN.",
+    hint: "Frontend is using the same-origin /api/v1 proxy. Set NEXT_PUBLIC_API_URL to the backend /api/v1 URL for Next.js rewrites, or allow the frontend origin in backend CORS_ORIGIN for direct calls.",
   });
 };
 
@@ -178,9 +206,19 @@ const refreshAccessToken = (): Promise<string | null> => {
   return inFlightRefresh;
 };
 
-type RetryableResult<T> =
-  | { ok: true; response: Response; attempt: number; maxAttempts: number }
-  | { ok: false; error: unknown; reason: RetryReason; url: string; attempt: number; maxAttempts: number };
+// A single shape (rather than a discriminated union) because the project runs
+// with `strictNullChecks: false`, under which union discriminants widen to
+// `boolean` and `if (!result.ok)` fails to narrow. Optional fields are only set
+// on the matching outcome; `ok` tells the caller which fields are populated.
+type RetryableResult<T> = {
+  ok: boolean;
+  response?: T;
+  error?: unknown;
+  reason?: RetryReason;
+  url?: string;
+  attempt: number;
+  maxAttempts: number;
+};
 
 async function fetchWithRetry(
   url: string,

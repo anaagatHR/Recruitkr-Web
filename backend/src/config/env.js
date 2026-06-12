@@ -24,7 +24,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(5000),
   MONGODB_URI: z.string().min(1),
-  CORS_ORIGIN: z.string().min(1).default('http://localhost:5173'),
+  CORS_ORIGIN: z.string().min(1).default('http://localhost:3000,http://localhost:5173'),
   JWT_ACCESS_SECRET: z.preprocess(
     () => envValue('JWT_ACCESS_SECRET', 'JWT_SECRET'),
     z.string().min(32),
@@ -48,7 +48,7 @@ const envSchema = z.object({
 
   FRONTEND_URL: z.preprocess(
     () => envValue('FRONTEND_URL', 'CLIENT_URL'),
-    z.string().url().default('http://localhost:5173'),
+    z.string().url().default('http://localhost:3000'),
   ),
   BACKEND_PUBLIC_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
   PASSWORD_RESET_EXPIRES_MIN: z.coerce.number().int().positive().default(30),

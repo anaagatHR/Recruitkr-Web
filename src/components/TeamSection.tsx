@@ -1,3 +1,4 @@
+﻿"use client";
 import { startTransition, useEffect, useState } from "react";
 import { BriefcaseBusiness, Linkedin, Mail } from "lucide-react";
 

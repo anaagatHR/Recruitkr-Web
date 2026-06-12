@@ -1,17 +1,16 @@
+"use client";
 import OptimizedLogo from "@/components/OptimizedLogo";
 import { Menu, X } from "lucide-react";
 import { memo, useCallback, useState } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink } from "@/compat/router";
 
 const navItems = [
-  { label: "Home", path: "/" },
-  { label: "About Us", path: "/why-us" },
-  { label: "Our Team", path: "/our-team" },
+  { label: "Jobs", path: "/jobs" },
+  { label: "Companies", path: "/companies" },
   { label: "Services", path: "/services" },
   { label: "Sectors", path: "/sectors" },
-  { label: "Process", path: "/process" },
   { label: "Blog", path: "/blog" },
-  { label: "Contact", path: "/contact" },
+  { label: "About", path: "/why-us" },
 ];
 
 const navLinkClass = (isActive: boolean) =>
@@ -25,21 +24,21 @@ const Navbar = memo(function Navbar() {
   const closeMenu = useCallback(() => setOpen(false), []);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/95 shadow-sm md:bg-background/80 md:shadow-none md:backdrop-blur-lg">
-      <div className="container mx-auto flex items-center justify-between px-4 py-3 md:py-4">
-        <Link to="/" className="flex items-center" aria-label="RecruitKr home">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-black-500 border-border/50 bg-background/95 shadow-sm md:bg-background/80 md:shadow-none md:backdrop-blur-lg">
+      <div className="  mx-auto flex items-center justify-between px-4 py-3 md:py-4">
+        <Link to="/" className="flex items-center " aria-label="RecruitKr home">
           <span className="flex h-12 max-w-[220px] shrink-0 items-center sm:h-14 md:h-16">
             <OptimizedLogo
               loading="eager"
               fetchPriority="high"
               className="block h-full w-auto"
-              imgClassName="h-full w-auto origin-left scale-[2] object-contain"
+              imgClassName="h-full w-auto object-contain"
               sizes="(max-width: 768px) 120px, 220px"
             />
           </span>
         </Link>
 
-        <div className="hidden items-center gap-8 lg:flex">
+        <div className="hidden items-center gap-7 lg:flex">
           {navItems.map((item) => (
             <NavLink key={item.label} to={item.path} className={({ isActive }) => navLinkClass(isActive)}>
               {item.label}
@@ -48,9 +47,15 @@ const Navbar = memo(function Navbar() {
 
           <Link
             to="/login"
-            className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold transition-transform hover:scale-105"
+            className="rounded-lg px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:text-primary"
           >
             Login
+          </Link>
+          <Link
+            to="/signup"
+            className="btn-gradient rounded-lg px-4 py-2 text-sm font-semibold transition-transform hover:scale-105"
+          >
+            Sign Up
           </Link>
         </div>
 
@@ -76,9 +81,14 @@ const Navbar = memo(function Navbar() {
               {item.label}
             </NavLink>
           ))}
-          <Link to="/login" className="btn-gradient mt-2 block rounded-lg px-5 py-2.5 text-center text-sm font-semibold" onClick={closeMenu}>
-            Login
-          </Link>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Link to="/login" className="rounded-lg border border-border px-5 py-2.5 text-center text-sm font-semibold" onClick={closeMenu}>
+              Login
+            </Link>
+            <Link to="/signup" className="btn-gradient rounded-lg px-5 py-2.5 text-center text-sm font-semibold" onClick={closeMenu}>
+              Sign Up
+            </Link>
+          </div>
         </div>
       )}
     </nav>

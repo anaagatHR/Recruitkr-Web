@@ -1,7 +1,8 @@
+﻿"use client";
 import { memo } from "react";
 
-import logoPng from "@/assets/logo.png";
-import logoWebp from "@/assets/logo.webp";
+const logoPng = "/assets/logo.png";
+const logoWebp = "/assets/logo.webp";
 
 type OptimizedLogoProps = {
   alt?: string;
