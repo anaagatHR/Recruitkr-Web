@@ -7,8 +7,8 @@ import {
 } from '../controllers/contact.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.js';
 import { contactLimiter } from '../middlewares/rateLimiter.js';
-import { contactSchema, contactStatusSchema } from '../schemas/contact.schema.js';
 import { validate } from '../middlewares/validate.js';
+import { contactSchema, contactStatusSchema } from '../schemas/contact.schema.js';
 
 const router = Router();
 

@@ -1,10 +1,22 @@
 ﻿"use client";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "@/compat/router";
+import { Sparkles, ShieldCheck, Zap, Heart } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { apiPost } from "@/lib/api";
 import { setSession } from "@/lib/auth";
+
+// Brand palette (navy / green / amber).
+const NAVY = "#264a7f";
+const GREEN = "#69a44f";
+const AMBER = "#e59f56";
+
+const perks = [
+  { icon: Zap, text: "Apply to jobs in one click", color: NAVY },
+  { icon: ShieldCheck, text: "Verified, top-rated companies", color: GREEN },
+  { icon: Heart, text: "Track every application in one place", color: AMBER },
+];
 
 const Login = () => {
   const navigate = useNavigate();
@@ -91,9 +103,52 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="pt-28 pb-20 min-h-screen flex items-center">
-        <div className="container mx-auto max-w-md px-4">
-          <div className="rounded-2xl border border-border bg-card p-8 shadow-2xl">
+      <div className="relative overflow-hidden pt-28 pb-20">
+        {/* Decorative brand blobs */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-24 top-20 h-72 w-72 rounded-full opacity-10 blur-3xl"
+          style={{ backgroundColor: NAVY }}
+        />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-24 bottom-10 h-80 w-80 rounded-full opacity-10 blur-3xl"
+          style={{ backgroundColor: GREEN }}
+        />
+
+        <div className="container relative mx-auto grid max-w-5xl items-center gap-10 px-4 lg:grid-cols-2">
+          {/* Value side */}
+          <div className="hidden lg:block">
+            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
+              <Sparkles size={14} /> Welcome back
+            </p>
+            <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-foreground">
+              Log in to your{" "}
+              <span className="bg-gradient-to-r from-[#264a7f] via-[#69a44f] to-[#e59f56] bg-clip-text text-transparent">
+                RecruitKr
+              </span>{" "}
+              account
+            </h1>
+            <p className="mt-4 text-muted-foreground">
+              Pick up right where you left off — apply, track and manage everything in one place.
+            </p>
+            <ul className="mt-7 space-y-4">
+              {perks.map((perk) => (
+                <li key={perk.text} className="flex items-center gap-3 text-sm font-medium text-foreground">
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white"
+                    style={{ backgroundColor: perk.color }}
+                  >
+                    <perk.icon size={17} />
+                  </span>
+                  {perk.text}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Form card */}
+          <div className="mx-auto w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-xl">
             <div className="text-center mb-8">
               <Link to="/" className="font-heading text-3xl font-bold">
                 Recruit<span style={{ color: "#264a7f" }}>kr</span>

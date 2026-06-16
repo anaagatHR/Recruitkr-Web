@@ -1,6 +1,15 @@
 import { Router } from 'express';
 
 import {
+  deleteMyCertificate,
+  deleteMyProfilePhoto,
+  downloadMyCertificate,
+  getMyProfilePhoto,
+  listMyCertificates,
+  uploadMyCertificate,
+  uploadMyProfilePhoto,
+} from '../controllers/candidateFiles.controller.js';
+import {
   deleteClientProfileImage,
   getCandidateProfile,
   getClientProfileImage,
@@ -10,17 +19,8 @@ import {
   updateCandidateProfile,
 } from '../controllers/user.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.js';
-import { validate } from '../middlewares/validate.js';
-import {
-  deleteMyCertificate,
-  deleteMyProfilePhoto,
-  downloadMyCertificate,
-  getMyProfilePhoto,
-  listMyCertificates,
-  uploadMyCertificate,
-  uploadMyProfilePhoto,
-} from '../controllers/candidateFiles.controller.js';
 import { certificateUpload, profilePhotoUpload } from '../middlewares/upload.js';
+import { validate } from '../middlewares/validate.js';
 import { updateCandidateProfileSchema } from '../schemas/user.schema.js';
 
 const router = Router();

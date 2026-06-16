@@ -162,6 +162,16 @@
     content-visibility: auto;
     contain-intrinsic-size: 1px 720px;
   }
+
+  /* Hide scrollbar across browsers (used by the horizontal reviews row). */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @keyframes ticker {
@@ -188,6 +198,16 @@
   animation: ticker 10s linear infinite;
 }
 
+/* Partner-company logos marquee (reuses the ticker keyframe). */
+.animate-company-scroll {
+  animation: ticker 30s linear infinite;
+  will-change: transform;
+}
+
+.company-marquee-pause:hover .animate-company-scroll {
+  animation-play-state: paused;
+}
+
 .animate-sectors-ticker {
   animation: ticker 18s linear infinite;
 }
@@ -203,7 +223,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-marquee {
+  .animate-marquee,
+  .animate-company-scroll {
     animation: none;
   }
 }

@@ -53,13 +53,31 @@ export default function JobDetailScreen() {
     }
     setApplying(true);
     try {
-      await apiPost(`/jobs/${params.id}/apply`, {}, { auth: true, retries: 0 });
+      await apiPost("/jobs/apply", { jobId: params.id }, { auth: true, retries: 0 });
       setApplied(true);
       toast({ title: "Application submitted", description: "We've shared your profile with the employer." });
-    } catch {
-      // Backend endpoint may not exist yet; still acknowledge optimistically.
-      setApplied(true);
-      toast({ title: "Application received", description: "Your application has been recorded." });
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      // Session expired / not authenticated — send them to log in, then back here.
+      if (status === 401) {
+        navigate(`/login?redirect=${encodeURIComponent(`/jobs/${params.id}`)}`);
+        return;
+      }
+      // Only candidates can apply (e.g. a client/employer account is signed in).
+      if (status === 403) {
+        toast({
+          variant: "destructive",
+          title: "Candidate account required",
+          description: "Sign in with a candidate account to apply for jobs.",
+        });
+        return;
+      }
+      // Surface the real failure instead of pretending the application went through.
+      toast({
+        variant: "destructive",
+        title: "Couldn't submit application",
+        description: (err as { message?: string })?.message || "Please try again in a moment.",
+      });
     } finally {
       setApplying(false);
     }

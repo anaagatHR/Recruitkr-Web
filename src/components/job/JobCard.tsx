@@ -1,23 +1,49 @@
 "use client";
 
-import { Link } from "@/compat/router";
+import { Link, useNavigate } from "@/compat/router";
 import { Briefcase, Clock3, Flame, MapPin, Users } from "lucide-react";
 import type { Job } from "@/lib/jobs";
 import { isFresh, relativeTime, salaryLabel } from "@/lib/format";
+import { getSession } from "@/lib/auth";
 import StarRating from "@/components/job/StarRating";
 
 const displayInitial = (value?: string) => (value?.trim().charAt(0) || "?").toUpperCase();
 
+// Brand palette (navy / green / amber) — pick deterministically per job so the
+// three colors are spread across an inline row of cards.
+const BRAND_COLORS = ["#264a7f", "#69a44f", "#e59f56"];
+const hashKey = (key: string) => {
+  let sum = 0;
+  for (let i = 0; i < key.length; i++) sum += key.charCodeAt(i) * (i + 1);
+  return sum;
+};
+const brandColor = (key: string) => BRAND_COLORS[hashKey(key) % BRAND_COLORS.length];
+
+// Deterministic "people applied" count per job so each card shows a different
+// large number (roughly 800–2300) that stays stable between renders.
+const appliedCount = (key: string) => 800 + (hashKey(key) % 1500);
+
 export default function JobCard({ job }: { job: Job }) {
+  const navigate = useNavigate();
   const fresh = isFresh(job.postedAt);
   const hot = (job.applicants ?? 0) >= 40;
   const skills = job.skills ?? [];
+  const key = String(job.id ?? job.title ?? "");
+  const accent = brandColor(key);
+  const applied = appliedCount(key);
 
   return (
     <Link
       to={`/jobs/${job.id}`}
-      className="group relative flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_18px_40px_-18px_hsl(var(--primary)/0.35)]"
+      className="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-border bg-card p-5 transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_18px_40px_-18px_hsl(var(--primary)/0.35)]"
     >
+      {/* Top brand accent bar */}
+      <span
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-1"
+        style={{ backgroundColor: accent }}
+      />
+
       {/* FOMO ribbons */}
       <div className="flex flex-wrap items-center gap-2">
         {fresh && (
@@ -38,7 +64,10 @@ export default function JobCard({ job }: { job: Job }) {
       </div>
 
       <div className="flex items-start gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-sm font-bold text-primary">
+        <div
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
+          style={{ backgroundColor: accent }}
+        >
           {displayInitial(job.company)}
         </div>
         <div className="min-w-0">
@@ -70,9 +99,29 @@ export default function JobCard({ job }: { job: Job }) {
       </div>
 
       {/* Scarcity nudge */}
-      <p className="text-xs font-medium text-orange-600">
-        {job.applicants ?? 0} people applied{(job.applicants ?? 0) >= 40 ? " — apply before it closes" : ""}
+      <p className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600">
+        <Users size={13} /> {applied.toLocaleString("en-US")} people applied
       </p>
+
+      {/* Apply button */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const target = `/jobs/${job.id}`;
+          // Applying requires login — send guests to login first, then back here.
+          if (!getSession()) {
+            navigate(`/login?redirect=${encodeURIComponent(target)}`);
+            return;
+          }
+          navigate(target);
+        }}
+        className="w-full rounded-xl py-2.5 text-sm font-bold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+        style={{ backgroundColor: accent }}
+      >
+        Apply Now
+      </button>
     </Link>
   );
 }

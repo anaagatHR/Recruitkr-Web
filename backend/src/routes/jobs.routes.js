@@ -7,6 +7,7 @@ import {
   downloadClientApplicationResume,
   updateMyJob,
   getClientApplicationDetails,
+  getPublicJob,
   listCandidateApplications,
   listClientApplications,
   listMyJobs,
@@ -15,12 +16,12 @@ import {
   updateMyJobStatus,
 } from '../controllers/job.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.js';
+import { validate } from '../middlewares/validate.js';
 import {
   applyJobSchema,
   updateApplicationStatusSchema,
 } from '../schemas/application.schema.js';
 import { createJobSchema, listJobsQuerySchema, updateJobSchema, updateJobStatusSchema } from '../schemas/job.schema.js';
-import { validate } from '../middlewares/validate.js';
 
 const router = Router();
 
@@ -65,5 +66,8 @@ router.patch(
   validate(updateApplicationStatusSchema),
   updateApplicationStatus,
 );
+
+// Public single-job lookup — keep last so it doesn't shadow the routes above.
+router.get('/:jobId', getPublicJob);
 
 export default router;

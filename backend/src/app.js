@@ -6,37 +6,81 @@ import mongoSanitize from 'express-mongo-sanitize';
 import helmet from 'helmet';
 import hpp from 'hpp';
 import morgan from 'morgan';
-import teamRoutes from "./routes/teamRoutes.js";
+
 import { env } from './config/env.js';
 import { getDynamicSitemap } from './controllers/seo.controller.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 import { globalLimiter } from './middlewares/rateLimiter.js';
+import authRoutes from './routes/auth.routes.js';
 import blogRoutes from './routes/blog.routes.js';
 import contactRoutes from './routes/contact.routes.js';
-import authRoutes from './routes/auth.routes.js';
 import apiRoutes from './routes/index.js';
+import teamRoutes from "./routes/teamRoutes.js";
 import uploadRoutes from './routes/upload.routes.js';
 
 const app = express();
-const allowedOrigins = env.CORS_ORIGIN.split(',').map((v) => v.trim()).filter(Boolean);
+const parseOrigins = (value = '') =>
+  value
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+
+const configuredOrigins = parseOrigins(env.CORS_ORIGIN);
+const localDevOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'http://127.0.0.1:5173',
+];
+const allowedOrigins = new Set([
+  ...configuredOrigins,
+  env.FRONTEND_URL.replace(/\/$/, ''),
+  ...(env.NODE_ENV === 'production' ? [] : localDevOrigins),
+]);
+
+const buildCorsError = (origin) => {
+  const error = new Error('CORS origin not allowed');
+  error.statusCode = 403;
+  error.code = 'CORS_ORIGIN_REJECTED';
+  error.origin = origin;
+  return error;
+};
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Requests from Postman, curl, mobile apps, SSR, and server-to-server calls
+    // often have no Origin header. They are not browser CORS requests.
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.has(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    console.warn('[cors] rejected origin', {
+      origin,
+      method: 'origin-check',
+      allowedOrigins: Array.from(allowedOrigins),
+      nodeEnv: env.NODE_ENV,
+    });
+
+    return callback(buildCorsError(origin));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
+};
 
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error('CORS origin not allowed'));
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  }),
-);
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 app.use(
   helmet({
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },

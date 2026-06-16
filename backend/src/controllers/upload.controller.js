@@ -1,6 +1,6 @@
 import { StatusCodes } from 'http-status-codes';
 
-import { uploadBufferToImageKit } from '../services/imagekit.js';
+import { listImageKitFiles, uploadBufferToImageKit } from '../services/imagekit.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -22,6 +22,28 @@ const resolveUploadFolder = (value) => {
 
   return folder;
 };
+
+export const listCompanyLogos = asyncHandler(async (_req, res) => {
+  const logos = await listImageKitFiles({ folder: '/ocmpany logo', limit: 100 });
+
+  res.status(StatusCodes.OK).json({
+    success: true,
+    data: logos,
+  });
+});
+
+export const listJobVideos = asyncHandler(async (_req, res) => {
+  const videos = await listImageKitFiles({
+    folder: '/ocmpany logo/Home-Video',
+    fileType: 'non-image',
+    limit: 100,
+  });
+
+  res.status(StatusCodes.OK).json({
+    success: true,
+    data: videos,
+  });
+});
 
 export const uploadFile = asyncHandler(async (req, res) => {
   if (typeof req.body?.file === 'string' && req.body.file.trim().startsWith('data:')) {

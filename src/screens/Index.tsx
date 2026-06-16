@@ -11,20 +11,25 @@ import ProcessSection from "@/components/ProcessSection";
 import WhyRecruitkrSection from "@/components/WhyRecruitkrSection";
 import DualCtaSection from "@/components/DualCtaSection";
 import Footer from "@/components/Footer";
+import Placement from "@/components/placement";
+import FreeCost from "@/components/FreeCost";
+import RealWorld from "@/components/RealWorld"; 
+import ReviewsSlider from "@/components/rating";
+import PartnerCompanies from  "@/components/company";
+import JobShowcase from "@/components/JobShowcase";
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <HeroSection />
-      <HomeJobSearch />
+      <JobShowcase />
+      <Placement />
+      <FreeCost />
+      <RealWorld />
+      <ReviewsSlider />
+      <PartnerCompanies />
       <FeaturedJobsSection />
-      <ServicesSection />
-      <SectorsSection />
-      <WhoWeHelpSection />
-      <ProcessSection />
-      <WhyRecruitkrSection />
-      <DualCtaSection />
       <Footer />
     </div>
   );

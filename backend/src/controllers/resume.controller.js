@@ -2,13 +2,10 @@ import { StatusCodes } from 'http-status-codes';
 import mongoose from 'mongoose';
 
 import { Application } from '../models/Application.js';
-import { CandidateProfile } from '../models/CandidateProfile.js';
 import { CandidateFile } from '../models/CandidateFile.js';
+import { CandidateProfile } from '../models/CandidateProfile.js';
 import { Resume } from '../models/Resume.js';
 import { User } from '../models/User.js';
-import { fetchLegacyApplicationsForClient } from './job.controller.js';
-import { ApiError } from '../utils/ApiError.js';
-import { asyncHandler } from '../utils/asyncHandler.js';
 import {
   extractResumeText,
   generatePDF,
@@ -17,6 +14,10 @@ import {
   generateStructuredResumePdfBuffer,
   parseResumeToCandidateHints,
 } from '../services/resume.service.js';
+import { ApiError } from '../utils/ApiError.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+
+import { fetchLegacyApplicationsForClient } from './job.controller.js';
 
 const getSafeResumeFileName = (fullName = 'Resume') =>
   `${String(fullName || 'Resume')

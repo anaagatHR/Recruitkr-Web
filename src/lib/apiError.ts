@@ -1,6 +1,6 @@
 export const DEFAULT_API_ERROR_MESSAGE = "Connection issue, retrying...";
-export const TIMEOUT_API_ERROR_MESSAGE = "Server is slow or unavailable";
-export const SERVER_API_ERROR_MESSAGE = "Server is slow or unavailable";
+export const TIMEOUT_API_ERROR_MESSAGE = "Backend is taking too long to respond. Check the server and MongoDB.";
+export const SERVER_API_ERROR_MESSAGE = "Backend is unavailable. Check the backend server and MongoDB.";
 export const API_MISCONFIGURED_MESSAGE =
   "API misconfigured. Check NEXT_PUBLIC_API_URL or backend routing";
 

@@ -28,7 +28,7 @@ export default function FeaturedJobsSection() {
   }, []);
 
   return (
-    <section id="featured-jobs" className="border-y border-border bg-muted/30 py-16">
+    <section id="featured-jobs" className="border-y border-border bg-white py-16">
       <div className="container mx-auto px-4">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>

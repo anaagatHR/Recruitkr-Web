@@ -1,15 +1,17 @@
 import { Router } from 'express';
 
+import { downloadResumeById } from '../controllers/resume.controller.js';
+import { requireAuth, requireRole } from '../middlewares/auth.js';
+
 import authRoutes from './auth.routes.js';
 import blogRoutes from './blog.routes.js';
 import contactRoutes from './contact.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import eventsRoutes from './events.routes.js';
 import jobsRoutes from './jobs.routes.js';
+import messageRoutes from './message.routes.js';
 import resumeRoutes from './resume.routes.js';
 import uploadRoutes from './upload.routes.js';
-import { downloadResumeById } from '../controllers/resume.controller.js';
-import { requireAuth, requireRole } from '../middlewares/auth.js';
 import userRoutes from './user.routes.js';
 
 const router = Router();
@@ -35,6 +37,7 @@ router.use('/events', eventsRoutes);
 router.use('/resumes', resumeRoutes);
 router.use('/dashboards', dashboardRoutes);
 router.use('/contact', contactRoutes);
+router.use('/conversations', messageRoutes);
 router.use('/uploads', uploadRoutes);
 
 export default router;

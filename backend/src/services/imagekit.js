@@ -47,6 +47,28 @@ export const uploadBufferToImageKit = async ({
   };
 };
 
+export const listImageKitFiles = async ({
+  folder = DEFAULT_UPLOAD_FOLDER,
+  limit = 100,
+  fileType = 'image',
+} = {}) => {
+  const path = normalizeFolder(folder);
+  const files = await imagekit.listFiles({
+    path,
+    fileType,
+    limit,
+    sort: 'ASC_NAME',
+  });
+
+  return (files || [])
+    .filter((file) => file.type === 'file')
+    .map((file) => ({
+      name: file.name,
+      url: file.url,
+      fileId: file.fileId,
+    }));
+};
+
 export const deleteImageKitFile = async (fileId) => {
   const safeFileId = String(fileId || '').trim();
   if (!safeFileId) return;

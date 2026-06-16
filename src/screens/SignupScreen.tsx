@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "@/compat/router";
-import { Building2, CheckCircle2, Lock, Mail, Phone, User } from "lucide-react";
+import { Building2, CheckCircle2, Lock, Mail, Phone, User, Sparkles } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { apiPost } from "@/lib/api";
@@ -154,25 +154,54 @@ export default function SignupScreen({ role = "candidate" }: { role?: SignupRole
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="container mx-auto grid max-w-5xl gap-10 px-4 pb-20 pt-28 lg:grid-cols-2 lg:items-center">
+      <div className="relative overflow-hidden pb-20 pt-28">
+        {/* Decorative brand blobs */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-24 top-24 h-72 w-72 rounded-full opacity-10 blur-3xl"
+          style={{ backgroundColor: "#264a7f" }}
+        />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-24 bottom-10 h-80 w-80 rounded-full opacity-10 blur-3xl"
+          style={{ backgroundColor: "#69a44f" }}
+        />
+
+        <div className="container relative mx-auto grid max-w-5xl gap-10 px-4 lg:grid-cols-2 lg:items-center">
         {/* Value side */}
         <div className="hidden lg:block">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground">
+          <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
+            <Sparkles size={14} /> Join RecruitKr
+          </p>
+          <h1 className="font-heading text-4xl font-extrabold leading-tight tracking-tight text-foreground">
+            <span className="bg-gradient-to-r from-[#264a7f] via-[#69a44f] to-[#e59f56] bg-clip-text text-transparent">
+              {c.heading}
+            </span>
+          </h1>
+          <p className="mt-4 text-muted-foreground">{c.sub}</p>
+          <span className="mt-5 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
             {c.badge}
           </span>
-          <h1 className="mt-5 font-heading text-4xl font-extrabold leading-tight">{c.heading}</h1>
-          <p className="mt-4 text-muted-foreground">{c.sub}</p>
-          <ul className="mt-6 space-y-3">
-            {c.perks.map((p) => (
-              <li key={p} className="flex items-center gap-3 text-sm text-foreground">
-                <CheckCircle2 size={18} className="shrink-0 text-secondary" /> {p}
-              </li>
-            ))}
+          <ul className="mt-7 space-y-4">
+            {c.perks.map((p, i) => {
+              const colors = ["#264a7f", "#69a44f", "#e59f56"];
+              return (
+                <li key={p} className="flex items-center gap-3 text-sm font-medium text-foreground">
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white"
+                    style={{ backgroundColor: colors[i % colors.length] }}
+                  >
+                    <CheckCircle2 size={17} />
+                  </span>
+                  {p}
+                </li>
+              );
+            })}
           </ul>
         </div>
 
         {/* Form */}
-        <div className="mx-auto w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-xl">
+        <div className="mx-auto w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-xl">
           <h2 className="font-heading text-2xl font-bold">{c.formTitle}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{c.formSub}</p>
 
@@ -223,6 +252,7 @@ export default function SignupScreen({ role = "candidate" }: { role?: SignupRole
               </Link>
             </p>
           </div>
+        </div>
         </div>
       </div>
       <Footer />

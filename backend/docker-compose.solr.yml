@@ -1,0 +1,25 @@
+# Local Apache Solr for RecruitKr job search.
+#
+#   docker compose -f docker-compose.solr.yml up -d
+#
+# This starts Solr and auto-creates the `jobs` core. The core uses Solr's
+# default config set, whose dynamic fields (*_t, *_s, *_ss, *_d, *_dt) match the
+# document shape produced by src/services/solr.service.js, so no manual schema
+# editing is required.
+#
+# After it is healthy, backfill from MongoDB:
+#   npm run solr:reindex
+services:
+  solr:
+    image: solr:9.6
+    container_name: recruitkr-solr
+    ports:
+      - "8983:8983"
+    volumes:
+      - solr_data:/var/solr
+    command:
+      - solr-precreate
+      - jobs
+
+volumes:
+  solr_data:

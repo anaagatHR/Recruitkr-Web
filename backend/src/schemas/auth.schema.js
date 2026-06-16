@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { normalizeOptionalHttpUrl, normalizeOptionalLinkedinUrl } from '../utils/url.js';
 
 const email = z.string().trim().email('Enter a valid email address').toLowerCase();

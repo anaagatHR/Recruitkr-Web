@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 
-import { CandidateProfile } from '../models/CandidateProfile.js';
 import { CandidateFile } from '../models/CandidateFile.js';
+import { CandidateProfile } from '../models/CandidateProfile.js';
 import { deleteImageKitFile, uploadBufferToImageKit } from '../services/imagekit.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';

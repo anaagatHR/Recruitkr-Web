@@ -8,6 +8,18 @@ export const notFoundHandler = (req, res) => {
 };
 
 export const errorHandler = (error, _req, res, _next) => {
+  if (error?.code === 'CORS_ORIGIN_REJECTED') {
+    console.warn('[cors] request blocked', {
+      origin: error.origin || 'unknown',
+      message: error.message,
+    });
+
+    return res.status(StatusCodes.FORBIDDEN).json({
+      success: false,
+      message: 'This origin is not allowed to access the API.',
+    });
+  }
+
   if (error?.name === 'MulterError') {
     const statusCode =
       error.code === 'LIMIT_FILE_SIZE'
@@ -15,7 +27,7 @@ export const errorHandler = (error, _req, res, _next) => {
         : StatusCodes.BAD_REQUEST;
     const message =
       error.code === 'LIMIT_FILE_SIZE'
-        ? 'File size must be 5MB or smaller'
+        ? 'The file is too large. Please upload a smaller file.'
         : 'Invalid file upload request';
 
     return res.status(statusCode).json({
@@ -41,4 +53,3 @@ export const errorHandler = (error, _req, res, _next) => {
 
   res.status(statusCode).json(response);
 };
-

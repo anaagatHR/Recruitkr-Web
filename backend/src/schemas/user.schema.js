@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { normalizeOptionalHttpUrl, normalizeOptionalLinkedinUrl } from '../utils/url.js';
 
 const trimString = () => z.string().trim();

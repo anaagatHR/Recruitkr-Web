@@ -1,6 +1,6 @@
 ﻿"use client";
 import { startTransition, useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 
 import BlogCard from "@/components/blogCard";
 import Footer from "@/components/Footer";
@@ -125,11 +125,14 @@ const Blog = () => {
       <main className="pt-28 pb-20">
         <div className="container mx-auto px-4 sm:px-6">
           <header className="mx-auto max-w-3xl text-center">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-primary">
-              Insights
+            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+              <Sparkles size={14} /> Insights
             </p>
             <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">
-              RecruitKr Journal
+              RecruitKr{" "}
+              <span className="bg-gradient-to-r from-[#264a7f] via-[#69a44f] to-[#e59f56] bg-clip-text text-transparent">
+                Journal
+              </span>
             </h1>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-base">
               Thoughtful notes on hiring, growth, employer branding, and better teams.

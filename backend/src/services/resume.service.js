@@ -1,11 +1,13 @@
-import mammoth from 'mammoth';
-import pdfParse from 'pdf-parse';
-import PDFDocument from 'pdfkit';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { env } from '../config/env.js';
+
+import mammoth from 'mammoth';
+import pdfParse from 'pdf-parse';
+import PDFDocument from 'pdfkit';
 import puppeteer from 'puppeteer';
+
+import { env } from '../config/env.js';
 import { generateResumeHTML as generateProfileResumeHTML } from '../utils/resumeBuilder.js';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

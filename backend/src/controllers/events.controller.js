@@ -1,5 +1,5 @@
-import { asyncHandler } from '../utils/asyncHandler.js';
 import { addLiveUpdateSubscriber, getLiveUpdateStats } from '../services/liveUpdate.service.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const streamLiveUpdates = asyncHandler(async (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');

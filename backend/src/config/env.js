@@ -24,7 +24,10 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(5000),
   MONGODB_URI: z.string().min(1),
-  CORS_ORIGIN: z.string().min(1).default('http://localhost:3000,http://localhost:5173'),
+  CORS_ORIGIN: z
+    .string()
+    .min(1)
+    .default('http://localhost:3000,http://localhost:3001,http://localhost:5173'),
   JWT_ACCESS_SECRET: z.preprocess(
     () => envValue('JWT_ACCESS_SECRET', 'JWT_SECRET'),
     z.string().min(32),
@@ -45,6 +48,12 @@ const envSchema = z.object({
   IMAGEKIT_PUBLIC_KEY: z.string().min(10),
   IMAGEKIT_PRIVATE_KEY: z.string().min(10),
   IMAGEKIT_URL_ENDPOINT: z.string().url(),
+
+  // Apache Solr is optional. When SOLR_URL is unset the job search falls back to
+  // a cached MongoDB query, so the app keeps working without a Solr server.
+  SOLR_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  SOLR_JOBS_CORE: z.string().trim().min(1).default('jobs'),
+  SOLR_TIMEOUT_MS: z.coerce.number().int().positive().default(4000),
 
   FRONTEND_URL: z.preprocess(
     () => envValue('FRONTEND_URL', 'CLIENT_URL'),

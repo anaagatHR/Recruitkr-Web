@@ -11,6 +11,7 @@ import {
   resetPassword,
 } from '../controllers/auth.controller.js';
 import { requireAuth } from '../middlewares/auth.js';
+import { validate } from '../middlewares/validate.js';
 import {
   candidateRegisterSchema,
   changePasswordSchema,
@@ -21,7 +22,6 @@ import {
   resetPasswordParamsSchema,
   resetPasswordSchema,
 } from '../schemas/auth.schema.js';
-import { validate } from '../middlewares/validate.js';
 
 const router = Router();
 

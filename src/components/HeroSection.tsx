@@ -1,63 +1,75 @@
 ﻿"use client";
-import { ArrowRight, Briefcase } from "lucide-react";
-import { Link } from "@/compat/router";
+import { Search } from "lucide-react";
+import { useNavigate } from "@/compat/router";
+import TypingText from "@/components/TypingText";
+import { useState } from "react";
 
-const stats = [
-  { value: "500+", label: "Placements" },
-  { value: "11+", label: "Sectors" },
-  { value: "End to End", label: "HR Solutions" },
+const heroPhrases = [
+  "ढूंढ लिया Job?",
+  "Found your dream Job?",
+  "नौकरी मिल गई?",
+  "Your next Job is here",
 ];
-
+  
 const HeroSection = () => {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+
+  const goSearch = () => {
+    navigate(query.trim() ? `/jobs?search=${encodeURIComponent(query.trim())}` : "/jobs");
+  };
+
   return (
-    <section className="relative flex min-h-[calc(100svh-4.5rem)] items-center justify-center overflow-hidden pt-20">
-      {/* Background image right behind the hero */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1920&q=80"
-        alt="People collaborating at work"
-        className="absolute inset-0 h-full w-full object-cover"
-      />
-      {/* Dark gradient overlay keeps the text readable over the image */}
+    <section className="relative flex min-h-[58svh] items-center border-b border-[#264a7f] justify-center overflow-hidden px-4 pt-20 sm:min-h-[60svh] lg:min-h-[calc(100svh-5rem)]">
+      {/* Muted looping background video. The poster image shows instantly and
+          remains the fallback until /assets/hero.mp4 is added. */}
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        poster="/assets/hero-bg.jpg"
+        className="absolute inset-0 h-full w-full object-cover object-center"
+      >
+        <source src="/assets/hero.mp4" type="video/mp4" />
+      </video>
+      {/* Dark gradient overlay keeps the text readable over the video */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/60 to-black/45" />
 
-      <div className="relative z-10 container mx-auto px-4 py-14 text-center sm:py-20">
-        <div className="mx-auto max-w-4xl">
-          <h1 className="font-heading mb-6 text-4xl font-extrabold leading-tight tracking-tight text-white drop-shadow-lg sm:text-5xl md:text-7xl">
-            Your Hiring Partner.
+      <div className="relative z-10 container mx-auto px-4 py-8 text-center sm:px-6 sm:py-16 md:py-20 lg:px-8">
+        <div className="mx-auto w-full max-w-4xl">
+          <h1 className="font-heading  mb-4 flex min-h-[2.4em] items-center justify-center text-3xl font-extrabold leading-tight tracking-tight text-white drop-shadow-lg sm:mb-6 sm:min-h-[1.6em] sm:text-5xl md:text-6xl lg:text-7xl">
+            <TypingText phrases={heroPhrases} />
           </h1>
 
-          <p className="mx-auto mb-10 max-w-2xl text-base text-white/90 sm:text-lg md:text-xl">
-            Recruitment, Payroll, Staffing, Gig Solutions — Serving Startups, Small Business MSMEs and Corporates.
+          <p className="mx-auto max-w-2xl text-sm text-white/100 sm:text-base md:text-lg lg:text-xl">
+            RecruirKr-Befikr
           </p>
 
-          <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link
-              to="/login?role=client"
-              className="btn-gradient group inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-lg px-6 py-4 text-base font-bold transition-transform hover:scale-105 sm:w-auto sm:px-8"
+          <div className="mx-auto mt-6 flex w-full max-w-2xl flex-col gap-2 rounded-2xl border border-white/20 bg-white/10 p-2 shadow-lg backdrop-blur sm:mt-8 sm:flex-row">
+            <div className="flex flex-1 items-center gap-2 rounded-xl px-3">
+              <Search size={18} className="shrink-0 text-white/70" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && goSearch()}
+                placeholder="Search jobs by title, skill or company"
+                className="w-full min-w-0 bg-transparent py-3 text-sm outline-none text-white placeholder-white/50"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={goSearch}
+              className="btn-gradient w-full shrink-0 rounded-xl px-6 py-3 text-sm font-bold transition hover:scale-[1.02] sm:w-auto"
             >
-              <Briefcase size={20} />
-              Hire Talent
-              <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-            </Link>
-            <Link
-              to="/register/candidate"
-              className="btn-gradient group inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-lg px-6 py-4 text-base font-bold transition-transform hover:scale-105 sm:w-auto sm:px-8"
-            >
-              Find a Job
-              <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-            </Link>
+              Search jobs
+            </button>
           </div>
+
         </div>
 
-        <div className="mx-auto mt-16 grid max-w-3xl grid-cols-1 divide-y divide-white/20 rounded-xl border border-white/20 bg-white/10 backdrop-blur sm:mt-20 sm:grid-cols-3 sm:divide-y-0 sm:divide-x">
-          {stats.map((stat) => (
-            <div key={stat.label} className="min-h-[96px] px-4 py-5 text-center sm:px-6 sm:py-6">
-              <div className="text-2xl font-extrabold text-white sm:text-3xl md:text-4xl">{stat.value}</div>
-              <div className="mt-1 text-sm text-white/80">{stat.label}</div>
-            </div>
-          ))}
-        </div>
+        
 
       </div>
     </section>

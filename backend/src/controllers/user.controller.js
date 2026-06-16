@@ -4,8 +4,8 @@ import { CandidateProfile } from '../models/CandidateProfile.js';
 import { ClientProfile } from '../models/ClientProfile.js';
 import { Resume } from '../models/Resume.js';
 import { User } from '../models/User.js';
-import { buildGeneratedResumeData } from '../services/resume.service.js';
 import { deleteImageKitFile, uploadBufferToImageKit } from '../services/imagekit.js';
+import { buildGeneratedResumeData } from '../services/resume.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 

@@ -1,5 +1,6 @@
-import { StatusCodes } from 'http-status-codes';
 import crypto from 'node:crypto';
+
+import { StatusCodes } from 'http-status-codes';
 
 import { env } from '../config/env.js';
 import { CandidateProfile } from '../models/CandidateProfile.js';

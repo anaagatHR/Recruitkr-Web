@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "reac
 import { Link, useNavigate } from "@/compat/router";
 import OptimizedLogo from "@/components/OptimizedLogo";
 import ApplicationStepTracker from "@/components/ApplicationStepTracker";
+import StartConversationButton from "@/components/StartConversationButton";
 import { API_BASE, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { clearSession, getSession } from "@/lib/auth";
 import { useServerEvents, type SseConnectionStatus } from "@/hooks/useServerEvents";
@@ -1219,6 +1220,10 @@ const ClientDashboard = () => {
               >
                 {savingApplicationId === selectedApplicationDetails.application._id ? "Rejecting..." : "Reject"}
               </button>
+              <StartConversationButton
+                applicationId={selectedApplicationDetails.application._id}
+                label="Message Candidate"
+              />
             </div>
 
             {detailsFormVisible && (

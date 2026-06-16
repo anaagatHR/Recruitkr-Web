@@ -27,7 +27,11 @@ const footerLinks = [
   { label: "Home", to: "/" },
   { label: "Browse Jobs", to: "/jobs" },
   { label: "Companies", to: "/companies" },
-  { label: "About Us", to: "/why-us" },
+  { label: "About Us", to: "/about" },
+  { label: "Goal", to: "/goal" },
+  { label: "Success Stories", to: "/success-stories" },
+  { label: "Team", to: "/our-team" },
+  { label: "Contact", to: "/contact" },
   { label: "Recruitment", to: "/services" },
   { label: "Payroll", to: "/services" },
   { label: "Staffing", to: "/services" },
@@ -52,23 +56,22 @@ const Footer = () => {
 
   return (
     <footer className="border-t border-slate-200 bg-white text-slate-900">
-      <div className="container mx-auto px-4 py-8 sm:px-6 sm:py-10">
+      <div className="container mx-auto  sm:px-6 sm:py-10">
         <div className="space-y-6">
-          <div className="flex flex-col gap-4 text-center md:flex-row md:items-center md:justify-between md:text-left">
-            <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6 md:max-w-2xl">
-              <div className="flex shrink-0 items-center">
-                <OptimizedLogo
-                  className="block h-24 w-auto sm:h-28 md:h-32 lg:h-40"
-                  imgClassName="h-full w-auto object-contain drop-shadow-sm"
-                  sizes="(max-width: 768px) 112px, 192px"
-                />
-              </div>
-              <p className="max-w-md text-sm leading-relaxed text-slate-600 sm:text-left">
-                Your End-to-End Hiring and HR Partner from recruitment to retention.
-              </p>
+          <div className="flex flex-col flex-wrap items-center gap-4 text-center animate-fade-up sm:flex-row sm:flex-nowrap sm:gap-6 sm:text-left">
+            <div className="flex shrink-0 items-center animate-float">
+              <OptimizedLogo
+                className="block h-24 w-auto sm:h-28 md:h-32 lg:h-40"
+                imgClassName="h-full w-auto object-contain drop-shadow-sm"
+                sizes="(max-width: 768px) 112px, 192px"
+              />
             </div>
 
-            <div className="flex flex-wrap justify-center gap-3 md:justify-end md:pt-0">
+            <p className="text-sm leading-relaxed text-slate-600 animate-fade-up-delay-1 sm:flex-1 sm:px-4 lg:text-center">
+              Your End-to-End Hiring and HR Partner from recruitment to retention.
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center gap-3 animate-fade-up-delay-2 sm:justify-end">
               {socialLinks.map(({ icon: Icon, href, label }) => (
                 <a
                   key={label}
@@ -76,7 +79,7 @@ const Footer = () => {
                   target="_blank"
                   rel="noreferrer"
                   aria-label={label}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition duration-200 hover:-translate-y-1 hover:scale-110 hover:border-primary/40 hover:bg-primary/5 hover:text-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 >
                   <Icon size={18} />
                 </a>

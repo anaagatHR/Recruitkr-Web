@@ -1,8 +1,9 @@
 import { Application } from '../models/Application.js';
 import { CandidateProfile } from '../models/CandidateProfile.js';
 import { JobRequirement } from '../models/JobRequirement.js';
-import { fetchLegacyApplicationsForClient } from './job.controller.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+
+import { fetchLegacyApplicationsForClient } from './job.controller.js';
 
 export const candidateDashboard = asyncHandler(async (req, res) => {
   const [applications, profile] = await Promise.all([

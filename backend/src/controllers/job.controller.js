@@ -1,5 +1,5 @@
-import mongoose from 'mongoose';
 import { StatusCodes } from 'http-status-codes';
+import mongoose from 'mongoose';
 
 import { Application } from '../models/Application.js';
 import { CandidateProfile } from '../models/CandidateProfile.js';
@@ -7,12 +7,24 @@ import { ClientProfile } from '../models/ClientProfile.js';
 import { JobRequirement } from '../models/JobRequirement.js';
 import { Resume } from '../models/Resume.js';
 import { User } from '../models/User.js';
+import {
+  filterSortPaginateJobs,
+  getActiveNormalizedJobs,
+  invalidateJobsCache,
+} from '../services/jobSearch.service.js';
 import { publishLiveUpdate } from '../services/liveUpdate.service.js';
 import {
   buildGeneratedResumeData,
   generateResumePdfBuffer,
   generateStructuredResumePdfBuffer,
 } from '../services/resume.service.js';
+import {
+  deleteJobFromSolr,
+  indexJob,
+  isSolrConfigured,
+  pingSolr,
+  searchJobsViaSolr,
+} from '../services/solr.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -552,15 +564,18 @@ export const createJob = asyncHandler(async (req, res) => {
     ...buildJobDocumentPayload(req.body, clientProfile, req.user.id),
     status: 'active',
   });
+  invalidateJobsCache();
+  syncJobToSolr(job);
   res.status(StatusCodes.CREATED).json({ success: true, data: job });
 });
 
-export const listPublicJobs = asyncHandler(async (req, res) => {
-  const { q, page = 1, limit = 10, location, type } = req.query;
-  const currentPage = Number(page);
-  const pageLimit = Number(limit);
-  const skip = (currentPage - 1) * pageLimit;
-
+/**
+ * Read and normalize every active public job across the three sources
+ * (jobRequirements + the legacy `jobs` and `openings` collections), sorted
+ * newest-first. This is the heavy operation; jobSearch.service caches the
+ * result so it is not re-run on every request.
+ */
+export const loadActiveNormalizedJobs = async () => {
   const [jobRequirements, jobsCollectionDocs, openingsCollectionDocs] = await Promise.all([
     JobRequirement.find({
       status: 'active',
@@ -574,10 +589,9 @@ export const listPublicJobs = asyncHandler(async (req, res) => {
   const externalJobs = [
     ...jobsCollectionDocs.map((job) => ({ collectionName: 'jobs', job })),
     ...openingsCollectionDocs.map((job) => ({ collectionName: 'openings', job })),
-  ]
-    .filter(({ job }) => isActiveStatus(job.status));
+  ].filter(({ job }) => isActiveStatus(job.status));
 
-  const normalizedJobs = [
+  return [
     ...jobRequirements.map((job) =>
       normalizePublicJob(job, {
         _id: String(job._id),
@@ -597,23 +611,105 @@ export const listPublicJobs = asyncHandler(async (req, res) => {
         status: job.status,
       }),
     ),
-  ]
-    .filter((job) => {
-      if (q && !job.jobTitle.toLowerCase().includes(String(q).trim().toLowerCase())) return false;
-      if (location && !job.jobLocation.toLowerCase().includes(String(location).trim().toLowerCase())) return false;
-      if (type && job.employmentType !== type) return false;
-      return true;
-    })
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+};
 
-  const total = normalizedJobs.length;
-  const paginatedJobs = normalizedJobs.slice(skip, skip + pageLimit);
+// Push a JobRequirement (Mongoose doc or lean object) into Solr in its normalized
+// public shape. Fire-and-forget: failures are logged inside the Solr service.
+const syncJobToSolr = (jobDoc, sourceCollection = 'jobRequirements') => {
+  if (!isSolrConfigured()) return;
+  try {
+    const plain = typeof jobDoc.toObject === 'function' ? jobDoc.toObject() : jobDoc;
+    const normalized = normalizePublicJob(plain, {
+      _id: String(plain._id),
+      ownerId: resolveJobOwnerId(plain, sourceCollection),
+      ownerRole: sourceCollection === 'openings' ? 'admin' : 'client',
+      canApply: Boolean(resolveJobOwnerId(plain, sourceCollection)) && isActiveStatus(plain.status),
+      sourceCollection,
+      status: plain.status,
+    });
+    if (isActiveStatus(plain.status)) {
+      void indexJob(normalized);
+    } else {
+      void deleteJobFromSolr(String(plain._id));
+    }
+  } catch (error) {
+    console.warn('[solr] syncJobToSolr skipped:', error.message);
+  }
+};
 
-  res.json({
-    success: true,
-    data: paginatedJobs,
-    meta: { page: currentPage, limit: pageLimit, total, totalPages: Math.ceil(total / pageLimit) || 1 },
-  });
+export const listPublicJobs = asyncHandler(async (req, res) => {
+  const { q, page = 1, limit = 10, location, type } = req.query;
+
+  // Fast path: Apache Solr (when configured and healthy).
+  if (isSolrConfigured() && (await pingSolr())) {
+    try {
+      const { jobs, total } = await searchJobsViaSolr({ q, location, type, page, limit });
+      const currentPage = Math.max(1, Number(page));
+      const pageLimit = Math.max(1, Number(limit));
+      return res.json({
+        success: true,
+        data: jobs,
+        meta: {
+          page: currentPage,
+          limit: pageLimit,
+          total,
+          totalPages: Math.ceil(total / pageLimit) || 1,
+        },
+        source: 'solr',
+      });
+    } catch (error) {
+      console.warn('[solr] search failed, falling back to MongoDB:', error.message);
+    }
+  }
+
+  // Fallback path: cached MongoDB normalization + in-memory filter/paginate.
+  const jobs = await getActiveNormalizedJobs(loadActiveNormalizedJobs);
+  const { data, meta } = filterSortPaginateJobs(jobs, { q, location, type, page, limit });
+  res.json({ success: true, data, meta, source: 'mongo' });
+});
+
+export const getPublicJob = asyncHandler(async (req, res) => {
+  const { jobId } = req.params;
+  if (!mongoose.isValidObjectId(jobId)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid job id');
+  }
+
+  const jobRequirement = await JobRequirement.findOne({
+    _id: jobId,
+    sourceCollection: { $exists: false },
+  }).lean();
+
+  if (jobRequirement) {
+    const job = normalizePublicJob(jobRequirement, {
+      _id: String(jobRequirement._id),
+      ownerId: resolveJobOwnerId(jobRequirement, 'jobRequirements'),
+      ownerRole: 'client',
+      canApply:
+        Boolean(resolveJobOwnerId(jobRequirement, 'jobRequirements')) &&
+        isActiveStatus(jobRequirement.status),
+      status: jobRequirement.status,
+    });
+    return res.json({ success: true, data: job });
+  }
+
+  const external = await findExternalJobById(jobId);
+  if (external) {
+    const { collectionName, job: externalDoc } = external;
+    const job = normalizePublicJob(externalDoc, {
+      _id: String(externalDoc._id),
+      ownerId: resolveJobOwnerId(externalDoc, collectionName),
+      ownerRole: collectionName === 'openings' ? 'admin' : 'client',
+      canApply:
+        Boolean(resolveJobOwnerId(externalDoc, collectionName)) &&
+        isActiveStatus(externalDoc.status),
+      sourceCollection: collectionName,
+      status: externalDoc.status,
+    });
+    return res.json({ success: true, data: job });
+  }
+
+  throw new ApiError(StatusCodes.NOT_FOUND, 'Job not found');
 });
 
 export const listMyJobs = asyncHandler(async (req, res) => {
@@ -639,6 +735,8 @@ export const updateMyJobStatus = asyncHandler(async (req, res) => {
   if (!job) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Job not found');
   }
+  invalidateJobsCache();
+  syncJobToSolr(job);
   res.json({ success: true, data: job });
 });
 
@@ -663,6 +761,8 @@ export const updateMyJob = asyncHandler(async (req, res) => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Job not found');
   }
 
+  invalidateJobsCache();
+  syncJobToSolr(job);
   res.json({ success: true, data: job });
 });
 
@@ -677,6 +777,8 @@ export const deleteMyJob = asyncHandler(async (req, res) => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Job not found');
   }
 
+  invalidateJobsCache();
+  void deleteJobFromSolr(jobId);
   res.json({ success: true, data: { _id: jobId } });
 });
 
