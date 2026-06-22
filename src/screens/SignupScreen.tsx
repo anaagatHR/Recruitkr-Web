@@ -92,9 +92,10 @@ export default function SignupScreen({ role = "candidate" }: { role?: SignupRole
     const payload: Record<string, unknown> =
       role === "client"
         ? {
+            // The client register schema is strict, so the contact person's name
+            // must go through spoc.name (fullName/contactName are not valid keys).
             companyName: name.trim(),
-            fullName: name.trim(),
-            contactName: name.trim(),
+            spoc: { name: name.trim() },
             email: email.trim().toLowerCase(),
             mobile: mobile.trim(),
             password,

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "@/index.css";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import ApiKeepAlive from "@/components/ApiKeepAlive";
+import ThemeProvider from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/toaster";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
@@ -98,7 +99,7 @@ const organizationJsonLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script
           type="application/ld+json"
@@ -106,10 +107,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <AnalyticsTracker />
-        <ApiKeepAlive />
-        {children}
-        <Toaster />
+        <ThemeProvider>
+          <AnalyticsTracker />
+          <ApiKeepAlive />
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

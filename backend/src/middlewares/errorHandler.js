@@ -16,7 +16,7 @@ export const errorHandler = (error, _req, res, _next) => {
 
     return res.status(StatusCodes.FORBIDDEN).json({
       success: false,
-      message: 'This origin is not allowed to access the API.',
+      message: '',
     });
   }
 
@@ -36,10 +36,20 @@ export const errorHandler = (error, _req, res, _next) => {
     });
   }
 
-  const statusCode = error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR;
+  const isJwtError =
+    error?.name === 'JsonWebTokenError' ||
+    error?.name === 'TokenExpiredError' ||
+    error?.name === 'NotBeforeError';
+
+  const statusCode = error.statusCode || (isJwtError ? StatusCodes.UNAUTHORIZED : StatusCodes.INTERNAL_SERVER_ERROR);
 
   if (statusCode >= StatusCodes.INTERNAL_SERVER_ERROR) {
     console.error(error);
+  } else if (isJwtError) {
+    console.warn('[jwt] request rejected', {
+      name: error.name,
+      message: error.message,
+    });
   }
 
   const response = {

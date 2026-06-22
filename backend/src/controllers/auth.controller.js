@@ -74,6 +74,11 @@ const clearAccessCookie = (res) => {
   res.clearCookie('accessToken', getAccessCookieOptions());
 };
 
+const clearAuthCookies = (res) => {
+  clearRefreshCookie(res);
+  clearAccessCookie(res);
+};
+
 const issueTokensAndPersistRefresh = async (user) => {
   const jti = generateJti();
   const accessToken = signAccessToken({ userId: user.id, role: user.role });
@@ -141,6 +146,172 @@ const getRoleLabel = (role) => {
   if (role === 'candidate') return 'Candidate';
   if (role === 'admin') return 'Admin';
   return 'User';
+};
+
+const normalizeUrl = (value) => value.replace(/\/$/, '');
+
+const buildOAuthState = ({ role, redirect }) =>
+  Buffer.from(JSON.stringify({ role, redirect }), 'utf8').toString('base64url');
+
+const parseOAuthState = (state) => {
+  if (!state) return {};
+
+  try {
+    const parsed = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
+    return {
+      role: parsed?.role === 'client' || parsed?.role === 'candidate' ? parsed.role : undefined,
+      redirect: typeof parsed?.redirect === 'string' ? parsed.redirect : undefined,
+    };
+  } catch {
+    return {};
+  }
+};
+
+const buildFrontendLoginUrl = ({ accessToken, refreshToken, role, redirect }) => {
+  const url = new URL(`${normalizeUrl(env.FRONTEND_URL)}/login`);
+  url.searchParams.set('oauth', 'success');
+  url.searchParams.set('accessToken', accessToken);
+  if (refreshToken) url.searchParams.set('refreshToken', refreshToken);
+  if (role) url.searchParams.set('role', role);
+  if (redirect) url.searchParams.set('redirect', redirect);
+  return url.toString();
+};
+
+// Redirect the browser back to the login page with a friendly error code instead
+// of rendering raw JSON. `reason` is a short, non-sensitive machine code the UI
+// maps to a human message; we never expose internal error details to the user.
+const buildFrontendErrorUrl = ({ reason, role, redirect }) => {
+  const url = new URL(`${normalizeUrl(env.FRONTEND_URL)}/login`);
+  url.searchParams.set('oauth', 'error');
+  url.searchParams.set('reason', reason || 'failed');
+  if (role) url.searchParams.set('role', role);
+  if (redirect) url.searchParams.set('redirect', redirect);
+  return url.toString();
+};
+
+const buildGoogleOAuthUrl = ({ role, redirect }) => {
+  if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) {
+    throw new ApiError(StatusCodes.SERVICE_UNAVAILABLE, 'Google login is disabled.');
+  }
+
+  const state = buildOAuthState({ role, redirect });
+  const callbackUrl =
+    env.GOOGLE_OAUTH_REDIRECT_URI ||
+    `${normalizeUrl(env.FRONTEND_URL)}/api/v1/auth/google/callback`;
+
+  const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  url.searchParams.set('client_id', env.GOOGLE_OAUTH_CLIENT_ID);
+  url.searchParams.set('redirect_uri', callbackUrl);
+  url.searchParams.set('response_type', 'code');
+  url.searchParams.set('scope', 'openid email profile');
+  url.searchParams.set('state', state);
+  url.searchParams.set('prompt', 'select_account');
+  return url.toString();
+};
+
+const exchangeGoogleCode = async (code, redirectUri) => {
+  const body = new URLSearchParams({
+    client_id: env.GOOGLE_OAUTH_CLIENT_ID,
+    client_secret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+    code,
+    grant_type: 'authorization_code',
+    redirect_uri: redirectUri,
+  });
+
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => '');
+    console.warn('[oauth] google token exchange failed', { status: response.status, bodyText });
+    // Parse Google's { error, error_description } so we can map it to a precise,
+    // developer-actionable reason instead of a generic failure.
+    let googleCode = '';
+    try {
+      googleCode = JSON.parse(bodyText)?.error || '';
+    } catch {
+      googleCode = '';
+    }
+    const error = new ApiError(StatusCodes.BAD_GATEWAY, 'Google sign-in failed during token exchange.');
+    error.googleCode = googleCode;
+    throw error;
+  }
+
+  return response.json();
+};
+
+const fetchGoogleProfile = async (accessToken) => {
+  const response = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => '');
+    console.warn('[oauth] google profile lookup failed', { status: response.status, bodyText });
+    throw new ApiError(StatusCodes.BAD_GATEWAY, 'Google sign-in failed while reading profile.');
+  }
+
+  return response.json();
+};
+
+// Google sign-in creates a User but, historically, no matching profile, which
+// later caused "Client/Candidate profile not found" on the dashboard. Ensure the
+// role-appropriate profile exists for both new and pre-existing Google accounts
+// (existing broken accounts self-heal on their next login).
+const ensureProfileForUser = async (user) => {
+  if (user.role === 'client') {
+    const existing = await ClientProfile.findOne({ userId: user.id }).select('_id').lean();
+    if (!existing) {
+      await ClientProfile.create({ userId: user.id });
+    }
+    return;
+  }
+
+  if (user.role === 'candidate') {
+    const existing = await CandidateProfile.findOne({ userId: user.id }).select('_id').lean();
+    if (!existing) {
+      await CandidateProfile.create({ userId: user.id, email: user.email, isActive: true });
+    }
+  }
+};
+
+const upsertGoogleUser = async ({ email, googleId, role }) => {
+  let user = await User.findOne({ email })
+    .select('+passwordHash +refreshTokenHash +refreshTokenJti +refreshTokenExpiresAt +authProvider +authProviderId')
+    .exec();
+
+  if (user && user.role !== role) {
+    const error = new ApiError(
+      StatusCodes.UNAUTHORIZED,
+      `This email is registered as ${getRoleLabel(user.role)}. Please choose the correct login type.`,
+    );
+    error.oauthReason = 'role_mismatch';
+    error.registeredRole = user.role;
+    throw error;
+  }
+
+  if (!user) {
+    const passwordHash = await hashPassword(crypto.randomBytes(24).toString('hex'));
+    user = await User.create({
+      role,
+      email,
+      passwordHash,
+      passwordChangedAt: new Date(),
+      authProvider: 'google',
+      authProviderId: googleId,
+    });
+    await ensureProfileForUser(user);
+    return user;
+  }
+
+  if (!user.authProvider) user.authProvider = 'google';
+  user.authProviderId = googleId;
+  await user.save();
+  await ensureProfileForUser(user);
+  return user;
 };
 
 export const registerCandidate = asyncHandler(async (req, res) => {
@@ -292,7 +463,7 @@ export const login = asyncHandler(async (req, res) => {
   const { email, password, role } = req.body;
 
   const user = await User.findOne({ email })
-    .select('+passwordHash +refreshTokenHash +refreshTokenJti +refreshTokenExpiresAt')
+    .select('+passwordHash +refreshTokenHash +refreshTokenJti +refreshTokenExpiresAt +authProvider')
     .exec();
 
   if (!user) {
@@ -309,9 +480,18 @@ export const login = asyncHandler(async (req, res) => {
     );
   }
 
+  // Google-registered accounts have no real password (a random one was set), so
+  // email/password login would always "not match". Guide them to Google instead.
+  if (user.authProvider === 'google') {
+    throw new ApiError(
+      StatusCodes.UNAUTHORIZED,
+      'This account uses Google sign-in. Please click "Continue with Google" to log in.',
+    );
+  }
+
   const passwordOk = await verifyPassword(user.passwordHash, password);
   if (!passwordOk) {
-    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Password does not match. Please try again.');
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Incorrect password. Please try again.');
   }
 
   const tokens = await issueTokensAndPersistRefresh(user);
@@ -329,43 +509,154 @@ export const login = asyncHandler(async (req, res) => {
   });
 });
 
+export const googleStart = asyncHandler(async (req, res) => {
+  const role = req.query.role === 'client' ? 'client' : 'candidate';
+  const redirect = typeof req.query.redirect === 'string' ? req.query.redirect : '';
+  const oauthUrl = buildGoogleOAuthUrl({ role, redirect });
+  console.info('[oauth] google start', { role, hasRedirect: Boolean(redirect) });
+  res.redirect(oauthUrl);
+});
+
+export const googleCallback = asyncHandler(async (req, res) => {
+  const code = typeof req.query.code === 'string' ? req.query.code : '';
+  const { role, redirect } = parseOAuthState(
+    typeof req.query.state === 'string' ? req.query.state : '',
+  );
+
+  const resolvedRole = role || 'candidate';
+  const safeRedirect = typeof redirect === 'string' && redirect ? redirect : undefined;
+  const googleError = typeof req.query.error === 'string' ? req.query.error : '';
+  const callbackUrl =
+    env.GOOGLE_OAUTH_REDIRECT_URI ||
+    `${normalizeUrl(env.FRONTEND_URL)}/api/v1/auth/google/callback`;
+
+  // Send the user back to the login page with a friendly error code rather than
+  // dumping JSON. This covers user-cancelled consent, missing code, disabled
+  // login, and any token/profile failure during the exchange.
+  const failRedirect = (reason) => {
+    clearAuthCookies(res);
+    return res.redirect(buildFrontendErrorUrl({ reason, role: resolvedRole, redirect: safeRedirect }));
+  };
+
+  // Google appends ?error=access_denied (etc.) when the user cancels consent.
+  if (googleError) {
+    console.info('[oauth] google callback declined', { error: googleError });
+    return failRedirect(googleError === 'access_denied' ? 'cancelled' : 'failed');
+  }
+
+  if (!code) {
+    console.info('[oauth] google callback without code');
+    return failRedirect('cancelled');
+  }
+
+  if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) {
+    return failRedirect('disabled');
+  }
+
+  try {
+    console.info('[oauth] google callback', { role: resolvedRole });
+    const tokenData = await exchangeGoogleCode(code, callbackUrl);
+    const profile = await fetchGoogleProfile(tokenData.access_token);
+    const email = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
+    const googleId = typeof profile.sub === 'string' ? profile.sub : '';
+
+    if (!email || !googleId) {
+      return failRedirect('profile');
+    }
+
+    const user = await upsertGoogleUser({ email, googleId, role: resolvedRole });
+    const tokens = await issueTokensAndPersistRefresh(user);
+    setAccessCookie(res, tokens.accessToken);
+    setRefreshCookie(res, tokens.refreshToken);
+
+    return res.redirect(
+      buildFrontendLoginUrl({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        role: user.role,
+        redirect: safeRedirect,
+      }),
+    );
+  } catch (error) {
+    // Log the real cause server-side; map known Google error codes to a precise
+    // reason so the developer sees what to fix (config issues are common in dev).
+    const googleCode = error?.googleCode || '';
+    console.warn('[oauth] google callback failed', {
+      message: error instanceof Error ? error.message : String(error),
+      googleCode,
+      oauthReason: error?.oauthReason,
+    });
+
+    // Same Google email already bound to the other role: tell the user clearly.
+    if (error?.oauthReason === 'role_mismatch') {
+      return failRedirect(
+        error.registeredRole === 'client' ? 'role_client' : 'role_candidate',
+      );
+    }
+
+    const reasonByCode = {
+      redirect_uri_mismatch: 'redirect_mismatch',
+      invalid_client: 'config',
+      unauthorized_client: 'config',
+      invalid_grant: 'expired',
+    };
+    return failRedirect(reasonByCode[googleCode] || 'failed');
+  }
+});
+
 export const refresh = asyncHandler(async (req, res) => {
   const suppliedToken = req.body.refreshToken || req.cookies?.refreshToken;
   if (!suppliedToken) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Missing refresh token');
   }
 
-  const payload = verifyRefreshToken(suppliedToken);
-  const user = await User.findById(payload.sub)
-    .select('+refreshTokenHash +refreshTokenJti +refreshTokenExpiresAt')
-    .exec();
+  try {
+    const payload = verifyRefreshToken(suppliedToken);
+    const user = await User.findById(payload.sub)
+      .select('+refreshTokenHash +refreshTokenJti +refreshTokenExpiresAt')
+      .exec();
 
-  if (!user || !user.refreshTokenHash || !user.refreshTokenJti) {
-    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid refresh token');
+    if (!user || !user.refreshTokenHash || !user.refreshTokenJti) {
+      console.warn('[auth] refresh rejected: missing persisted token state', { userId: payload.sub });
+      clearAuthCookies(res);
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid refresh token');
+    }
+
+    if (payload.jti !== user.refreshTokenJti) {
+      console.warn('[auth] refresh rejected: rotation mismatch', { userId: payload.sub });
+      clearAuthCookies(res);
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'Refresh token rotation detected');
+    }
+
+    if (user.refreshTokenExpiresAt && user.refreshTokenExpiresAt.getTime() < Date.now()) {
+      console.warn('[auth] refresh rejected: token expired', { userId: payload.sub });
+      clearAuthCookies(res);
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'Refresh token expired');
+    }
+
+    if (hashToken(suppliedToken) !== user.refreshTokenHash) {
+      console.warn('[auth] refresh rejected: hash mismatch', { userId: payload.sub });
+      clearAuthCookies(res);
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid refresh token');
+    }
+
+    const tokens = await issueTokensAndPersistRefresh(user);
+    setRefreshCookie(res, tokens.refreshToken);
+
+    res.json({
+      success: true,
+      data: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      },
+    });
+  } catch (error) {
+    clearAuthCookies(res);
+    if (error?.name === 'JsonWebTokenError' || error?.name === 'TokenExpiredError') {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid or expired refresh token');
+    }
+    throw error;
   }
-
-  if (payload.jti !== user.refreshTokenJti) {
-    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Refresh token rotation detected');
-  }
-
-  if (user.refreshTokenExpiresAt && user.refreshTokenExpiresAt.getTime() < Date.now()) {
-    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Refresh token expired');
-  }
-
-  if (hashToken(suppliedToken) !== user.refreshTokenHash) {
-    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid refresh token');
-  }
-
-  const tokens = await issueTokensAndPersistRefresh(user);
-  setRefreshCookie(res, tokens.refreshToken);
-
-  res.json({
-    success: true,
-    data: {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-    },
-  });
 });
 
 export const logout = asyncHandler(async (req, res) => {
@@ -383,12 +674,11 @@ export const logout = asyncHandler(async (req, res) => {
         await user.save();
       }
     } catch (_error) {
-      // Always return success for logout to avoid token state probing.
+      console.warn('[auth] logout ignored invalid refresh token');
     }
   }
 
-  clearRefreshCookie(res);
-  clearAccessCookie(res);
+  clearAuthCookies(res);
   res.json({ success: true, message: 'Logged out' });
 });
 

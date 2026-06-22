@@ -67,3 +67,40 @@ export const secureFileUpload = createMemoryUpload({
   invalidFileMessage: 'Only JPEG, PNG, WEBP, or PDF files are supported',
 });
 
+// Chat attachments: documents/images (as secure uploads) plus short voice
+// notes recorded in the browser (MediaRecorder emits webm/ogg on Chromium and
+// mp4/m4a on Safari).
+const allowedMessageMimeTypes = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf',
+  'audio/webm',
+  'audio/ogg',
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/wav',
+  'audio/x-m4a',
+  'audio/aac',
+]);
+
+export const messageFileUpload = createMemoryUpload({
+  allowedMimeTypes: allowedMessageMimeTypes,
+  maxFileSizeBytes: 10 * 1024 * 1024,
+  invalidFileMessage: 'Only images, PDFs, or voice notes can be sent in chat',
+});
+
+const allowedVideoMimeTypes = new Set([
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+  'video/x-matroska',
+]);
+
+// Candidate intro videos can be large; allow up to 50MB.
+export const videoUpload = createMemoryUpload({
+  allowedMimeTypes: allowedVideoMimeTypes,
+  maxFileSizeBytes: 50 * 1024 * 1024,
+  invalidFileMessage: 'Only MP4, WEBM, MOV, or MKV videos are supported',
+});
+

@@ -18,6 +18,30 @@ const normalizeFolder = (value = DEFAULT_UPLOAD_FOLDER) => {
   return normalized.replace(/\/{2,}/g, '/').replace(/\/$/, '') || DEFAULT_UPLOAD_FOLDER;
 };
 
+const isDnsError = (error) =>
+  error?.code === 'ENOTFOUND' || error?.code === 'EAI_AGAIN' || error?.code === 'ETIMEDOUT';
+
+const withRetry = async (operation, label, retries = 1) => {
+  let lastError;
+  for (let attempt = 1; attempt <= retries + 1; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      const shouldRetry = isDnsError(error) && attempt <= retries;
+      console.warn('[imagekit]', label, {
+        attempt,
+        message: error instanceof Error ? error.message : String(error),
+        code: error?.code,
+        retrying: shouldRetry,
+      });
+      if (!shouldRetry) break;
+    }
+  }
+
+  throw lastError;
+};
+
 export const buildUniqueUploadName = (originalName = 'file') => {
   const parsed = path.parse(String(originalName || 'file'));
   const baseName = sanitizeSegment(parsed.name || 'file');
@@ -33,12 +57,16 @@ export const uploadBufferToImageKit = async ({
   folder = DEFAULT_UPLOAD_FOLDER,
 }) => {
   const fileName = buildUniqueUploadName(originalName);
-  const response = await imagekit.upload({
-    file: buffer,
-    fileName,
-    folder: normalizeFolder(folder),
-    useUniqueFileName: false,
-  });
+  const response = await withRetry(
+    () =>
+      imagekit.upload({
+        file: buffer,
+        fileName,
+        folder: normalizeFolder(folder),
+        useUniqueFileName: false,
+      }),
+    'upload',
+  );
 
   return {
     url: response.url,
@@ -53,12 +81,16 @@ export const listImageKitFiles = async ({
   fileType = 'image',
 } = {}) => {
   const path = normalizeFolder(folder);
-  const files = await imagekit.listFiles({
-    path,
-    fileType,
-    limit,
-    sort: 'ASC_NAME',
-  });
+  const files = await withRetry(
+    () =>
+      imagekit.listFiles({
+        path,
+        fileType,
+        limit,
+        sort: 'ASC_NAME',
+      }),
+    'listFiles',
+  );
 
   return (files || [])
     .filter((file) => file.type === 'file')
@@ -73,5 +105,5 @@ export const deleteImageKitFile = async (fileId) => {
   const safeFileId = String(fileId || '').trim();
   if (!safeFileId) return;
 
-  await imagekit.deleteFile(safeFileId);
+  await withRetry(() => imagekit.deleteFile(safeFileId), 'deleteFile');
 };

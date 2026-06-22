@@ -4,6 +4,9 @@ import { listImageKitFiles, uploadBufferToImageKit } from '../services/imagekit.
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
+const isImageKitDnsError = (error) =>
+  error?.code === 'ENOTFOUND' || error?.code === 'EAI_AGAIN' || error?.code === 'ETIMEDOUT';
+
 const allowedFolders = new Map([
   ['recruitkr', '/recruitkr'],
   ['resumes', '/recruitkr/resumes'],
@@ -24,25 +27,43 @@ const resolveUploadFolder = (value) => {
 };
 
 export const listCompanyLogos = asyncHandler(async (_req, res) => {
-  const logos = await listImageKitFiles({ folder: '/ocmpany logo', limit: 100 });
+  try {
+    const logos = await listImageKitFiles({ folder: '/ocmpany logo', limit: 100 });
 
-  res.status(StatusCodes.OK).json({
-    success: true,
-    data: logos,
-  });
+    res.status(StatusCodes.OK).json({
+      success: true,
+      data: logos,
+    });
+  } catch (error) {
+    if (isImageKitDnsError(error)) {
+      console.warn('[upload] listCompanyLogos failed due to DNS', { message: error.message });
+      throw new ApiError(StatusCodes.SERVICE_UNAVAILABLE, 'Image storage is temporarily unavailable.');
+    }
+
+    throw error;
+  }
 });
 
 export const listJobVideos = asyncHandler(async (_req, res) => {
-  const videos = await listImageKitFiles({
-    folder: '/ocmpany logo/Home-Video',
-    fileType: 'non-image',
-    limit: 100,
-  });
+  try {
+    const videos = await listImageKitFiles({
+      folder: '/ocmpany logo/Home-Video',
+      fileType: 'non-image',
+      limit: 100,
+    });
 
-  res.status(StatusCodes.OK).json({
-    success: true,
-    data: videos,
-  });
+    res.status(StatusCodes.OK).json({
+      success: true,
+      data: videos,
+    });
+  } catch (error) {
+    if (isImageKitDnsError(error)) {
+      console.warn('[upload] listJobVideos failed due to DNS', { message: error.message });
+      throw new ApiError(StatusCodes.SERVICE_UNAVAILABLE, 'Image storage is temporarily unavailable.');
+    }
+
+    throw error;
+  }
 });
 
 export const uploadFile = asyncHandler(async (req, res) => {
@@ -57,11 +78,21 @@ export const uploadFile = asyncHandler(async (req, res) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'File is required');
   }
 
-  const asset = await uploadBufferToImageKit({
-    buffer: req.file.buffer,
-    originalName: req.file.originalname,
-    folder: resolveUploadFolder(req.body?.folder),
-  });
+  let asset;
+  try {
+    asset = await uploadBufferToImageKit({
+      buffer: req.file.buffer,
+      originalName: req.file.originalname,
+      folder: resolveUploadFolder(req.body?.folder),
+    });
+  } catch (error) {
+    if (isImageKitDnsError(error)) {
+      console.warn('[upload] uploadFile failed due to DNS', { message: error.message });
+      throw new ApiError(StatusCodes.SERVICE_UNAVAILABLE, 'Image upload is temporarily unavailable.');
+    }
+
+    throw error;
+  }
 
   const payload = {
     url: asset.url,

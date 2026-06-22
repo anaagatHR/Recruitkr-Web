@@ -10,16 +10,19 @@ import {
   uploadMyProfilePhoto,
 } from '../controllers/candidateFiles.controller.js';
 import {
+  deleteCandidateVideo,
   deleteClientProfileImage,
   getCandidateProfile,
   getClientProfileImage,
   getClientProfile,
   getMe,
+  listCandidateVideos,
+  uploadCandidateVideo,
   uploadClientProfileImage,
   updateCandidateProfile,
 } from '../controllers/user.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.js';
-import { certificateUpload, profilePhotoUpload } from '../middlewares/upload.js';
+import { certificateUpload, profilePhotoUpload, videoUpload } from '../middlewares/upload.js';
 import { validate } from '../middlewares/validate.js';
 import { updateCandidateProfileSchema } from '../schemas/user.schema.js';
 
@@ -65,6 +68,21 @@ router.delete(
   requireRole('candidate'),
   deleteMyCertificate,
 );
+router.get('/candidate/videos', requireAuth, requireRole('candidate'), listCandidateVideos);
+router.post(
+  '/candidate/videos',
+  requireAuth,
+  requireRole('candidate'),
+  videoUpload.single('video'),
+  uploadCandidateVideo,
+);
+router.delete(
+  '/candidate/videos/:videoId',
+  requireAuth,
+  requireRole('candidate'),
+  deleteCandidateVideo,
+);
+
 router.get('/client/me', requireAuth, requireRole('client'), getClientProfile);
 router.post(
   '/client/profile-image',

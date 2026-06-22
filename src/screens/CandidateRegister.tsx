@@ -1,6 +1,7 @@
 ﻿"use client";
 import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useNavigate } from "@/compat/router";
+import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import { setSession } from "@/lib/auth";
@@ -383,15 +384,18 @@ const CandidateRegister = () => {
   if (submitted) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center">
+        <div className="max-w-md px-4 text-center">
           <div
-            className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full"
+            className="animate-pop-in mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full"
             style={{ background: "var(--brand-gradient)" }}
           >
-            <span className="text-3xl font-bold text-white">OK</span>
+            <CheckCircle2 className="text-white" size={44} strokeWidth={2.2} />
           </div>
-          <h2 className="mb-3 font-heading text-3xl font-bold">Registration Submitted</h2>
+          <h2 className="mb-3 font-heading text-3xl font-bold">You&apos;re all set!</h2>
           <p className="text-muted-foreground">{successMessage || "Redirecting you to the dashboard..."}</p>
+          <div className="mt-5 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="animate-spin" size={16} /> Taking you to your dashboard…
+          </div>
         </div>
       </div>
     );
@@ -408,6 +412,18 @@ const CandidateRegister = () => {
             </div>
             <h1 className="mb-3 font-heading text-3xl font-bold sm:text-4xl">Join as a Candidate</h1>
             <p className="text-muted-foreground">ANAAGAT HUMANPOWER PRIVATE LIMITED</p>
+          </div>
+
+          <div className="mb-8 flex items-start gap-3 rounded-2xl border border-secondary/30 bg-secondary/5 p-4 text-left">
+            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary/15 text-secondary">
+              <Sparkles size={16} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Only your email and password are required</p>
+              <p className="text-sm text-muted-foreground">
+                Everything else is optional — fill in what you can now and complete the rest anytime from your dashboard. The more you add, the faster we match you to roles.
+              </p>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} noValidate className="space-y-8">
@@ -457,17 +473,17 @@ const CandidateRegister = () => {
               {sectionHeader(1, "Basic Details")}
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div className="md:col-span-2">
-                  <label className={labelClass}>Full Name *</label>
+                  <label className={labelClass}>Full Name</label>
                   <input required className={getInputClasses("fullName")} value={form.fullName} onChange={onChange("fullName")} />
                   {getFieldError("fullName") ? <p className="mt-2 text-xs text-red-500">{getFieldError("fullName")}</p> : null}
                 </div>
                 <div>
-                  <label className={labelClass}>Date of Birth *</label>
+                  <label className={labelClass}>Date of Birth</label>
                   <input type="date" required className={getInputClasses("dateOfBirth")} value={form.dateOfBirth} onChange={onChange("dateOfBirth")} />
                   {getFieldError("dateOfBirth") ? <p className="mt-2 text-xs text-red-500">{getFieldError("dateOfBirth")}</p> : null}
                 </div>
                 <div>
-                  <label className={labelClass}>Gender *</label>
+                  <label className={labelClass}>Gender</label>
                   <select required className={getInputClasses("gender")} value={form.gender} onChange={onChange("gender")}>
                     <option value="">Select</option>
                     <option>Male</option>
@@ -478,22 +494,22 @@ const CandidateRegister = () => {
                   {getFieldError("gender") ? <p className="mt-2 text-xs text-red-500">{getFieldError("gender")}</p> : null}
                 </div>
                 <div className="md:col-span-2">
-                  <label className={labelClass}>Current Address *</label>
+                  <label className={labelClass}>Current Address</label>
                   <textarea required rows={3} className={getInputClasses("address")} value={form.address} onChange={onChange("address")} />
                   {getFieldError("address") ? <p className="mt-2 text-xs text-red-500">{getFieldError("address")}</p> : null}
                 </div>
                 <div>
-                  <label className={labelClass}>Pincode *</label>
+                  <label className={labelClass}>Pincode</label>
                   <input required className={getInputClasses("pincode")} value={form.pincode} onChange={onChange("pincode")} />
                   {getFieldError("pincode") ? <p className="mt-2 text-xs text-red-500">{getFieldError("pincode")}</p> : null}
                 </div>
                 <div>
-                  <label className={labelClass}>Mobile Number *</label>
+                  <label className={labelClass}>Mobile Number</label>
                   <input required className={getInputClasses("mobile")} value={form.mobile} onChange={onChange("mobile")} />
                   {getFieldError("mobile") ? <p className="mt-2 text-xs text-red-500">{getFieldError("mobile")}</p> : null}
                 </div>
                 <div className="md:col-span-2">
-                  <label className={labelClass}>Email ID *</label>
+                  <label className={labelClass}>Email ID <span className="text-red-500">*</span></label>
                   <input type="email" required className={getInputClasses("email")} value={form.email} onChange={onChange("email")} />
                   {getFieldError("email") ? <p className="mt-2 text-xs text-red-500">{getFieldError("email")}</p> : null}
                 </div>
@@ -534,7 +550,7 @@ const CandidateRegister = () => {
 
             <div className="rounded-2xl border border-border bg-card p-6 md:p-8">
               {sectionHeader(3, "Education")}
-              <label className={labelClass}>Highest Qualification *</label>
+              <label className={labelClass}>Highest Qualification</label>
               <select required className={getInputClasses("highestQualification")} value={form.highestQualification} onChange={onChange("highestQualification")}>
                 <option value="">Select qualification</option>
                 <option>10th Pass</option>
@@ -575,39 +591,39 @@ const CandidateRegister = () => {
                 {sectionHeader(5, "Experience Details")}
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <div>
-                    <label className={labelClass}>Current Company *</label>
+                    <label className={labelClass}>Current Company</label>
                     <input required className={getInputClasses("currentCompany")} value={form.currentCompany} onChange={onChange("currentCompany")} />
                     {getFieldError("currentCompany") ? <p className="mt-2 text-xs text-red-500">{getFieldError("currentCompany")}</p> : null}
                   </div>
                   <div>
-                    <label className={labelClass}>Current Designation *</label>
+                    <label className={labelClass}>Current Designation</label>
                     <input required className={getInputClasses("designation")} value={form.designation} onChange={onChange("designation")} />
                     {getFieldError("designation") ? <p className="mt-2 text-xs text-red-500">{getFieldError("designation")}</p> : null}
                   </div>
                   <div>
-                    <label className={labelClass}>Total Experience *</label>
+                    <label className={labelClass}>Total Experience</label>
                     <input required className={getInputClasses("totalExperience")} value={form.totalExperience} onChange={onChange("totalExperience")} />
                     {getFieldError("totalExperience") ? <p className="mt-2 text-xs text-red-500">{getFieldError("totalExperience")}</p> : null}
                   </div>
                   <div>
-                    <label className={labelClass}>Industry *</label>
+                    <label className={labelClass}>Industry</label>
                     <input required className={getInputClasses("industry")} value={form.industry} onChange={onChange("industry")} />
                     {getFieldError("industry") ? <p className="mt-2 text-xs text-red-500">{getFieldError("industry")}</p> : null}
                   </div>
                   <div>
-                    <label className={labelClass}>Current CTC *</label>
+                    <label className={labelClass}>Current CTC</label>
                     <input type="number" required className={inputClass} value={form.currentCtcLpa} onChange={onChange("currentCtcLpa")} />
                   </div>
                   <div>
-                    <label className={labelClass}>Expected CTC *</label>
+                    <label className={labelClass}>Expected CTC</label>
                     <input type="number" required className={inputClass} value={form.expectedCtcLpa} onChange={onChange("expectedCtcLpa")} />
                   </div>
                   <div>
-                    <label className={labelClass}>Minimum Acceptable CTC *</label>
+                    <label className={labelClass}>Minimum Acceptable CTC</label>
                     <input type="number" required className={inputClass} value={form.minimumCtcLpa} onChange={onChange("minimumCtcLpa")} />
                   </div>
                   <div>
-                    <label className={labelClass}>Notice Period *</label>
+                    <label className={labelClass}>Notice Period</label>
                     <select required className={getInputClasses("noticePeriod")} value={form.noticePeriod} onChange={onChange("noticePeriod")}>
                       <option value="">Select notice period</option>
                       <option>Immediate Joiner</option>
@@ -621,7 +637,7 @@ const CandidateRegister = () => {
                   </div>
                   {servingNotice ? (
                     <div>
-                      <label className={labelClass}>Last Working Day *</label>
+                      <label className={labelClass}>Last Working Day</label>
                       <input type="date" required className={getInputClasses("lastWorkingDay")} value={form.lastWorkingDay} onChange={onChange("lastWorkingDay")} />
                       {getFieldError("lastWorkingDay") ? <p className="mt-2 text-xs text-red-500">{getFieldError("lastWorkingDay")}</p> : null}
                     </div>
@@ -634,22 +650,22 @@ const CandidateRegister = () => {
               {sectionHeader(6, "Job Preferences")}
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div>
-                  <label className={labelClass}>Preferred Location *</label>
+                  <label className={labelClass}>Preferred Location</label>
                   <input required className={getInputClasses("preferredLocation")} value={form.preferredLocation} onChange={onChange("preferredLocation")} />
                   {getFieldError("preferredLocation") ? <p className="mt-2 text-xs text-red-500">{getFieldError("preferredLocation")}</p> : null}
                 </div>
                 <div>
-                  <label className={labelClass}>Preferred Industry *</label>
+                  <label className={labelClass}>Preferred Industry</label>
                   <input required className={getInputClasses("preferredIndustry")} value={form.preferredIndustry} onChange={onChange("preferredIndustry")} />
                   {getFieldError("preferredIndustry") ? <p className="mt-2 text-xs text-red-500">{getFieldError("preferredIndustry")}</p> : null}
                 </div>
                 <div className="md:col-span-2">
-                  <label className={labelClass}>Preferred Role *</label>
+                  <label className={labelClass}>Preferred Role</label>
                   <input required className={getInputClasses("preferredRole")} value={form.preferredRole} onChange={onChange("preferredRole")} />
                   {getFieldError("preferredRole") ? <p className="mt-2 text-xs text-red-500">{getFieldError("preferredRole")}</p> : null}
                 </div>
                 <div className="md:col-span-2">
-                  <label className={labelClass}>Work Mode * (Select at least one)</label>
+                  <label className={labelClass}>Work Mode (optional)</label>
                   <div className="mt-2 flex flex-wrap gap-3">
                     {["On-site", "Hybrid", "Remote"].map((mode) => (
                       <label key={mode} className="flex cursor-pointer items-center gap-2">
@@ -667,12 +683,12 @@ const CandidateRegister = () => {
               {sectionHeader(7, "Declaration")}
               <label className="mb-4 flex cursor-pointer items-start gap-3">
                 <input type="checkbox" checked={declarationAccepted} onChange={(e) => setDeclarationAccepted(e.target.checked)} className="mt-1 h-4 w-4" />
-                <span className="text-sm font-medium">I agree to the declaration *</span>
+                <span className="text-sm font-medium">I agree to the declaration</span>
               </label>
               {getFieldError("declarationAccepted") ? <p className="mb-3 text-xs text-red-500">{getFieldError("declarationAccepted")}</p> : null}
               <label className="flex cursor-pointer items-start gap-3">
                 <input type="checkbox" checked={representationAuthorized} onChange={(e) => setRepresentationAuthorized(e.target.checked)} className="mt-1 h-4 w-4" />
-                <span className="text-sm font-medium">I authorize representation *</span>
+                <span className="text-sm font-medium">I authorize representation</span>
               </label>
               {getFieldError("representationAuthorized") ? <p className="mt-3 text-xs text-red-500">{getFieldError("representationAuthorized")}</p> : null}
             </div>
@@ -681,7 +697,7 @@ const CandidateRegister = () => {
               <h3 className="mb-5 font-heading text-lg font-semibold">Create Account Password</h3>
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div>
-                  <label className={labelClass}>Password *</label>
+                  <label className={labelClass}>Password <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
@@ -701,7 +717,7 @@ const CandidateRegister = () => {
                   </div>
                 </div>
                 <div>
-                  <label className={labelClass}>Confirm Password *</label>
+                  <label className={labelClass}>Confirm Password <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <input
                       type={showConfirmPassword ? "text" : "password"}
@@ -730,9 +746,10 @@ const CandidateRegister = () => {
             <button
               type="submit"
               disabled={submitting || uploadingResume}
-              className="btn-gradient w-full rounded-xl py-4 text-base font-bold transition-all hover:scale-[1.02] hover:shadow-2xl disabled:cursor-not-allowed disabled:opacity-60"
+              className="btn-gradient flex w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-bold transition-all hover:scale-[1.02] hover:shadow-2xl disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submitting ? "Submitting..." : uploadingResume ? "Uploading Resume..." : "Submit Candidate Registration"}
+              {(submitting || uploadingResume) && <Loader2 className="animate-spin" size={18} />}
+              {submitting ? "Submitting..." : uploadingResume ? "Uploading Resume..." : "Create my account"}
             </button>
 
             <p className="text-center text-sm text-muted-foreground">

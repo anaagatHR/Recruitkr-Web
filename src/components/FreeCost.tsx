@@ -21,13 +21,9 @@ export default function FreeCost() {
 
   const RootCard = () => (
     <div className="rounded-2xl border border-[#264a7f]/15 bg-gradient-to-br from-[#264a7f] to-[#1d3a64] p-6 text-center text-white shadow-lg">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#e59f56]">
-        Free Of Cost
-      </p>
+  
       <p className="text-xl font-light italic md:text-2xl">We believe in you,</p>
-      <p className="text-2xl font-bold italic text-[#e59f56] md:text-3xl">
-        When others don&apos;t.
-      </p>
+      
     </div>
   );
 

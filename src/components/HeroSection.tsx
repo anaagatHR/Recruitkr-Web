@@ -44,10 +44,10 @@ const HeroSection = () => {
           </h1>
 
           <p className="mx-auto max-w-2xl text-sm text-white/100 sm:text-base md:text-lg lg:text-xl">
-            RecruirKr-Befikr
+            RecruitKr-Befikr
           </p>
 
-          <div className="mx-auto mt-6 flex w-full max-w-2xl flex-col gap-2 rounded-2xl border border-white/20 bg-white/10 p-2 shadow-lg backdrop-blur sm:mt-8 sm:flex-row">
+          <div className="mx-auto mt-6 flex w-full max-w-2xl flex-col gap-2 rounded-2xl border border-white/20 bg-white/10 p-6 shadow-lg backdrop-blur sm:mt-8 sm:flex-row">
             <div className="flex flex-1 items-center gap-2 rounded-xl px-3">
               <Search size={18} className="shrink-0 text-white/70" />
               <input
@@ -59,12 +59,12 @@ const HeroSection = () => {
               />
             </div>
             <button
-              type="button"
-              onClick={goSearch}
-              className="btn-gradient w-full shrink-0 rounded-xl px-6 py-3 text-sm font-bold transition hover:scale-[1.02] sm:w-auto"
-            >
-              Search jobs
-            </button>
+  type="button"
+  onClick={goSearch}
+  className="btn-gradient w-[200px] px-3 py-2 text-xs font-bold rounded-xl transition hover:scale-[1.02] sm:px-6 sm:py-3 sm:text-sm ml-[45px]"
+>
+  Search jobs
+</button>
           </div>
 
         </div>

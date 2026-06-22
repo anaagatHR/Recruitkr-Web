@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { Briefcase, Upload } from "lucide-react";
 import { Link } from "@/compat/router";
 

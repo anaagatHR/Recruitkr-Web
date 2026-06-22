@@ -27,13 +27,13 @@ const envSchema = z.object({
   CORS_ORIGIN: z
     .string()
     .min(1)
-    .default('http://localhost:3000,http://localhost:3001,http://localhost:5173'),
+    .default('http://localhost:3000,http://localhost:3001,http://localhost:5173,http://localhost:8080'),
   JWT_ACCESS_SECRET: z.preprocess(
-    () => envValue('JWT_ACCESS_SECRET', 'JWT_SECRET'),
+    () => envValue('JWT_ACCESS_SECRET', 'ACCESS_TOKEN_SECRET', 'JWT_SECRET'),
     z.string().min(32),
   ),
   JWT_REFRESH_SECRET: z.preprocess(
-    () => envValue('JWT_REFRESH_SECRET', 'JWT_SECRET'),
+    () => envValue('JWT_REFRESH_SECRET', 'REFRESH_TOKEN_SECRET', 'JWT_SECRET'),
     z.string().min(32),
   ),
   JWT_ACCESS_EXPIRES: z.string().default('15m'),
@@ -48,6 +48,9 @@ const envSchema = z.object({
   IMAGEKIT_PUBLIC_KEY: z.string().min(10),
   IMAGEKIT_PRIVATE_KEY: z.string().min(10),
   IMAGEKIT_URL_ENDPOINT: z.string().url(),
+  GOOGLE_OAUTH_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().min(10).optional()),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(10).optional()),
+  GOOGLE_OAUTH_REDIRECT_URI: z.preprocess(emptyToUndefined, z.string().url().optional()),
 
   // Apache Solr is optional. When SOLR_URL is unset the job search falls back to
   // a cached MongoDB query, so the app keeps working without a Solr server.

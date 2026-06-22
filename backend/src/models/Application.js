@@ -59,6 +59,15 @@ const applicationSchema = new mongoose.Schema(
     qualification: { type: String, trim: true },
     college: { type: String, trim: true, default: '' },
     currentCity: { type: String, trim: true },
+
+    // Rich candidate snapshot, captured at apply time and shared with the
+    // employer on the applications page and chat header.
+    profilePhotoUrl: { type: String, trim: true, default: '' },
+    skills: { type: [String], default: [] },
+    experienceLabel: { type: String, trim: true, default: '' },
+    preferredLocation: { type: String, trim: true, default: '' },
+    portfolioUrl: { type: String, trim: true, default: '' },
+    linkedinUrl: { type: String, trim: true, default: '' },
     experience: {
       type: [
         new mongoose.Schema(
@@ -86,6 +95,13 @@ const applicationSchema = new mongoose.Schema(
     statusUpdatedAt: { type: Date, default: Date.now },
     interviewDetails: interviewDetailsSchema,
     timeline: { type: [applicationTimelineSchema], default: [] },
+
+    // Auto-created conversation + its rollups, so the applications list can show
+    // chat activity without joining the Conversation collection.
+    conversationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', index: true },
+    latestMessageAt: { type: Date },
+    unreadCandidateCount: { type: Number, default: 0 },
+    unreadEmployerCount: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

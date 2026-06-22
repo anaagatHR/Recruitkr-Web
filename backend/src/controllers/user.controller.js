@@ -346,3 +346,88 @@ export const deleteClientProfileImage = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Profile image removed' });
 });
 
+const MAX_CANDIDATE_VIDEOS = 5;
+
+const serializeVideo = (video) => ({
+  id: video._id ? video._id.toString() : '',
+  url: video.url,
+  name: video.name || 'Video',
+  type: video.type || '',
+  size: video.size || 0,
+  uploadedAt: video.uploadedAt,
+});
+
+export const listCandidateVideos = asyncHandler(async (req, res) => {
+  const profile = await CandidateProfile.findOne({ userId: req.user.id }).select('videos');
+  if (!profile) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Candidate profile not found');
+  }
+  res.json({ success: true, data: (profile.videos || []).map(serializeVideo) });
+});
+
+export const uploadCandidateVideo = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'A video file is required');
+  }
+
+  const profile = await CandidateProfile.findOne({ userId: req.user.id });
+  if (!profile) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Candidate profile not found');
+  }
+
+  if ((profile.videos?.length || 0) >= MAX_CANDIDATE_VIDEOS) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      `You can upload up to ${MAX_CANDIDATE_VIDEOS} videos. Delete one to add a new video.`,
+    );
+  }
+
+  const asset = await uploadBufferToImageKit({
+    buffer: req.file.buffer,
+    originalName: req.file.originalname,
+    folder: '/recruitkr/videos',
+  });
+
+  const video = {
+    url: asset.url,
+    fileId: asset.fileId,
+    name: asset.name || req.file.originalname,
+    type: req.file.mimetype,
+    size: req.file.size,
+    uploadedAt: new Date(),
+  };
+
+  profile.videos.push(video);
+  await profile.save();
+
+  const created = profile.videos[profile.videos.length - 1];
+  res.status(StatusCodes.CREATED).json({ success: true, data: serializeVideo(created) });
+});
+
+export const deleteCandidateVideo = asyncHandler(async (req, res) => {
+  const profile = await CandidateProfile.findOne({ userId: req.user.id });
+  if (!profile) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Candidate profile not found');
+  }
+
+  const { videoId } = req.params;
+  const video = profile.videos.id(videoId);
+  if (!video) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Video not found');
+  }
+
+  const fileId = String(video.fileId || '').trim();
+  video.deleteOne();
+  await profile.save();
+
+  if (fileId) {
+    try {
+      await deleteImageKitFile(fileId);
+    } catch (error) {
+      console.error('[candidate-video] failed to delete file', error);
+    }
+  }
+
+  res.json({ success: true, message: 'Video removed' });
+});
+

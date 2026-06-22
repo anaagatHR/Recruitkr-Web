@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from "@/compat/router";
 import { Sparkles, ShieldCheck, Zap, Heart } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { apiPost } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 import { setSession } from "@/lib/auth";
 
 // Brand palette (navy / green / amber).
@@ -29,6 +29,7 @@ const Login = () => {
   const [passwordError, setPasswordError] = useState("");
   const [formError, setFormError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const googleLoginEnabled = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED !== "false";
 
   useEffect(() => {
     const role = new URLSearchParams(location.search).get("role");
@@ -36,6 +37,63 @@ const Login = () => {
       setUserType(role);
     }
   }, [location.search]);
+
+  // Show a friendly message when the Google OAuth flow redirects back with an
+  // error (cancelled consent, disabled login, etc.) instead of a raw JSON page.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("oauth") !== "error") return;
+
+    const reason = params.get("reason") || "failed";
+    const messages: Record<string, string> = {
+      cancelled: "Google sign-in cancelled. Please try again.",
+      disabled: "Google sign-in is off. Use email and password.",
+      profile: "Couldn't get your email from Google. Try another account.",
+      expired: "Link expired. Please sign in again.",
+      role_candidate: "This account is a Candidate. Use the Candidate tab to sign in.",
+      role_client: "This account is a Client. Use the Client tab to sign in.",
+      redirect_mismatch: "Google sign-in setup issue. Please contact support.",
+      config: "Google sign-in setup issue. Please contact support.",
+      failed: "Google sign-in failed. Please try again.",
+    };
+    setFormError(messages[reason] || messages.failed);
+  }, [location.search]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("oauth") !== "success") return;
+
+    const accessToken = params.get("accessToken");
+    const refreshToken = params.get("refreshToken") || undefined;
+    const role = params.get("role");
+    const redirect = params.get("redirect");
+
+    if (!accessToken || (role !== "candidate" && role !== "client" && role !== "admin")) return;
+
+    void (async () => {
+      const me = await apiGet<{
+        success?: boolean;
+        data?: { _id?: string; id?: string; email?: string; role?: "candidate" | "client" | "admin" };
+      }>("/users/me", { auth: false });
+
+      const user = me.data;
+      if (!user?.email || !user?.role) return;
+
+      setSession({
+        accessToken,
+        refreshToken,
+        user: {
+          id: user._id || user.id || user.email,
+          email: user.email,
+          role: user.role,
+        },
+      });
+
+      navigate(redirect || (user.role === "client" ? "/dashboard/client" : "/dashboard/candidate"), {
+        replace: true,
+      });
+    })().catch(() => {});
+  }, [location.search, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -174,6 +232,42 @@ const Login = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
+              {googleLoginEnabled && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const redirect = new URLSearchParams(location.search).get("redirect");
+                    const role = userType;
+                    const qs = new URLSearchParams({
+                      role,
+                      ...(redirect ? { redirect } : {}),
+                    });
+                    window.location.href = `/api/v1/auth/google?${qs.toString()}`;
+                  }}
+                  className="flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+                    <path
+                      d="M21.35 11.1H12v2.97h5.35c-.23 1.23-.96 2.27-2 2.98v2.48h3.23c1.9-1.75 2.99-4.32 2.99-7.38 0-.72-.06-1.26-.22-2.05Z"
+                      fill="#4285F4"
+                    />
+                    <path
+                      d="M12 22c2.7 0 4.97-.9 6.63-2.45l-3.23-2.48c-.9.6-2.06.95-3.4.95-2.61 0-4.83-1.76-5.62-4.13H3.04v2.59A10 10 0 0 0 12 22Z"
+                      fill="#34A853"
+                    />
+                    <path
+                      d="M6.38 13.9A5.97 5.97 0 0 1 6 12c0-.66.11-1.3.38-1.9V7.5H3.04A10 10 0 0 0 2 12c0 1.61.39 3.14 1.04 4.5l3.34-2.6Z"
+                      fill="#FBBC05"
+                    />
+                    <path
+                      d="M12 5.02c1.47 0 2.78.51 3.82 1.52l2.86-2.86A9.61 9.61 0 0 0 12 2a10 10 0 0 0-8.96 5.5l3.34 2.59C7.17 6.78 9.39 5.02 12 5.02Z"
+                      fill="#EA4335"
+                    />
+                  </svg>
+                  Continue with Google
+                </button>
+              )}
+
               <div>
                 <label className="block mb-1.5 text-sm font-medium text-foreground">Email ID</label>
                 <input

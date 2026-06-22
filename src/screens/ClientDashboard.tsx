@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "reac
 import { Link, useNavigate } from "@/compat/router";
 import OptimizedLogo from "@/components/OptimizedLogo";
 import ApplicationStepTracker from "@/components/ApplicationStepTracker";
-import StartConversationButton from "@/components/StartConversationButton";
+import DashboardLayout, { type DashboardNavItem } from "@/components/DashboardLayout";
+import { Building2, ClipboardList, FileText, MessageSquare, Sparkles, Users } from "lucide-react";
 import { API_BASE, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { clearSession, getSession } from "@/lib/auth";
 import { useServerEvents, type SseConnectionStatus } from "@/hooks/useServerEvents";
@@ -22,8 +23,7 @@ const LIVE_REFRESH_MS = 5000;
 
 const BRAND_PRIMARY = "#264a7f";
 const BRAND_SECONDARY = "#69a44f";
-const dashboardShellClass =
-  "min-h-screen bg-[radial-gradient(circle_at_top,_rgba(38,74,127,0.12),_transparent_38%),linear-gradient(180deg,#f8fbff_0%,#ffffff_28%,#f8fbff_100%)]";
+const dashboardShellClass = "dashboard-theme";
 const dashboardHeaderClass =
   "sticky top-0 z-30 border-b border-[#264a7f]/10 bg-white/88 backdrop-blur-xl shadow-[0_12px_40px_rgba(38,74,127,0.08)]";
 const brandCardClass =
@@ -320,7 +320,10 @@ const initialJobRequirementForm: JobRequirementForm = {
 
 const ClientDashboard = () => {
   const navigate = useNavigate();
-  const [sessionState, setSessionState] = useState(() => getSession());
+  // Initialise to null so the server-rendered HTML and the first client render
+  // match (the session lives in localStorage, which only exists in the browser).
+  // The boot() effect below sets the real session right after mount.
+  const [sessionState, setSessionState] = useState<ReturnType<typeof getSession>>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboard, setDashboard] = useState<ClientDashboardResponse["data"] | null>(null);
@@ -925,12 +928,12 @@ const ClientDashboard = () => {
     }
   };
 
-  const dashboardTabs: Array<{ key: typeof tab; label: string }> = [
-    { key: "overview", label: "Overview" },
-    { key: "requirements", label: "Requirements" },
-    { key: "applications", label: "Applications" },
-    { key: "resumes", label: "Resumes" },
-    { key: "profile", label: "Profile" },
+  const dashboardTabs: DashboardNavItem<typeof tab>[] = [
+    { key: "overview", label: "Overview", icon: Sparkles },
+    { key: "requirements", label: "Requirements", icon: ClipboardList },
+    { key: "applications", label: "Applications", icon: Users },
+    { key: "resumes", label: "Resumes", icon: FileText },
+    { key: "profile", label: "Profile", icon: Building2 },
   ];
 
   const renderResumesTab = () => (
@@ -1004,10 +1007,10 @@ const ClientDashboard = () => {
         </div>
         <div className="divide-y divide-border">
           {applications.map((application) => (
+            <div key={application._id} className="relative">
             <button
-              key={application._id}
               type="button"
-              className={`w-full px-4 py-4 text-left transition sm:px-6 ${
+              className={`w-full px-4 py-4 pb-10 text-left transition sm:px-6 ${
                 selectedApplicationId === application._id ? "bg-[#264a7f]/5" : "hover:bg-[#264a7f]/[0.03]"
               }`}
               onClick={() => void openApplicationDetails(application._id)}
@@ -1027,6 +1030,15 @@ const ClientDashboard = () => {
                 </div>
               </div>
             </button>
+            <Link
+              to={`/messages?application=${application._id}`}
+              title="Chat with candidate"
+              className="absolute bottom-3 right-4 flex items-center gap-1.5 rounded-lg border border-[#264a7f]/20 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#264a7f] shadow-sm transition hover:bg-[#264a7f] hover:text-white"
+            >
+              <MessageSquare size={15} />
+              <span className="hidden sm:inline">Chat</span>
+            </Link>
+            </div>
           ))}
           {applications.length === 0 && (
             <div className="px-4 py-4 text-sm text-muted-foreground sm:px-6">No applications yet.</div>
@@ -1220,10 +1232,12 @@ const ClientDashboard = () => {
               >
                 {savingApplicationId === selectedApplicationDetails.application._id ? "Rejecting..." : "Reject"}
               </button>
-              <StartConversationButton
-                applicationId={selectedApplicationDetails.application._id}
-                label="Message Candidate"
-              />
+              <Link
+                to={`/messages?application=${selectedApplicationDetails.application._id}`}
+                className="inline-flex items-center gap-2 rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary hover:text-white"
+              >
+                <MessageSquare size={16} /> Message Candidate
+              </Link>
             </div>
 
             {detailsFormVisible && (
@@ -1540,76 +1554,23 @@ const ClientDashboard = () => {
   }
 
   return (
-    <div className={dashboardShellClass}>
-      <header className={dashboardHeaderClass}>
-        <div className="container mx-auto flex flex-col gap-4 px-4 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
-            <div className="flex min-w-0 items-center gap-3 sm:gap-4" aria-label="RecruitKr home">
-              <span className="flex h-11 w-[136px] shrink-0 items-center sm:h-12 sm:w-[152px] md:h-14 md:w-[186px]">
-                <OptimizedLogo
-                  loading="eager"
-                  fetchPriority="high"
-                  className="block h-full w-full"
-                  imgClassName="h-full w-full object-contain object-left"
-                />
-              </span>
-              <div className="hidden min-w-0 md:block">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#264a7f]">
-                  Employer Dashboard
-                </p>
-                <p className="truncate text-sm text-slate-500">Manage hiring requirements, candidate pipelines, and company details.</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 sm:gap-3">
-              <span className={`hidden rounded-full border px-3 py-1 text-[11px] font-semibold sm:inline-flex ${LIVE_STATUS_META[liveStatus].className}`}>
-                {LIVE_STATUS_META[liveStatus].label}
-              </span>
-              <button
-                className="rounded-xl border border-[#264a7f]/15 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm sm:hidden"
-                onClick={logout}
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-
-          <div className="-mx-4 overflow-x-auto px-4 lg:mx-0 lg:px-0">
-            <div className="flex min-w-max items-center gap-2 pb-1 lg:min-w-0 lg:flex-wrap lg:justify-end">
-              {dashboardTabs.map((item) => {
-                const isActive = tab === item.key;
-
-                return (
-                  <button
-                    key={item.key}
-                    className={`rounded-xl border px-4 py-2.5 text-xs font-semibold transition sm:text-sm ${
-                      isActive
-                        ? "border-transparent text-white shadow-[0_14px_30px_rgba(38,74,127,0.24)]"
-                        : "border-[#264a7f]/12 bg-white text-slate-700 hover:border-[#264a7f]/30 hover:text-[#264a7f]"
-                    }`}
-                    style={
-                      isActive
-                        ? { background: "var(--brand-gradient)" }
-                        : undefined
-                    }
-                    onClick={() => setTab(item.key)}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-              <button
-                className="hidden rounded-xl border border-[#264a7f]/12 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 sm:text-sm lg:inline-flex"
-                onClick={logout}
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8 space-y-6">
+    <DashboardLayout
+      eyebrow="Employer"
+      title="Employer Dashboard"
+      subtitle="Manage hiring requirements, candidate pipelines, and company details."
+      navItems={dashboardTabs}
+      activeKey={tab}
+      onSelect={(key) => setTab(key)}
+      onLogout={logout}
+      userLabel={profile?.companyName || sessionState?.user.email}
+      headerExtra={
+        <span
+          className={`hidden rounded-full border px-3 py-1 text-[11px] font-semibold sm:inline-flex ${LIVE_STATUS_META[liveStatus].className}`}
+        >
+          {LIVE_STATUS_META[liveStatus].label}
+        </span>
+      }
+    >
         {error && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
 
         {tab === "overview" && (
@@ -2045,8 +2006,7 @@ const ClientDashboard = () => {
             </div>
           </div>
         )}
-      </main>
-    </div>
+    </DashboardLayout>
   );
 };
 

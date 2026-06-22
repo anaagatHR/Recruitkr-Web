@@ -48,7 +48,7 @@ const Navbar = memo(function Navbar() {
         alt="RecruitKr"
         loading="eager"
         fetchPriority="high"
-        className="h-24 w-auto -my-4 object-contain sm:h-28 sm:-my-6 lg:h-36 lg:-my-10"
+        className="h-24 w-auto -mt-10 -mb-6 object-contain sm:h-28 sm:-mt-6 lg:h-36 lg:-mt-2 lg:mb-4"
       />
     </Link>
 

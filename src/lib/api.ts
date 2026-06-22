@@ -39,8 +39,9 @@ const resolveApiBase = (): string => {
     return trimTrailingSlash(configured);
   }
 
-  // Server (SSR): talk to the backend directly.
-  return trimTrailingSlash(configured || "http://localhost:5000/api/v1");
+  // Server (SSR): talk to the backend directly. Default to 127.0.0.1 (IPv4) so
+  // SSR does not hit the Windows "localhost -> ::1" ECONNREFUSED failure mode.
+  return trimTrailingSlash(configured || "http://127.0.0.1:5000/api/v1");
 };
 
 const API_BASE = resolveApiBase();

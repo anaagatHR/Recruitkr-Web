@@ -36,6 +36,9 @@ export const setSession = (session: AuthSession) => {
 export const clearSession = () => {
   if (typeof window === "undefined") return;
   localStorage.removeItem(AUTH_STORAGE_KEY);
+  // Tear down the realtime socket on logout. Imported lazily to avoid pulling
+  // socket.io-client into modules that only need session helpers.
+  void import("@/lib/socket").then(({ disconnectSocket }) => disconnectSocket()).catch(() => {});
 };
 
 export const updateSessionTokens = (accessToken: string, refreshToken?: string) => {

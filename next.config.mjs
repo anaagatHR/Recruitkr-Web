@@ -19,7 +19,10 @@ const nextConfig = {
   },
   async rewrites() {
     // Allow same-origin /api/v1 calls to be proxied to the Express backend in dev.
-    const backend = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+    // Default to 127.0.0.1 (not "localhost"): on Windows "localhost" resolves to
+    // IPv6 ::1 first, but the Express server listens on IPv4 only, which causes
+    // intermittent "ECONNREFUSED ::1:5000" proxy failures.
+    const backend = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000/api/v1";
     const root = backend.replace(/\/api\/v\d+\/?$/, "");
     return [
       {

@@ -94,7 +94,7 @@ export default function JobShowcase() {
               </div>
               <p className="mb-3 text-xs text-muted-foreground">{card.subtitle}</p>
               <Stars rating={card.rating} />
-            </div>
+            </div> 
           ))}
         </div>
 

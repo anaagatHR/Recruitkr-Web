@@ -1,4 +1,4 @@
-import { Quote, Star } from "lucide-react";
+   import { Quote, Star } from "lucide-react";
 
 const NAVY = "#264a7f";
 const GREEN = "#69a44f";

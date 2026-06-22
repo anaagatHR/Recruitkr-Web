@@ -20,9 +20,18 @@ const messageSchema = new mongoose.Schema(
       index: true,
     },
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    senderRole: { type: String, enum: ['candidate', 'client'], required: true },
+    senderRole: { type: String, enum: ['candidate', 'client', 'system'], required: true },
+    // 'system' = auto-generated (e.g. "X applied for Y"); others describe payload.
+    messageType: {
+      type: String,
+      enum: ['text', 'system', 'image', 'file', 'attachment', 'interview'],
+      default: 'text',
+    },
     body: { type: String, trim: true, default: '' },
     attachment: { type: attachmentSchema, default: null },
+    // Structured payload for special messages (e.g. interview scheduling).
+    meta: { type: mongoose.Schema.Types.Mixed, default: null },
+    deliveredAt: { type: Date, default: null },
     readAt: { type: Date, default: null },
   },
   { timestamps: true },

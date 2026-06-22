@@ -12,6 +12,10 @@ import {
   getActiveNormalizedJobs,
   invalidateJobsCache,
 } from '../services/jobSearch.service.js';
+import {
+  buildCandidateSnapshot,
+  ensureConversationForApplication,
+} from '../services/conversation.service.js';
 import { publishLiveUpdate } from '../services/liveUpdate.service.js';
 import {
   buildGeneratedResumeData,
@@ -855,6 +859,13 @@ export const applyToJob = asyncHandler(async (req, res) => {
     qualification: candidateProfile?.highestQualification || '',
     college: '',
     currentCity: candidateProfile?.preferences?.preferredLocation || '',
+    profilePhotoUrl: candidateProfile?.profilePhotoUrl || '',
+    skills: Array.isArray(candidateProfile?.skills) ? candidateProfile.skills : [],
+    experienceLabel:
+      candidateProfile?.experienceStatus === 'experienced' ? 'Experienced' : 'Fresher',
+    preferredLocation: candidateProfile?.preferences?.preferredLocation || '',
+    portfolioUrl: candidateProfile?.portfolioUrl || '',
+    linkedinUrl: candidateProfile?.linkedinUrl || '',
     experience: [
       {
         jobProfile:
@@ -899,6 +910,30 @@ export const applyToJob = asyncHandler(async (req, res) => {
       status: application.status,
     },
   });
+
+  // Automatically open the conversation + seed the system "applied" message so
+  // both inboxes show the thread immediately (no manual "Start conversation").
+  // Failure here must not fail the application itself.
+  try {
+    const snapshot = buildCandidateSnapshot({
+      candidateUser,
+      candidateProfile,
+      resume,
+      appliedFor: jobTitle,
+      appliedAt: application.submittedAt,
+    });
+    const conversation = await ensureConversationForApplication({
+      application,
+      snapshot,
+      jobTitle,
+      companyName,
+    });
+    if (conversation) {
+      application.conversationId = conversation._id;
+    }
+  } catch (error) {
+    console.error('[apply] auto-conversation failed:', error);
+  }
 
   res.status(StatusCodes.CREATED).json({ success: true, data: application });
 });

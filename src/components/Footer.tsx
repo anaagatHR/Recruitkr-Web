@@ -219,7 +219,10 @@ const Footer = () => {
             </div>
           )}
 
-          <div className="border-t border-slate-200 pt-5 text-center text-xs leading-relaxed text-slate-500">
+          <div
+            className="border-t border-slate-200 pt-5 text-center text-xs leading-relaxed text-slate-500"
+            suppressHydrationWarning
+          >
             &copy; {new Date().getFullYear()} RecruitKr. All rights reserved.
           </div>
         </div>

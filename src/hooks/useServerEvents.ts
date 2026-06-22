@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 import { useEffect, useRef, useState } from "react";
 
-import { createSseUrl } from "@/lib/api";
 import { getSession } from "@/lib/auth";
+import { getSocket } from "@/lib/socket";
 
 export type SseConnectionStatus =
   | "connecting"
@@ -17,29 +17,34 @@ type SseEventPayload = {
 
 type UseServerEventsOptions = {
   enabled?: boolean;
+  /** Kept for API compatibility; ignored by the socket transport. */
   path?: string;
   eventNames?: string[];
   onEvent?: (event: SseEventPayload) => void;
   onError?: (message: string) => void;
 };
 
-const DEFAULT_PATH = "/events/stream";
-const DEFAULT_EVENTS = ["connected", "heartbeat", "application-created", "application-updated"];
-const RECONNECT_DELAYS_MS = [3000, 5000, 10000];
-const MAX_RECONNECT_ATTEMPTS = 5;
+// Realtime is now Socket.IO. The hook keeps its old name + shape so existing
+// callers (dashboards, messages) don't change. Each consumer attaches its own
+// listeners to the shared singleton socket and removes them on unmount.
+const DEFAULT_EVENTS = [
+  "connected",
+  "application-created",
+  "application-updated",
+  "conversation-created",
+  "message",
+  "message-read",
+  "typing",
+  "presence",
+];
 
 export const useServerEvents = ({
   enabled = true,
-  path = DEFAULT_PATH,
   eventNames = DEFAULT_EVENTS,
   onEvent,
   onError,
 }: UseServerEventsOptions = {}) => {
   const [status, setStatus] = useState<SseConnectionStatus>(enabled ? "connecting" : "disconnected");
-  const sourceRef = useRef<EventSource | null>(null);
-  const reconnectTimerRef = useRef<number | null>(null);
-  const attemptRef = useRef(0);
-  const manuallyClosedRef = useRef(false);
   const onEventRef = useRef(onEvent);
   const onErrorRef = useRef(onError);
 
@@ -51,136 +56,50 @@ export const useServerEvents = ({
     onErrorRef.current = onError;
   }, [onError]);
 
-  useEffect(() => {
-    const session = getSession();
-    const token = session?.accessToken || null;
+  // Stable key so the effect doesn't re-run on every render from a new array ref.
+  const eventsKey = eventNames.join(",");
 
+  useEffect(() => {
+    const token = getSession()?.accessToken;
     if (!enabled || !token) {
-      manuallyClosedRef.current = true;
-      sourceRef.current?.close();
-      sourceRef.current = null;
-      if (reconnectTimerRef.current !== null) {
-        window.clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = null;
-      }
       setStatus("disconnected");
       return;
     }
 
-    manuallyClosedRef.current = false;
+    const socket = getSocket(token);
+    setStatus(socket.connected ? "connected" : "connecting");
 
-    const clearReconnectTimer = () => {
-      if (reconnectTimerRef.current !== null) {
-        window.clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = null;
-      }
-    };
-
-    const cleanupSource = () => {
-      if (sourceRef.current) {
-        sourceRef.current.close();
-        sourceRef.current = null;
-      }
-    };
-
-    const scheduleReconnect = () => {
-      if (manuallyClosedRef.current || reconnectTimerRef.current !== null) return;
-      if (attemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
-        console.warn("[sse] reconnect attempts exhausted");
-        onErrorRef.current?.("Live updates are unavailable right now. Please refresh the page.");
-        setStatus("disconnected");
-        return;
-      }
-
-      const nextDelay = RECONNECT_DELAYS_MS[Math.min(attemptRef.current, RECONNECT_DELAYS_MS.length - 1)];
+    const onConnect = () => setStatus("connected");
+    const onDisconnect = () => setStatus("reconnecting");
+    const onConnectError = () => {
       setStatus("reconnecting");
-      reconnectTimerRef.current = window.setTimeout(() => {
-        reconnectTimerRef.current = null;
-        connect();
-      }, nextDelay);
+      onErrorRef.current?.("Live connection lost. Reconnecting…");
     };
 
-    const handleEvent = (type: string, rawData: string) => {
-      let data: unknown = rawData;
-      try {
-        data = rawData ? JSON.parse(rawData) : null;
-      } catch {
-        data = rawData;
-      }
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("connect_error", onConnectError);
 
-      onEventRef.current?.({ type, data });
-    };
-
-    const connect = () => {
-      if (manuallyClosedRef.current || sourceRef.current) return;
-
-      clearReconnectTimer();
-      setStatus(attemptRef.current === 0 ? "connecting" : "reconnecting");
-
-      let eventSource: EventSource;
-      try {
-        eventSource = new EventSource(createSseUrl(path, getSession()?.accessToken || token), {
-          withCredentials: true,
-        });
-      } catch (error) {
-        console.error("[sse] failed to create EventSource", error);
-        onErrorRef.current?.("Please sign in again to reconnect live updates.");
-        scheduleReconnect();
-        return;
-      }
-
-      sourceRef.current = eventSource;
-
-      eventSource.onopen = () => {
-        attemptRef.current = 0;
-        console.info("[sse] connected", { path });
-        setStatus("connected");
-      };
-
-      eventSource.onmessage = (event) => {
-        handleEvent("message", event.data);
-      };
-
-      for (const eventName of eventNames) {
-        eventSource.addEventListener(eventName, (event) => {
-          handleEvent(eventName, (event as MessageEvent).data);
-        });
-      }
-
-      eventSource.onerror = () => {
-        console.warn("[sse] connection error", {
-          path,
-          attempt: attemptRef.current + 1,
-          hasSession: Boolean(getSession()?.accessToken),
-        });
-        cleanupSource();
-        attemptRef.current += 1;
-
-        if (manuallyClosedRef.current) {
-          setStatus("disconnected");
-          return;
-        }
-
-        if (!getSession()?.accessToken) {
-          manuallyClosedRef.current = true;
-          onErrorRef.current?.("Live updates require an active login.");
-          setStatus("disconnected");
-          return;
-        }
-
-        scheduleReconnect();
-      };
-    };
-
-    connect();
+    const names = eventsKey ? eventsKey.split(",") : [];
+    const handlers = new Map<string, (data: unknown) => void>();
+    for (const name of names) {
+      if (name === "connected" || name === "heartbeat") continue;
+      const handler = (data: unknown) => onEventRef.current?.({ type: name, data });
+      handlers.set(name, handler);
+      socket.on(name, handler);
+    }
 
     return () => {
-      manuallyClosedRef.current = true;
-      clearReconnectTimer();
-      cleanupSource();
-      setStatus("disconnected");
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("connect_error", onConnectError);
+      for (const [name, handler] of handlers) {
+        socket.off(name, handler);
+      }
+      // Intentionally do NOT disconnect the shared socket here — other
+      // components may still be using it. It closes on logout.
     };
-  }, [enabled, path, eventNames]);
+  }, [enabled, eventsKey]);
 
   return { status };
 };

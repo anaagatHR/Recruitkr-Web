@@ -3,6 +3,8 @@ import { Router } from 'express';
 import {
   changePassword,
   forgotPassword,
+  googleCallback,
+  googleStart,
   login,
   logout,
   refresh,
@@ -28,6 +30,8 @@ const router = Router();
 router.post('/register/candidate', validate(candidateRegisterSchema), registerCandidate);
 router.post('/register/client', validate(clientRegisterSchema), registerClient);
 router.post('/login', validate(loginSchema), login);
+router.get('/google', googleStart);
+router.get('/google/callback', googleCallback);
 router.post('/refresh', validate(refreshSchema), refresh);
 router.post('/logout', logout);
 router.post('/change-password', requireAuth, validate(changePasswordSchema), changePassword);

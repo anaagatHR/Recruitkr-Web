@@ -52,6 +52,23 @@ const candidateProfileSchema = new mongoose.Schema(
     referral: { type: String, trim: true, default: '' },
     profilePhotoUrl: { type: String, trim: true, default: '' },
     profilePhotoFileId: { type: String, trim: true, default: '' },
+    // Candidate-uploaded intro/portfolio videos, shown to employers in the chat.
+    videos: {
+      type: [
+        new mongoose.Schema(
+          {
+            url: { type: String, trim: true, required: true },
+            fileId: { type: String, trim: true, default: '' },
+            name: { type: String, trim: true, default: 'video' },
+            type: { type: String, trim: true, default: '' },
+            size: { type: Number, default: 0 },
+            uploadedAt: { type: Date, default: Date.now },
+          },
+          { _id: true },
+        ),
+      ],
+      default: [],
+    },
     about: { type: String, trim: true, default: '' },
     city: { type: String, trim: true, default: '' },
     currentCity: { type: String, trim: true, default: '' },
