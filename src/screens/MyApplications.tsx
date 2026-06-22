@@ -159,119 +159,178 @@ const MyApplications = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Navbar />
-      <main className="container mx-auto flex-1 px-4 pb-16 pt-24">
-        <div className="mx-auto max-w-4xl">
-          <header className="mb-6">
-            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
-              {isClient ? "Applicants" : "My Applications"}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isClient
-                ? "Candidates who applied to your jobs. Tap a card to open the chat."
-                : "Track your applications and chat with employers. Tap a card to open the chat."}
-            </p>
-            <div className="relative mt-4">
-              <Search
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                size={16}
-              />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={isClient ? "Search candidates or jobs" : "Search companies or jobs"}
-                className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-3 text-sm focus:border-primary focus:outline-none"
-              />
-            </div>
-          </header>
+<div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <Navbar />
 
-          {loading ? (
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <li key={i} className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4">
-                  <div className="skeleton h-14 w-14 shrink-0 rounded-xl" />
-                  <div className="flex-1 space-y-2.5 py-1">
-                    <div className="skeleton h-3.5 w-3/4" />
+    <main className="container mx-auto flex-1 px-4 pb-16 pt-24">
+    <div className="mx-auto max-w-5xl">
+
+        {/* Header */}
+     <header className="mb-8 rounded-3xl border border-border/40 bg-card/60 p-6 backdrop-blur-xl shadow-sm">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            {isClient ? "Applicants" : "My Applications"}
+          </h1>
+
+          <p className="mt-2 text-sm text-muted-foreground">
+            {isClient
+              ? "Candidates who applied to your jobs. Tap a card to open the chat."
+              : "Track your applications and chat with employers. Tap a card to open the chat."}
+          </p>
+
+          {/* Search */}
+          <div className="relative mt-6">
+            <Search
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+              size={18}
+            />
+
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={
+                isClient
+                  ? "Search candidates or jobs..."
+                  : "Search companies or jobs..."
+              }
+          className="w-full rounded-2xl border border-border/50 bg-background/70 backdrop-blur-xl py-3.5 pl-12 pr-4 text-sm shadow-lg transition-all focus:border-primary focus:ring-4 focus:ring-primary/20 outline-none"
+            />
+          </div>
+        </header>
+
+        {/* Loading */}
+        {loading ? (
+          <ul className="space-y-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <li
+                key={i}
+                className="rounded-3xl border border-border bg-card p-5 shadow-sm"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="skeleton h-16 w-16 rounded-2xl" />
+
+                  <div className="flex-1 space-y-3">
+                    <div className="skeleton h-4 w-3/4" />
                     <div className="skeleton h-3 w-1/2" />
                     <div className="skeleton h-3 w-2/3" />
                   </div>
-                </li>
-              ))}
-            </ul>
-          ) : filtered.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-14 text-center">
-              <Briefcase className="mx-auto mb-3 text-muted-foreground" size={32} />
-              <p className="text-sm text-muted-foreground">
-                {search
-                  ? "No results match your search."
-                  : isClient
-                    ? "No applicants yet. They'll appear here once candidates apply."
-                    : "No applications yet. Apply to a job and it appears here with a chat."}
-              </p>
-              {!isClient && !search && (
-                <Link
-                  to="/jobs"
-                  className="btn-gradient mt-4 inline-block rounded-lg px-4 py-2 text-sm font-semibold"
-                >
-                  Browse Jobs
-                </Link>
-              )}
-            </div>
-          ) : (
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {filtered.map((c) => {
-                const title = isClient ? c.candidateName || "Candidate" : c.companyName || "Employer";
-                const logoUrl = isClient ? c.withPhotoUrl : c.companyLogoUrl;
-                return (
-                  <li key={c.id}>
-                    <button
-                      onClick={() => openChat(c.id)}
-                      className="group flex w-full items-start gap-3 rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md"
-                    >
-                      <div className="relative">
-                        <Logo name={title} url={logoUrl} />
-                        {c.online && (
-                          <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card bg-emerald-500" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="truncate font-bold text-foreground">{title}</span>
-                          <StatusBadge status={c.status} />
-                        </div>
-                        {c.jobTitle && (
-                          <div className="mt-0.5 flex items-center gap-1 truncate text-sm text-primary">
-                            <Building2 size={13} className="shrink-0" />
-                            <span className="truncate">{c.jobTitle}</span>
-                          </div>
-                        )}
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                            <MessageCircle size={13} className="shrink-0" />
-                            <span className="truncate">
-                              {c.lastSenderRole === "system" ? "📋 " : ""}
-                              {c.lastMessage || "Open chat"}
-                            </span>
-                          </span>
-                          <span className="shrink-0 text-[11px] text-muted-foreground">
-                            {formatTime(c.lastMessageAt)}
-                          </span>
-                        </div>
-                      </div>
-                      {c.unread > 0 && (
-                        <span className="ml-1 flex h-5 min-w-5 shrink-0 items-center justify-center self-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-white">
-                          {c.unread}
-                        </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : filtered.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-border bg-card px-6 py-16 text-center shadow-sm">
+            <Briefcase
+              className="mx-auto mb-4 text-muted-foreground"
+              size={40}
+            />
+
+            <p className="text-sm text-muted-foreground">
+              {search
+                ? "No results match your search."
+                : isClient
+                ? "No applicants yet. They'll appear here once candidates apply."
+                : "No applications yet. Apply to a job and it appears here with a chat."}
+            </p>
+
+            {!isClient && !search && (
+              <Link
+                to="/jobs"
+                className="btn-gradient mt-5 inline-block rounded-xl px-5 py-2.5 text-sm font-semibold"
+              >
+                Browse Jobs
+              </Link>
+            )}
+          </div>
+        ) : (
+        <ul className="space-y-4">
+            {filtered.map((c) => {
+              const title = isClient
+                ? c.candidateName || "Candidate"
+                : c.companyName || "Employer";
+
+              const logoUrl = isClient
+                ? c.withPhotoUrl
+                : c.companyLogoUrl;
+
+              return (
+                <li key={c.id}>
+                  <button
+                    onClick={() => openChat(c.id)}
+                 className="group relative flex w-full items-center gap-5 overflow-hidden rounded-[30px] border border-white/10 bg-card/70 backdrop-blur-xl p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-[0_20px_60px_rgba(0,0,0,0.15)]"
+                  >
+                    {/* Avatar */}
+                   <div className="relative z-10 shrink-0">
+                      <Logo name={title} url={logoUrl} />
+
+                      {c.online && (
+                    <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-background bg-green-500 animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.8)]" />
                       )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </main>
+                    </div>
+
+                    {/* Content */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                 <h3 className="truncate text-lg font-bold text-foreground">
+                          {title}
+                        </h3>
+
+                        <span className="shrink-0 text-[11px] text-muted-foreground">
+                          {formatTime(c.lastMessageAt)}
+                        </span>
+                      </div>
+
+                      {c.jobTitle && (
+                        <div className="mt-1 flex items-center gap-1 text-sm text-primary">
+                          <Building2
+                            size={14}
+                            className="shrink-0"
+                          />
+                          <span className="truncate">
+                            {c.jobTitle}
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex items-start gap-2">
+                        <MessageCircle
+                          size={14}
+                          className="mt-0.5 shrink-0 text-muted-foreground"
+                        />
+
+                       <p className="truncate text-sm text-muted-foreground">
+                          {c.lastSenderRole === "system"
+                            ? "📋 "
+                            : ""}
+                          {c.lastMessage || "Open chat"}
+                        </p>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between">
+                        <StatusBadge status={c.status} />
+
+                        {c.online && (
+                     <span className="rounded-full bg-green-500/10 px-2 py-1 text-[11px] font-semibold text-green-500">
+                            Online
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Unread Badge */}
+                    {c.unread > 0 && (
+                  <span className="absolute right-5 top-5 flex h-7 min-w-7 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-2 text-xs font-bold text-white shadow-lg">
+                        {c.unread}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </main>
+ 
       <Footer />
     </div>
   );

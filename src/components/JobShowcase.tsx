@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BadgeCheck,
   ChevronRight,
@@ -14,6 +14,7 @@ import {
 
 import { Link } from "@/compat/router";
 import { apiGet } from "@/lib/api";
+ 
 
 type RatingCard = { title: string; subtitle: string; rating: number };
 type VideoItem = { name: string; url: string; fileId?: string };
@@ -55,23 +56,39 @@ function Stars({ rating }: { rating: number }) {
 
 export default function JobShowcase() {
   const [videos, setVideos] = useState<VideoItem[]>([]);
+  const sliderRef = useRef<HTMLDivElement>(null);
 
+  // 👇 THIS IS YOUR VIDEO FETCH useEffect (yaha lagana hai)
   useEffect(() => {
-    let active = true;
-    apiGet<{ data: VideoItem[] }>("/uploads/videos")
-      .then((res) => {
-        if (active) setVideos(Array.isArray(res?.data) ? res.data : []);
-      })
-      .catch(() => {
-        if (active) setVideos([]);
-      });
-    return () => {
-      active = false;
-    };
+    async function fetchVideos() {
+      try {
+        const res = await apiGet<{ data: VideoItem[] }>("/uploads/videos")
+    setVideos(res || []);
+      } catch (err) {
+        console.log("Video fetch error:", err);
+      }
+    }
+
+    fetchVideos();
   }, []);
 
-  return (
-    <section className="bg-white py-14 sm:py-20">
+  // 👇 already existing slider effect (isko rehne do)
+  useEffect(() => {
+    const slider = sliderRef.current;
+    if (!slider) return;
+
+    const interval = setInterval(() => {
+      slider.scrollBy({
+        left: 300,
+        behavior: "smooth",
+      });
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, []);
+
+return (
+  <section className="bg-white py-14 sm:py-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Available Job Profiles */}
         <div className="mb-6 flex items-center gap-3">
@@ -80,11 +97,14 @@ export default function JobShowcase() {
           </h2>
         </div>
 
-        <div className="mb-14 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+      <div  
+  ref={sliderRef}
+  className="mb-14 flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory"
+>
           {jobProfiles.map((card) => (
             <div
               key={card.title}
-              className="rounded-2xl border border-border bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+              className="min-w-[280px] shrink-0 snap-center rounded-2xl border border-border bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
             >
               <div className="mb-3 flex items-start justify-between">
                 <h3 className="text-base font-bold text-foreground">{card.title}</h3>
