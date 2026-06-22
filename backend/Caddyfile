@@ -1,0 +1,22 @@
+# Caddy reverse proxy → gives your EC2 IP real HTTPS for FREE, no domain needed.
+#
+# sslip.io maps an IP to a hostname: 3.110.20.30  ->  3-110-20-30.sslip.io
+# Caddy automatically obtains + renews a Let's Encrypt certificate for it.
+#
+# 1. Replace the hostname below with YOUR EC2 IP (dashes instead of dots).
+# 2. EC2 security group must allow inbound 80 and 443.
+# 3. Run:  sudo caddy run --config ./Caddyfile   (or install as a service)
+# 4. Your secure API base becomes:  https://3-110-20-30.sslip.io/api/v1
+#
+# The Upgrade/Connection headers are required so Socket.IO WebSockets work.
+
+3-110-20-30.sslip.io {
+    encode gzip
+
+    reverse_proxy 127.0.0.1:5000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
