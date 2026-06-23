@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/compat/router";

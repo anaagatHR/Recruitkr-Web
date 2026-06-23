@@ -32,6 +32,7 @@ import { Link, useLocation, useNavigate } from "@/compat/router";
 import { getSession } from "@/lib/auth";
 import { useServerEvents } from "@/hooks/useServerEvents";
 import {
+  ApplicationStatus,
   ChatMessage,
   ConversationSummary,
   fetchConversations,
