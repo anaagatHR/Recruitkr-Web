@@ -32,7 +32,7 @@ const contactCards = [
     color: AMBER,
   },
 ];
-
+// contact cards grid (rendered inside the component below)
 const Contact = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -93,7 +93,7 @@ const Contact = () => {
             <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary animate-fade-up">
               <Sparkles size={14} /> Contact Us
             </p>
-            <h1 className="text-4xl font-extrabold tracking-tight text-foreground animate-fade-up-delay-1 md:text-5xl">
+            <h1 className="text-4xl font-extrabold tracking-tight text-[#264A7f] animate-fade-up-delay-1 md:text-5xl">
               Let&apos;s{" "}
               <span className="bg-gradient-to-r from-[#264a7f] via-[#69a44f] to-[#e59f56] bg-clip-text text-transparent">
                 start a conversation
@@ -111,20 +111,24 @@ const Contact = () => {
             <div className="space-y-4">
               {contactCards.map((card) => {
                 const Inner = (
-                  <>
+                  <div className="flex items-start gap-4">
                     <div
-                      className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl text-white transition-transform duration-300 group-hover:scale-110"
+                      className="flex h-12 w-12 items-center justify-center rounded-xl text-white transition-transform duration-300 group-hover:scale-110 shrink-0"
                       style={{ backgroundColor: card.color }}
                     >
                       <card.icon size={22} />
                     </div>
-                    <h3 className="mb-1 text-base font-bold text-foreground">{card.title}</h3>
-                    {card.lines.map((line) => (
-                      <p key={line} className="text-sm text-muted-foreground">
-                        {line}
-                      </p>
-                    ))}
-                  </>
+
+                    <div>
+                      <h3 className="text-base font-bold text-foreground">{card.title}</h3>
+
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        {card.lines.map((line) => (
+                          <p key={line}>{line}</p>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 );
 
                 return card.href ? (
@@ -148,7 +152,7 @@ const Contact = () => {
 
             {/* Form */}
             <div className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-              <h2 className="mb-1 text-xl font-bold text-foreground">Send us a message</h2>
+              <h2 className="mb-1 text-xl font-bold text-[#264A7F]">Send us a message</h2>
               <p className="mb-6 text-sm text-muted-foreground">
                 Fill in the form and we&apos;ll respond within one business day.
               </p>
@@ -194,6 +198,22 @@ const Contact = () => {
           </div>
         </div>
       </main>
+
+      <section className="container mx-auto px-4 pb-12">
+        <h2 className="mb-4 text-lg font-bold text-foreground text-center">Our Location</h2>
+        <div className="mx-auto max-w-5xl rounded-2xl overflow-hidden border border-border">
+          <div className="relative" style={{ paddingTop: "56.25%" }}>
+            <iframe
+              title="RecruitKr location map"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3234.1379471214714!2d75.79982807502302!3d26.888304076661715!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x396db55903d1d3ad%3A0xacb185731ebd12e4!2sRecruitKr%20Head%20Office!5e1!3m2!1sen!2sin!4v1782225290063!5m2!1sen!2sin"
+              className="absolute left-0 top-0 h-full w-full border-0"
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
+        </div>
+      </section>
 
       <Footer />
     </div>

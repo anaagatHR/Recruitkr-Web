@@ -54,7 +54,7 @@ const stories = [
 
 const SuccessStoriesSection = () => {
   return (
-    <section id="success-stories" className="relative overflow-hidden border-y border-border py-24">
+    <section id="success-stories" className="relative overflow-hidden border-y border-border py-28 bg-gradient-to-b from-white/80 to-transparent">
       {/* Decorative brand blobs */}
       <span
         aria-hidden="true"
@@ -72,32 +72,28 @@ const SuccessStoriesSection = () => {
           <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary animate-fade-up">
             <Sparkles size={14} /> Success Stories
           </p>
-          <h1 className="text-4xl font-extrabold tracking-tight text-foreground animate-fade-up-delay-1 md:text-5xl">
-            Real People,{" "}
-            <span className="bg-gradient-to-r from-[#264a7f] via-[#69a44f] to-[#e59f56] bg-clip-text text-transparent">
-              Real Careers
-            </span>
+          <h1 className="text-4xl font-semibold tracking-tight text-foreground animate-fade-up-delay-1 md:text-5xl">
+            Real People, Real Careers
           </h1>
-          <p className="mt-5 text-lg leading-relaxed text-muted-foreground animate-fade-up-delay-2">
-            From freshers landing their first job to founders building their teams — here is the
-            impact RecruitKR is creating.
+          <p className="mt-4 text-base leading-relaxed text-muted-foreground max-w-2xl mx-auto animate-fade-up-delay-2">
+            Success stories from candidates and companies who scaled faster with RecruitKr — validated outcomes and measurable impact.
           </p>
         </div>
 
         {/* Stats */}
-        <div className="mb-16 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+        <div className="mb-14 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
           {stats.map((stat) => (
             <div
               key={stat.label}
-              className="group rounded-2xl border border-border bg-card p-6 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+              className="group rounded-xl bg-white p-6 text-center shadow-sm ring-1 ring-border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
             >
               <div
-                className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl text-white transition-transform duration-300 group-hover:scale-110"
+                className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl text-white"
                 style={{ backgroundColor: stat.color }}
               >
-                <TrendingUp size={20} />
+                <TrendingUp size={18} />
               </div>
-              <div className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+              <div className="text-2xl font-extrabold tracking-tight text-foreground md:text-3xl">
                 {stat.value}
               </div>
               <div className="mt-1 text-sm text-muted-foreground">{stat.label}</div>
@@ -106,46 +102,71 @@ const SuccessStoriesSection = () => {
         </div>
 
         {/* Stories */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {stories.map((story) => (
             <figure
               key={story.name}
-              className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card p-7 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg"
+              className="group relative flex flex-col h-full overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
             >
-              <span
-                aria-hidden="true"
-                className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100"
-                style={{ backgroundColor: story.color }}
-              />
-              <Quote size={32} style={{ color: story.color }} className="mb-4 opacity-30" />
-              <blockquote className="flex-1 text-base leading-relaxed text-foreground">
-                “{story.quote}”
-              </blockquote>
-              <div className="mt-6 flex items-center gap-3">
+              <div className="flex items-start gap-4">
                 <div
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                  className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white shrink-0"
                   style={{ backgroundColor: story.color }}
                 >
                   {story.initials}
                 </div>
-                <figcaption className="min-w-0">
-                  <div className="truncate font-bold text-foreground">{story.name}</div>
+                <div className="min-w-0">
+                  <div className="truncate font-semibold text-foreground">{story.name}</div>
                   <div className="truncate text-sm text-muted-foreground">{story.role}</div>
-                </figcaption>
-                <div className="ml-auto flex items-center gap-0.5 text-amber-400">
+                </div>
+                <div className="ml-auto flex items-center gap-1 text-amber-400">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star key={i} size={14} fill="currentColor" />
                   ))}
                 </div>
               </div>
-              <span
-                className="mt-4 inline-block self-start rounded-full px-3 py-1 text-xs font-semibold"
-                style={{ backgroundColor: `${story.color}1a`, color: story.color }}
-              >
-                {story.tag}
-              </span>
+
+              <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-foreground/90">
+                <Quote size={20} className="inline-block mr-2 -mt-1 text-muted-foreground" />
+                {story.quote}
+              </blockquote>
+
+              <div className="mt-4 flex items-center justify-between">
+                <span
+                  className="inline-block rounded-full px-3 py-1 text-xs font-semibold"
+                  style={{ backgroundColor: `${story.color}1a`, color: story.color }}
+                >
+                  {story.tag}
+                </span>
+                <a href="#contact" className="text-sm font-medium text-primary hover:underline">
+                  Read full story →
+                </a>
+              </div>
             </figure>
           ))}
+        </div>
+
+        {/* Call to action */}
+        <div className="mx-auto mt-12 max-w-3xl text-center">
+          <h3 className="text-xl font-semibold text-foreground">Want results like these?</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Whether you're hiring or looking for a career change, RecruitKr partners with you to
+            deliver measurable outcomes. Start a conversation today.
+          </p>
+          <div className="mt-6 flex justify-center gap-3">
+            <a
+              href="#contact"
+              className="rounded-full bg-gradient-to-r from-[#264a7f] to-[#69a44f] px-6 py-2 text-sm font-semibold text-white shadow-md hover:opacity-95"
+            >
+              Get Started
+            </a>
+            <a
+              href="/our-team"
+              className="rounded-full border border-border px-6 py-2 text-sm font-semibold text-foreground hover:bg-card"
+            >
+              Speak to an Expert
+            </a>
+          </div>
         </div>
       </div>
     </section>
