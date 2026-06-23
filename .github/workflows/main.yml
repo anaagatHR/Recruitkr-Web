@@ -1,0 +1,30 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            cd ~/testclone
+            git pull origin main
+            source .venv/bin/activate
+            pip install -r requirements.txt
+            # Ensure the Playwright Chromium binary exists (fixes "Executable doesn't
+            # exist …/chrome-linux/chrome"). Browser download needs no root.
+            python -m playwright install chromium || true
+            # System libs Chromium needs (best-effort; needs passwordless sudo). Safe
+            # to fail — the binary above is what resolves the fatal "doesn't exist".
+            sudo -n python -m playwright install-deps chromium || true
+            pm2 restart recruitkr --update-env || pm2 start run.py --name recruitkr --interpreter ./.venv/bin/python
