@@ -50,7 +50,7 @@ export default function ReviewsSlider() {
       if (el.scrollLeft >= maxScroll) {
         el.scrollTo({ left: 0, behavior: "smooth" });
       } else {
-        el.scrollBy({ left: 550, behavior: "smooth" });
+        el.scrollBy({ left:300, behavior: "smooth" });
       }
     }, 2500);
   };
@@ -61,10 +61,24 @@ export default function ReviewsSlider() {
     }
   };
 
-  useEffect(() => {
-    startAutoSlide();
-    return () => stopAutoSlide();
-  }, []);
+useEffect(() => {
+  const el = sliderRef.current;
+  if (!el) return;
+
+  intervalRef.current = setInterval(() => {
+    el.scrollLeft += 1;
+
+    if (el.scrollLeft >= el.scrollWidth / 2) {
+      el.scrollLeft = 0;
+    }
+  }, 15);
+
+  return () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+  };
+}, []);
 
   return (
     <section className="sm:py-16 bg-white">
@@ -88,13 +102,11 @@ export default function ReviewsSlider() {
         </div>
 
         {/* SLIDER */}
-        <div
-          ref={sliderRef}
-          onMouseEnter={stopAutoSlide}
-          onMouseLeave={startAutoSlide}
-          className="flex gap-5 overflow-x-auto scroll-smooth scrollbar-hide pb-4 pt-2"
+      <div
+  ref={sliderRef}
+       className="flex gap-5 overflow-x-auto scrollbar-hide pb-4 pt-2"
         >
-          {reviews.map((review, index) => {
+         {[...reviews, ...reviews].map((review, index) => {
             const color = brandColors[index % brandColors.length];
 
             return (

@@ -62,10 +62,13 @@ export default function JobShowcase() {
   useEffect(() => {
     async function fetchVideos() {
       try {
-        const res = await apiGet<{ data: VideoItem[] }>("/uploads/videos")
-    setVideos(res || []);
+ const res = await apiGet<{ data: VideoItem[] }>("/uploads/videos");
+
+console.log("API Response:", res);
+
+setVideos(res.data || []);
       } catch (err) {
-        console.log("Video fetch error:", err);
+    console.log(videos);
       }
     }
 
