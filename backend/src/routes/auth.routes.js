@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import {
   changePassword,
+  exchangeOAuthCode,
   forgotPassword,
   googleCallback,
   googleStart,

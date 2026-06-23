@@ -66,30 +66,54 @@ const Login = () => {
     const accessToken = params.get("accessToken");
     const refreshToken = params.get("refreshToken") || undefined;
     const role = params.get("role");
+    const userId = params.get("userId");
+    const email = params.get("email");
     const redirect = params.get("redirect");
 
     if (!accessToken || (role !== "candidate" && role !== "client" && role !== "admin")) return;
 
     void (async () => {
-      const me = await apiGet<{
-        success?: boolean;
-        data?: { _id?: string; id?: string; email?: string; role?: "candidate" | "client" | "admin" };
-      }>("/users/me", { auth: false });
+      let resolvedUser:
+        | { id: string; email: string; role: "candidate" | "client" | "admin" }
+        | null = null;
 
-      const user = me.data;
-      if (!user?.email || !user?.role) return;
+      try {
+        // Best effort: if the backend can answer /users/me, use its canonical
+        // user shape. If that call is flaky in deployment, we still have enough
+        // information in the redirect URL to finish the login flow.
+        const me = await apiGet<{
+          success?: boolean;
+          data?: { _id?: string; id?: string; email?: string; role?: "candidate" | "client" | "admin" };
+        }>("/users/me", { auth: false, headers: { Authorization: `Bearer ${accessToken}` } });
 
+        const user = me.data;
+        if (user?.email && user?.role) {
+          resolvedUser = {
+            id: user._id || user.id || user.email,
+            email: user.email,
+            role: user.role,
+          };
+        }
+      } catch {
+        // Ignore and fall back to the callback payload below.
+      }
+
+      if (!resolvedUser && email) {
+        resolvedUser = {
+          id: userId || email,
+          email,
+          role: role as "candidate" | "client" | "admin",
+        };
+      }
+
+      if (!resolvedUser) return;
       setSession({
         accessToken,
         refreshToken,
-        user: {
-          id: user._id || user.id || user.email,
-          email: user.email,
-          role: user.role,
-        },
+        user: resolvedUser,
       });
 
-      navigate(redirect || (user.role === "client" ? "/dashboard/client" : "/dashboard/candidate"), {
+      navigate(redirect || (resolvedUser.role === "client" ? "/dashboard/client" : "/dashboard/candidate"), {
         replace: true,
       });
     })().catch(() => {});

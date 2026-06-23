@@ -167,11 +167,42 @@ const parseOAuthState = (state) => {
   }
 };
 
-const buildFrontendLoginUrl = ({ accessToken, refreshToken, role, redirect }) => {
+// One-time OAuth handoff codes. After Google sign-in we redirect the browser
+// with a short-lived, single-use CODE instead of the tokens themselves — URLs
+// leak via server access logs, browser history and Referer headers, so putting
+// a 30-day refresh token there is unsafe. The frontend trades this code for
+// real tokens over a POST (see exchangeOAuthCode), where they stay in the body.
+const OAUTH_CODE_TTL_MS = 2 * 60 * 1000;
+const oauthHandoffCodes = new Map(); // code -> { userId, expiresAt }
+
+const createOAuthHandoffCode = (userId) => {
+  const code = crypto.randomBytes(32).toString('base64url');
+  oauthHandoffCodes.set(code, { userId, expiresAt: Date.now() + OAUTH_CODE_TTL_MS });
+  return code;
+};
+
+const consumeOAuthHandoffCode = (code) => {
+  const entry = oauthHandoffCodes.get(code);
+  if (!entry) return null;
+  oauthHandoffCodes.delete(code); // single use: invalidate immediately
+  if (entry.expiresAt < Date.now()) return null;
+  return entry;
+};
+
+// Drop expired codes periodically so the map can't grow unbounded. unref() so
+// this timer never keeps the process alive on shutdown.
+setInterval(() => {
+  const now = Date.now();
+  for (const [code, entry] of oauthHandoffCodes) {
+    if (entry.expiresAt < now) oauthHandoffCodes.delete(code);
+  }
+}, OAUTH_CODE_TTL_MS).unref?.();
+
+const buildFrontendOAuthSuccessUrl = ({ code, role, redirect }) => {
   const url = new URL(`${normalizeUrl(env.FRONTEND_URL)}/login`);
   url.searchParams.set('oauth', 'success');
-  url.searchParams.set('accessToken', accessToken);
-  if (refreshToken) url.searchParams.set('refreshToken', refreshToken);
+  url.searchParams.set('code', code);
+  // role is not sensitive; it just lets the UI pre-select the right tab.
   if (role) url.searchParams.set('role', role);
   if (redirect) url.searchParams.set('redirect', redirect);
   return url.toString();
@@ -565,14 +596,14 @@ export const googleCallback = asyncHandler(async (req, res) => {
     }
 
     const user = await upsertGoogleUser({ email, googleId, role: resolvedRole });
-    const tokens = await issueTokensAndPersistRefresh(user);
-    setAccessCookie(res, tokens.accessToken);
-    setRefreshCookie(res, tokens.refreshToken);
+
+    // Hand off via a one-time code, NOT tokens in the URL. Tokens are minted
+    // when the frontend exchanges this code (see exchangeOAuthCode).
+    const handoffCode = createOAuthHandoffCode(user.id);
 
     return res.redirect(
-      buildFrontendLoginUrl({
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
+      buildFrontendOAuthSuccessUrl({
+        code: handoffCode,
         role: user.role,
         redirect: safeRedirect,
       }),
@@ -602,6 +633,46 @@ export const googleCallback = asyncHandler(async (req, res) => {
     };
     return failRedirect(reasonByCode[googleCode] || 'failed');
   }
+});
+
+// Trades a one-time OAuth handoff code (from the Google callback redirect) for
+// real tokens. Tokens travel in the JSON body, never the URL. The code is
+// single-use and short-lived, so even if it lands in a log it is useless once
+// consumed or after a couple of minutes.
+export const exchangeOAuthCode = asyncHandler(async (req, res) => {
+  const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+  if (!code) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing sign-in code.');
+  }
+
+  const entry = consumeOAuthHandoffCode(code);
+  if (!entry) {
+    throw new ApiError(
+      StatusCodes.UNAUTHORIZED,
+      'This sign-in link has expired. Please sign in again.',
+    );
+  }
+
+  const user = await User.findById(entry.userId)
+    .select('+refreshTokenHash +refreshTokenJti +refreshTokenExpiresAt')
+    .exec();
+  if (!user) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Account not found. Please sign in again.');
+  }
+
+  const tokens = await issueTokensAndPersistRefresh(user);
+  setAccessCookie(res, tokens.accessToken);
+  setRefreshCookie(res, tokens.refreshToken);
+
+  res.json({
+    success: true,
+    message: 'Login successful',
+    data: {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: { id: user.id, email: user.email, role: user.role },
+    },
+  });
 });
 
 export const refresh = asyncHandler(async (req, res) => {
