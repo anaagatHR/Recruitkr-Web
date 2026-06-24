@@ -50,7 +50,7 @@ export const connectDb = async () => {
         );
       }
     } finally {
-      await probeClient.close().catch(() => {});
+      await probeClient.close().catch(() => { });
     }
   }
 
@@ -58,9 +58,12 @@ export const connectDb = async () => {
     autoIndex: env.NODE_ENV !== 'production',
     serverSelectionTimeoutMS: 10000,
   });
+  console.log("✅ Database:", mongoose.connection.name);
+  console.log("✅ Host:", mongoose.connection.host);
+  const collections = await mongoose.connection.db.listCollections().toArray();
 
-  // Keep application indexes aligned without forcing unrelated legacy collections
-  // to rebuild unique indexes during startup.
+  console.log("✅ Collections:");
+  collections.forEach((c) => console.log("-", c.name));
   await Application.syncIndexes();
 };
 
