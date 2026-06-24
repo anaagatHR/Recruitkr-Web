@@ -59,65 +59,68 @@ const Login = () => {
     setFormError(messages[reason] || messages.failed);
   }, [location.search]);
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get("oauth") !== "success") return;
+useEffect(() => {
+  const params = new URLSearchParams(location.search);
 
-    const accessToken = params.get("accessToken");
-    const refreshToken = params.get("refreshToken") || undefined;
-    const role = params.get("role");
-    const userId = params.get("userId");
-    const email = params.get("email");
-    const redirect = params.get("redirect");
+  if (params.get("oauth") !== "success") return;
 
-    if (!accessToken || (role !== "candidate" && role !== "client" && role !== "admin")) return;
+  const code = params.get("code");
+  const redirect = params.get("redirect");
 
-    void (async () => {
-      let resolvedUser:
-        | { id: string; email: string; role: "candidate" | "client" | "admin" }
-        | null = null;
+  if (!code) return;
 
-      try {
-        // Best effort: if the backend can answer /users/me, use its canonical
-        // user shape. If that call is flaky in deployment, we still have enough
-        // information in the redirect URL to finish the login flow.
-        const me = await apiGet<{
-          success?: boolean;
-          data?: { _id?: string; id?: string; email?: string; role?: "candidate" | "client" | "admin" };
-        }>("/users/me", { auth: false, headers: { Authorization: `Bearer ${accessToken}` } });
+  void (async () => {
+    try {
+      setLoading(true);
 
-        const user = me.data;
-        if (user?.email && user?.role) {
-          resolvedUser = {
-            id: user._id || user.id || user.email,
-            email: user.email,
-            role: user.role,
+      const response = await apiPost<{
+        success: boolean;
+        data?: {
+          accessToken: string;
+          refreshToken?: string;
+          user: {
+            id: string;
+            email: string;
+            role: "candidate" | "client" | "admin";
           };
-        }
-      } catch {
-        // Ignore and fall back to the callback payload below.
-      }
-
-      if (!resolvedUser && email) {
-        resolvedUser = {
-          id: userId || email,
-          email,
-          role: role as "candidate" | "client" | "admin",
         };
+      }>("/auth/oauth/exchange", {
+        code,
+      });
+
+      if (!response.success || !response.data) {
+        throw new Error("OAuth login failed");
       }
 
-      if (!resolvedUser) return;
+      const { accessToken, refreshToken, user } = response.data;
+
       setSession({
         accessToken,
         refreshToken,
-        user: resolvedUser,
+        user,
       });
 
-      navigate(redirect || (resolvedUser.role === "client" ? "/dashboard/client" : "/dashboard/candidate"), {
-        replace: true,
-      });
-    })().catch(() => {});
-  }, [location.search, navigate]);
+      // Remove code from URL
+      window.history.replaceState({}, "", "/login");
+
+      navigate(
+        redirect ||
+          (user.role === "client"
+            ? "/dashboard/client"
+            : "/dashboard/candidate"),
+        {
+          replace: true,
+        }
+      );
+    } catch (err) {
+      console.error("OAuth exchange failed:", err);
+      setFormError("Google sign-in failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  })();
+}, [location.search, navigate]);
+
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
