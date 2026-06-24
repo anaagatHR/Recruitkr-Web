@@ -1,10 +1,10 @@
 ﻿"use client";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "@/compat/router";
 import { Sparkles, ShieldCheck, Zap, Heart } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet } from "@/lib/api";
 import { setSession } from "@/lib/auth";
 
 // Brand palette (navy / green / amber).
@@ -29,6 +29,7 @@ const Login = () => {
   const [passwordError, setPasswordError] = useState("");
   const [formError, setFormError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const oauthProcessed = useRef(false);
   const googleLoginEnabled = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED !== "false";
 
   useEffect(() => {
@@ -38,8 +39,7 @@ const Login = () => {
     }
   }, [location.search]);
 
-  // Show a friendly message when the Google OAuth flow redirects back with an
-  // error (cancelled consent, disabled login, etc.) instead of a raw JSON page.
+  
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get("oauth") !== "error") return;
@@ -60,67 +60,82 @@ const Login = () => {
   }, [location.search]);
 
 useEffect(() => {
+  if (oauthProcessed.current) return;
+
   const params = new URLSearchParams(location.search);
 
   if (params.get("oauth") !== "success") return;
 
-  const code = params.get("code");
+  const accessToken = params.get("accessToken");
+  const refreshToken = params.get("refreshToken") || undefined;
+  const role = params.get("role");
   const redirect = params.get("redirect");
 
-  if (!code) return;
+  if (
+    !accessToken ||
+    (role !== "candidate" &&
+      role !== "client" &&
+      role !== "admin")
+  ) {
+    return;
+  }
+
+  oauthProcessed.current = true;
 
   void (async () => {
     try {
       setLoading(true);
 
-      const response = await apiPost<{
-        success: boolean;
+      const me = await apiGet<{
         data?: {
-          accessToken: string;
-          refreshToken?: string;
-          user: {
-            id: string;
-            email: string;
-            role: "candidate" | "client" | "admin";
-          };
+          _id?: string;
+          id?: string;
+          email?: string;
+          role?: "candidate" | "client" | "admin";
         };
-      }>("/auth/oauth/exchange", {
-        code,
+      }>("/users/me", {
+        auth: false,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
-      if (!response.success || !response.data) {
-        throw new Error("OAuth login failed");
-      }
+      const user = me.data;
 
-      const { accessToken, refreshToken, user } = response.data;
+      if (!user?.email || !user?.role) {
+        throw new Error("Unable to load profile");
+      }
 
       setSession({
         accessToken,
         refreshToken,
-        user,
+        user: {
+          id: user._id || user.id || user.email,
+          email: user.email,
+          role: user.role,
+        },
       });
 
-      // Remove code from URL
-      window.history.replaceState({}, "", "/login");
-
-      navigate(
+      const destination =
         redirect ||
-          (user.role === "client"
-            ? "/dashboard/client"
-            : "/dashboard/candidate"),
-        {
-          replace: true,
-        }
-      );
+        (user.role === "client"
+          ? "/dashboard/client"
+          : "/dashboard/candidate");
+
+      // remove tokens from URL
+      window.history.replaceState({}, "", destination);
+
+      navigate(destination, {
+        replace: true,
+      });
     } catch (err) {
-      console.error("OAuth exchange failed:", err);
+      console.error(err);
       setFormError("Google sign-in failed. Please try again.");
     } finally {
       setLoading(false);
     }
   })();
 }, [location.search, navigate]);
-
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

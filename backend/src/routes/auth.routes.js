@@ -2,7 +2,6 @@ import { Router } from 'express';
 
 import {
   changePassword,
-  exchangeOAuthCode,
   forgotPassword,
   googleCallback,
   googleStart,
@@ -40,9 +39,6 @@ router.post('/login', validate(loginSchema), login);
 // Google OAuth
 router.get('/google', googleStart);
 router.get('/google/callback', googleCallback);
-
-// ⭐ Missing route (ADD THIS)
-router.post('/oauth/exchange', exchangeOAuthCode);
 
 // Token refresh/logout
 router.post('/refresh', validate(refreshSchema), refresh);

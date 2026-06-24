@@ -167,50 +167,32 @@ const parseOAuthState = (state) => {
   }
 };
 
-// One-time OAuth handoff codes. After Google sign-in we redirect the browser
-// with a short-lived, single-use CODE instead of the tokens themselves — URLs
-// leak via server access logs, browser history and Referer headers, so putting
-// a 30-day refresh token there is unsafe. The frontend trades this code for
-// real tokens over a POST (see exchangeOAuthCode), where they stay in the body.
-const OAUTH_CODE_TTL_MS = 2 * 60 * 1000;
-const oauthHandoffCodes = new Map(); // code -> { userId, expiresAt }
-
-const createOAuthHandoffCode = (userId) => {
-  const code = crypto.randomBytes(32).toString('base64url');
-  oauthHandoffCodes.set(code, { userId, expiresAt: Date.now() + OAUTH_CODE_TTL_MS });
-  return code;
-};
-
-const consumeOAuthHandoffCode = (code) => {
-  const entry = oauthHandoffCodes.get(code);
-  if (!entry) return null;
-  oauthHandoffCodes.delete(code); // single use: invalidate immediately
-  if (entry.expiresAt < Date.now()) return null;
-  return entry;
-};
-
-// Drop expired codes periodically so the map can't grow unbounded. unref() so
-// this timer never keeps the process alive on shutdown.
-setInterval(() => {
-  const now = Date.now();
-  for (const [code, entry] of oauthHandoffCodes) {
-    if (entry.expiresAt < now) oauthHandoffCodes.delete(code);
-  }
-}, OAUTH_CODE_TTL_MS).unref?.();
-
-const buildFrontendOAuthSuccessUrl = ({ code, role, redirect }) => {
+const buildFrontendOAuthSuccessUrl = ({
+  accessToken,
+  refreshToken,
+  role,
+  redirect,
+}) => {
   const url = new URL(`${normalizeUrl(env.FRONTEND_URL)}/login`);
-  url.searchParams.set('oauth', 'success');
-  url.searchParams.set('code', code);
-  // role is not sensitive; it just lets the UI pre-select the right tab.
-  if (role) url.searchParams.set('role', role);
-  if (redirect) url.searchParams.set('redirect', redirect);
+
+  url.searchParams.set("oauth", "success");
+  url.searchParams.set("accessToken", accessToken);
+  url.searchParams.set("refreshToken", refreshToken);
+  url.searchParams.set("role", role);
+
+  if (redirect) {
+    url.searchParams.set("redirect", redirect);
+  }
+
   return url.toString();
 };
 
-// Redirect the browser back to the login page with a friendly error code instead
-// of rendering raw JSON. `reason` is a short, non-sensitive machine code the UI
-// maps to a human message; we never expose internal error details to the user.
+
+
+
+
+
+
 const buildFrontendErrorUrl = ({ reason, role, redirect }) => {
   const url = new URL(`${normalizeUrl(env.FRONTEND_URL)}/login`);
   url.searchParams.set('oauth', 'error');
@@ -288,10 +270,7 @@ const fetchGoogleProfile = async (accessToken) => {
   return response.json();
 };
 
-// Google sign-in creates a User but, historically, no matching profile, which
-// later caused "Client/Candidate profile not found" on the dashboard. Ensure the
-// role-appropriate profile exists for both new and pre-existing Google accounts
-// (existing broken accounts self-heal on their next login).
+
 const ensureProfileForUser = async (user) => {
   if (user.role === 'client') {
     const existing = await ClientProfile.findOne({ userId: user.id }).select('_id').lean();
@@ -541,138 +520,139 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 export const googleStart = asyncHandler(async (req, res) => {
-  const role = req.query.role === 'client' ? 'client' : 'candidate';
-  const redirect = typeof req.query.redirect === 'string' ? req.query.redirect : '';
+  const role = req.query.role === "client" ? "client" : "candidate";
+  const redirect = typeof req.query.redirect === "string" ? req.query.redirect : "";
+
   const oauthUrl = buildGoogleOAuthUrl({ role, redirect });
-  console.info('[oauth] google start', { role, hasRedirect: Boolean(redirect) });
+
+  console.info("[oauth] google start", {
+    role,
+    hasRedirect: Boolean(redirect),
+  });
+
   res.redirect(oauthUrl);
 });
 
 export const googleCallback = asyncHandler(async (req, res) => {
-  const code = typeof req.query.code === 'string' ? req.query.code : '';
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+
   const { role, redirect } = parseOAuthState(
-    typeof req.query.state === 'string' ? req.query.state : '',
+    typeof req.query.state === "string" ? req.query.state : "",
   );
 
-  const resolvedRole = role || 'candidate';
-  const safeRedirect = typeof redirect === 'string' && redirect ? redirect : undefined;
-  const googleError = typeof req.query.error === 'string' ? req.query.error : '';
+  const resolvedRole = role || "candidate";
+  const safeRedirect =
+    typeof redirect === "string" && redirect ? redirect : undefined;
+
+  const googleError =
+    typeof req.query.error === "string" ? req.query.error : "";
+
   const callbackUrl =
     env.GOOGLE_OAUTH_REDIRECT_URI ||
     `${normalizeUrl(env.FRONTEND_URL)}/api/v1/auth/google/callback`;
 
-  // Send the user back to the login page with a friendly error code rather than
-  // dumping JSON. This covers user-cancelled consent, missing code, disabled
-  // login, and any token/profile failure during the exchange.
   const failRedirect = (reason) => {
     clearAuthCookies(res);
-    return res.redirect(buildFrontendErrorUrl({ reason, role: resolvedRole, redirect: safeRedirect }));
-  };
-
-  // Google appends ?error=access_denied (etc.) when the user cancels consent.
-  if (googleError) {
-    console.info('[oauth] google callback declined', { error: googleError });
-    return failRedirect(googleError === 'access_denied' ? 'cancelled' : 'failed');
-  }
-
-  if (!code) {
-    console.info('[oauth] google callback without code');
-    return failRedirect('cancelled');
-  }
-
-  if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) {
-    return failRedirect('disabled');
-  }
-
-  try {
-    console.info('[oauth] google callback', { role: resolvedRole });
-    const tokenData = await exchangeGoogleCode(code, callbackUrl);
-    const profile = await fetchGoogleProfile(tokenData.access_token);
-    const email = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
-    const googleId = typeof profile.sub === 'string' ? profile.sub : '';
-
-    if (!email || !googleId) {
-      return failRedirect('profile');
-    }
-
-    const user = await upsertGoogleUser({ email, googleId, role: resolvedRole });
-
-    // Hand off via a one-time code, NOT tokens in the URL. Tokens are minted
-    // when the frontend exchanges this code (see exchangeOAuthCode).
-    const handoffCode = createOAuthHandoffCode(user.id);
 
     return res.redirect(
-      buildFrontendOAuthSuccessUrl({
-        code: handoffCode,
-        role: user.role,
+      buildFrontendErrorUrl({
+        reason,
+        role: resolvedRole,
         redirect: safeRedirect,
       }),
     );
+  };
+
+  if (googleError) {
+    console.info("[oauth] google callback declined", {
+      error: googleError,
+    });
+
+    return failRedirect(
+      googleError === "access_denied" ? "cancelled" : "failed",
+    );
+  }
+
+  if (!code) {
+    return failRedirect("cancelled");
+  }
+
+  if (
+    !env.GOOGLE_OAUTH_CLIENT_ID ||
+    !env.GOOGLE_OAUTH_CLIENT_SECRET
+  ) {
+    return failRedirect("disabled");
+  }
+
+  try {
+    const tokenData = await exchangeGoogleCode(code, callbackUrl);
+
+    const profile = await fetchGoogleProfile(tokenData.access_token);
+
+    const email =
+      typeof profile.email === "string"
+        ? profile.email.trim().toLowerCase()
+        : "";
+
+    const googleId =
+      typeof profile.sub === "string"
+        ? profile.sub
+        : "";
+
+    if (!email || !googleId) {
+      return failRedirect("profile");
+    }
+
+    const user = await upsertGoogleUser({
+      email,
+      googleId,
+      role: resolvedRole,
+    });
+
+    // Generate tokens directly
+    const tokens = await issueTokensAndPersistRefresh(user);
+
+    setAccessCookie(res, tokens.accessToken);
+    setRefreshCookie(res, tokens.refreshToken);
+
+    const url = new URL(`${normalizeUrl(env.FRONTEND_URL)}/login`);
+
+    url.searchParams.set("oauth", "success");
+    url.searchParams.set("accessToken", tokens.accessToken);
+    url.searchParams.set("refreshToken", tokens.refreshToken);
+    url.searchParams.set("role", user.role);
+
+    if (safeRedirect) {
+      url.searchParams.set("redirect", safeRedirect);
+    }
+
+    return res.redirect(url.toString());
   } catch (error) {
-    // Log the real cause server-side; map known Google error codes to a precise
-    // reason so the developer sees what to fix (config issues are common in dev).
-    const googleCode = error?.googleCode || '';
-    console.warn('[oauth] google callback failed', {
+    console.warn("[oauth] google callback failed", {
       message: error instanceof Error ? error.message : String(error),
-      googleCode,
+      googleCode: error?.googleCode,
       oauthReason: error?.oauthReason,
     });
 
-    // Same Google email already bound to the other role: tell the user clearly.
-    if (error?.oauthReason === 'role_mismatch') {
+    if (error?.oauthReason === "role_mismatch") {
       return failRedirect(
-        error.registeredRole === 'client' ? 'role_client' : 'role_candidate',
+        error.registeredRole === "client"
+          ? "role_client"
+          : "role_candidate",
       );
     }
 
     const reasonByCode = {
-      redirect_uri_mismatch: 'redirect_mismatch',
-      invalid_client: 'config',
-      unauthorized_client: 'config',
-      invalid_grant: 'expired',
+      redirect_uri_mismatch: "redirect_mismatch",
+      invalid_client: "config",
+      unauthorized_client: "config",
+      invalid_grant: "expired",
     };
-    return failRedirect(reasonByCode[googleCode] || 'failed');
-  }
-});
 
-// Trades a one-time OAuth handoff code (from the Google callback redirect) for
-// real tokens. Tokens travel in the JSON body, never the URL. The code is
-// single-use and short-lived, so even if it lands in a log it is useless once
-// consumed or after a couple of minutes.
-export const exchangeOAuthCode = asyncHandler(async (req, res) => {
-  const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
-  if (!code) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing sign-in code.');
-  }
-
-  const entry = consumeOAuthHandoffCode(code);
-  if (!entry) {
-    throw new ApiError(
-      StatusCodes.UNAUTHORIZED,
-      'This sign-in link has expired. Please sign in again.',
+    return failRedirect(
+      reasonByCode[error?.googleCode] || "failed",
     );
   }
-
-  const user = await User.findById(entry.userId)
-    .select('+refreshTokenHash +refreshTokenJti +refreshTokenExpiresAt')
-    .exec();
-  if (!user) {
-    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Account not found. Please sign in again.');
-  }
-
-  const tokens = await issueTokensAndPersistRefresh(user);
-  setAccessCookie(res, tokens.accessToken);
-  setRefreshCookie(res, tokens.refreshToken);
-
-  res.json({
-    success: true,
-    message: 'Login successful',
-    data: {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      user: { id: user.id, email: user.email, role: user.role },
-    },
-  });
 });
 
 export const refresh = asyncHandler(async (req, res) => {
