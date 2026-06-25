@@ -86,9 +86,10 @@ useEffect(() => {
           ? "/dashboard/client"
           : "/dashboard/candidate");
 
-      // Drop the oauth query params from the address bar.
-      window.history.replaceState({}, "", destination);
-
+      // router.replace lands on the clean destination URL (no oauth query
+      // params) and keeps Next's history state in sync. Do NOT also call
+      // window.history.replaceState here — manually rewriting history clobbers
+      // the App Router's internal state and makes the dashboard bounce back.
       navigate(destination, {
         replace: true,
       });

@@ -76,7 +76,17 @@ export default function SignupScreen({ role = "candidate" }: { role?: SignupRole
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
 
-  const redirect = new URLSearchParams(location.search).get("redirect") || c.dashboard;
+  const redirectParam = new URLSearchParams(location.search).get("redirect");
+  const redirect = redirectParam || c.dashboard;
+  const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED !== "false";
+
+  const handleGoogle = () => {
+    const qs = new URLSearchParams({
+      role,
+      ...(redirectParam ? { redirect: redirectParam } : {}),
+    });
+    window.location.href = `/api/v1/auth/google?${qs.toString()}`;
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -178,7 +188,31 @@ export default function SignupScreen({ role = "candidate" }: { role?: SignupRole
           <h2 className="font-heading text-2xl font-bold">{c.formTitle}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{c.formSub}</p>
 
-          <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-4">
+          {googleEnabled && (
+            <>
+              <button
+                type="button"
+                onClick={handleGoogle}
+                className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+                  <path d="M21.35 11.1H12v2.97h5.35c-.23 1.23-.96 2.27-2 2.98v2.48h3.23c1.9-1.75 2.99-4.32 2.99-7.38 0-.72-.06-1.26-.22-2.05Z" fill="#4285F4" />
+                  <path d="M12 22c2.7 0 4.97-.9 6.63-2.45l-3.23-2.48c-.9.6-2.06.95-3.4.95-2.61 0-4.83-1.76-5.62-4.13H3.04v2.59A10 10 0 0 0 12 22Z" fill="#34A853" />
+                  <path d="M6.38 13.9A5.97 5.97 0 0 1 6 12c0-.66.11-1.3.38-1.9V7.5H3.04A10 10 0 0 0 2 12c0 1.61.39 3.14 1.04 4.5l3.34-2.6Z" fill="#FBBC05" />
+                  <path d="M12 5.02c1.47 0 2.78.51 3.82 1.52l2.86-2.86A9.61 9.61 0 0 0 12 2a10 10 0 0 0-8.96 5.5l3.34 2.59C7.17 6.78 9.39 5.02 12 5.02Z" fill="#EA4335" />
+                </svg>
+                Sign up with Google
+              </button>
+
+              <div className="my-5 flex items-center gap-3">
+                <span className="h-px flex-1 bg-border" />
+                <span className="text-xs font-medium text-muted-foreground">or</span>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+            </>
+          )}
+
+          <form onSubmit={handleSubmit} noValidate className={`${googleEnabled ? "" : "mt-6 "}space-y-4`}>
             <div className="relative">
               <span className={iconWrap}>{role === "client" ? <Building2 size={17} /> : <User size={17} />}</span>
               <input className={field} placeholder={c.nameLabel} value={name} onChange={(e) => setName(e.target.value)} />
