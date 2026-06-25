@@ -1,12 +1,12 @@
 "use client";
 import {
   Briefcase,
-  Info,
   Mail,
   Menu,
   Newspaper,
   Trophy,
   User,
+  UserRound,
   Users,
   X,
   type LucideIcon,
@@ -16,8 +16,8 @@ import logoImage from "@/assets/logo.jpeg";
 import { Link, NavLink } from "@/compat/router";
 
 const navItems: { label: string; path: string; icon: LucideIcon }[] = [
-  { label: "Employer", path: "/candidates", icon: Info },
-  { label: "Candidate", path: "/employers", icon: Briefcase },
+  { label: "Candidate", path: "/candidates", icon: UserRound },
+  { label: "Employer", path: "/employers", icon: Briefcase },
   { label: "Assessment", path: "/assessment", icon: Newspaper },
   { label: "Training", path: "/training", icon: Mail },
   { label: "Partners", path: "/partners", icon: Trophy },

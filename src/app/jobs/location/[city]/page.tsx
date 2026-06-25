@@ -71,9 +71,6 @@ export default async function Page({ params }: { params: { city: string } }) {
             <Link to="/jobs" className="btn-gradient inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold transition hover:scale-[1.02]">
               <Search size={16} /> Search all jobs
             </Link>
-            <Link to="/companies" className="inline-flex items-center gap-2 rounded-xl border border-border px-6 py-3 text-sm font-semibold transition hover:border-primary/40">
-              Explore company ratings
-            </Link>
           </div>
         </div>
       </section>

@@ -138,7 +138,7 @@ export default function JobDetailScreen() {
               </div>
               <h1 className="mt-3 font-heading text-2xl font-bold sm:text-3xl">{job.title}</h1>
               <Link
-                to={job.companyId ? `/companies/${job.companyId}` : "/companies"}
+                to={job.companyId ? `/companies/${job.companyId}` : "/jobs"}
                 className="mt-1 inline-flex items-center gap-2 text-base text-muted-foreground hover:text-primary"
               >
                 <Building2 size={16} /> {job.company}

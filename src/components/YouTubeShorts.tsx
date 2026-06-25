@@ -101,12 +101,6 @@ const UploadVideoPlayer = ({
         className="h-full w-full object-cover"
       />
 
-      {short.title && (
-        <span className="pointer-events-none absolute inset-x-0 top-0 line-clamp-2 bg-gradient-to-b from-black/70 to-transparent px-2.5 py-2 text-xs font-medium text-white">
-          {short.title}
-        </span>
-      )}
-
       {/* Play / pause — the only button */}
       <button
         type="button"
@@ -163,11 +157,12 @@ const ShortCard = ({
       {isPlaying ? (
         <>
           <iframe
-            src={`https://www.youtube.com/embed/${short.id}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
-            title={short.title || "Candidate Short"}
+            src={`https://www.youtube-nocookie.com/embed/${short.id}?autoplay=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&cc_load_policy=0&disablekb=1&fs=0&playsinline=1`}
+            title={short.title || "Short"}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            className="h-full w-full"
+            // controls=0 removes volume/settings/CC/fullscreen; the scale crops
+            // off YouTube's top channel/title bar (no param can hide it).
+            className="pointer-events-none h-full w-full scale-[1.2]"
           />
           {/* Stop button (esp. for phones, where there's no mouse-leave). */}
           <button
@@ -198,11 +193,6 @@ const ShortCard = ({
               <Play size={22} className="ml-0.5 fill-current" />
             </span>
           </span>
-          {short.title && (
-            <span className="absolute inset-x-0 bottom-0 line-clamp-2 bg-gradient-to-t from-black/75 to-transparent px-2.5 py-2 text-xs font-medium text-white">
-              {short.title}
-            </span>
-          )}
         </button>
       )}
     </div>

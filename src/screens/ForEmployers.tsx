@@ -3,6 +3,8 @@
 import { Users, Search, MessagesSquare, CalendarCheck, Kanban, BarChart3, Star, Quote } from "lucide-react";
 import MarketingPage from "@/components/MarketingPage";
 import YouTubeShorts from "@/components/YouTubeShorts";
+import FeaturedJobsSection from "@/components/FeaturedJobsSection";
+import JobReadyTalentSection from "@/components/JobReadyTalentSection";
 import { Reveal, RevealGroup, RevealItem } from "@/components/motion/Reveal";
 
 const CHANNEL_URL = "https://www.youtube.com/@RecruitKr_official";
@@ -45,6 +47,13 @@ export default function ForEmployers() {
         { value: "70%", label: "Faster shortlisting" },
         { value: "24/7", label: "Real-time chat" },
       ]}
+      beforeFeatures={
+        <>
+          <FeaturedJobsSection />
+          <JobReadyTalentSection />
+          
+        </>
+      }
       featuresTitle="A complete recruitment toolkit"
       features={[
         { icon: Search, title: "Candidate search", description: "Find talent by skill, experience and location with instant, typo-tolerant search." },

@@ -34,8 +34,8 @@ export default function CompanyDetailScreen() {
         <Navbar />
         <div className="container mx-auto px-4 pb-20 pt-32 text-center">
           <h1 className="font-heading text-2xl font-bold">Company not found</h1>
-          <Link to="/companies" className="mt-4 inline-block text-primary hover:underline">
-            Browse all companies
+          <Link to="/jobs" className="mt-4 inline-block text-primary hover:underline">
+            Browse all jobs
           </Link>
         </div>
         <Footer />
@@ -47,8 +47,8 @@ export default function CompanyDetailScreen() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto max-w-5xl px-4 pb-20 pt-24">
-        <Link to="/companies" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary">
-          <ArrowLeft size={16} /> Back to companies
+        <Link to="/jobs" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary">
+          <ArrowLeft size={16} /> Back to jobs
         </Link>
 
         {loading || !company ? (

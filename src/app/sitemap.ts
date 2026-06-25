@@ -7,7 +7,6 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com"
 const staticRoutes: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }> = [
   { path: "/", priority: 1.0, changeFrequency: "daily" },
   { path: "/jobs", priority: 0.95, changeFrequency: "hourly" },
-  { path: "/companies", priority: 0.9, changeFrequency: "daily" },
   { path: "/services", priority: 0.8, changeFrequency: "weekly" },
   { path: "/sectors", priority: 0.7, changeFrequency: "weekly" },
   { path: "/process", priority: 0.6, changeFrequency: "monthly" },

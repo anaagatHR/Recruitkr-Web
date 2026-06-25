@@ -24,6 +24,8 @@ export type MarketingPageProps = {
   features: MarketingFeature[];
   steps?: MarketingStep[];
   stepsTitle?: string;
+  /** Optional custom section(s) rendered between the hero and the features. */
+  beforeFeatures?: React.ReactNode;
   /** Optional custom section(s) rendered between the steps and the closing CTA. */
   children?: React.ReactNode;
   closingTitle: string;
@@ -60,6 +62,7 @@ export default function MarketingPage({
   features,
   steps,
   stepsTitle = "How it works",
+  beforeFeatures,
   children,
   closingTitle,
   closingSubtitle,
@@ -116,6 +119,9 @@ export default function MarketingPage({
           )}
         </RevealGroup>
       </section>
+
+      {/* Custom sections rendered before the features (e.g. candidate journey) */}
+      {beforeFeatures}
 
       {/* Features */}
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">

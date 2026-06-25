@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Home, Search, Sparkles, User, type LucideIcon } from "lucide-react";
+import { Handshake, Home, Search, User, type LucideIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { memo } from "react";
 import { Link } from "@/compat/router";
@@ -17,8 +17,7 @@ type BottomNavItem = {
 const items: BottomNavItem[] = [
   { label: "Home", path: "/", icon: Home, match: (p) => p === "/" },
   { label: "Jobs", path: "/jobs", icon: Search, match: (p) => p.startsWith("/jobs") },
-  { label: "Companies", path: "/companies", icon: Building2, match: (p) => p.startsWith("/companies") },
-  { label: "Applied", path: "/applications", icon: Sparkles, match: (p) => p.startsWith("/applications") },
+  { label: "Partner", path: "/partners", icon: Handshake, match: (p) => p.startsWith("/partners") },
   { label: "Profile", path: "/login", icon: User, match: (p) => p.startsWith("/login") || p.startsWith("/signup") },
 ];
 
