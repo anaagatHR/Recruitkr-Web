@@ -27,11 +27,12 @@ export default function FeaturedJobsSection() {
   }, []);
 
   return (
-    <section id="featured-jobs" className="border-y border-border bg-white py-16">
-      <div className="container mx-auto px-4">
+    <section id="featured-jobs" className="relative overflow-hidden border-y border-border bg-[radial-gradient(circle_at_top_left,rgba(38,74,127,0.08),transparent_30%),linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] py-16 sm:py-20">
+      <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#264a7f]/6 to-transparent" />
+      <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-primary">Hot openings</p>
+            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.25em] text-primary">Hot openings</p>
             <h2 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">Featured jobs</h2>
             <p className="mt-2 max-w-xl text-sm text-muted-foreground">
               Browse verified roles from top-rated companies — no login needed until you apply.
@@ -39,7 +40,7 @@ export default function FeaturedJobsSection() {
           </div>
           <Link
             to="/jobs"
-            className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-semibold transition hover:border-primary/40 hover:text-primary"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:text-primary"
           >
             View all jobs <ArrowRight size={16} />
           </Link>
@@ -52,7 +53,7 @@ export default function FeaturedJobsSection() {
             ))}
           </div>
         ) : jobs.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
+          <div className="rounded-2xl border border-dashed border-border bg-white/70 p-10 text-center text-muted-foreground shadow-sm">
             Jobs are loading soon.{" "}
             <Link to="/jobs" className="font-semibold text-primary hover:underline">
               Browse the jobs page

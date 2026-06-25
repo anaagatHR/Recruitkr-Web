@@ -12,15 +12,16 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { memo, useCallback, useState } from "react";
+import logoImage from "@/assets/logo.jpeg";
 import { Link, NavLink } from "@/compat/router";
 
 const navItems: { label: string; path: string; icon: LucideIcon }[] = [
-  { label: "About", path: "/about", icon: Info },
-  { label: "Jobs", path: "/jobs", icon: Briefcase },
-  { label: "Blogs", path: "/blog", icon: Newspaper },
-  { label: "Contact us", path: "/contact", icon: Mail },
-  { label: "Success Stories", path: "/success-stories", icon: Trophy },
-  { label: "Team", path: "/our-team", icon: Users },
+  { label: "Candidate", path: "/about", icon: Info },
+  { label: "Employer", path: "/jobs", icon: Briefcase },
+  { label: "Assessment", path: "/blog", icon: Newspaper },
+  { label: "Training", path: "/contact", icon: Mail },
+  { label: "Partners", path: "/success-stories", icon: Trophy },
+  { label: "our Team", path: "/our-team", icon: Users },
 ];
 
 const navLinkClass = (isActive: boolean) =>
@@ -44,11 +45,11 @@ const Navbar = memo(function Navbar() {
     {/* Logo */}
     <Link to="/" aria-label="RecruitKr home" className="flex items-center shrink-0">
       <img
-        src="/assets/logo.png"
+        src={logoImage.src}
         alt="RecruitKr"
         loading="eager"
         fetchPriority="high"
-        className="h-24 w-auto -mt-10 -mb-6 object-contain sm:h-28 sm:-mt-6 lg:h-36 lg:-mt-2 lg:mb-4"
+        className="h-16 w-auto mb-[1px] object-contain sm:h-16 lg:h-16"
       />
     </Link>
 

@@ -157,10 +157,10 @@ const Footer = () => {
               </Accordion>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 mb-[7px]">
               <div>
                 <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">Services</h4>
-                <nav className="grid gap-2">
+                <nav className="grid grid-cols-2 gap-2">
                   {footerLinks.map((item) => (
                     <Link key={item.label} to={item.to} className={footerLinkClass}>
                       <span>{item.label}</span>
@@ -169,7 +169,7 @@ const Footer = () => {
                 </nav>
               </div>
 
-              <div>
+              <div className="ml-[93px]">
                 <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">Sectors</h4>
                 <nav className="grid gap-2">
                   {["IT", "Healthcare", "Banking", "Retail", "Manufacturing", "Logistics"].map((sector) => (

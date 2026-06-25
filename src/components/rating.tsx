@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { Quote, Star } from "lucide-react";
+import { PlayCircle } from "lucide-react";
 
 const NAVY = "#264a7f";
 const GREEN = "#69a44f";
@@ -35,50 +35,30 @@ const reviews = [
 
 export default function ReviewsSlider() {
   const sliderRef = useRef<HTMLDivElement>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<number | null>(null);
 
-  const startAutoSlide = () => {
-    stopAutoSlide();
+  useEffect(() => {
+    const el = sliderRef.current;
+    if (!el) return;
 
-    intervalRef.current = setInterval(() => {
-      if (!sliderRef.current) return;
-
-      const el = sliderRef.current;
-
+    const step = () => {
       const maxScroll = el.scrollWidth - el.clientWidth;
 
-      if (el.scrollLeft >= maxScroll) {
-        el.scrollTo({ left: 0, behavior: "smooth" });
+      if (el.scrollLeft >= maxScroll - 2) {
+        el.scrollTo({ left: 0, behavior: "auto" });
       } else {
-        el.scrollBy({ left:300, behavior: "smooth" });
+        el.scrollBy({ left: 1, behavior: "auto" });
       }
-    }, 2500);
-  };
+    };
 
-  const stopAutoSlide = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-  };
+    intervalRef.current = window.setInterval(step, 16);
 
-useEffect(() => {
-  const el = sliderRef.current;
-  if (!el) return;
-
-  intervalRef.current = setInterval(() => {
-    el.scrollLeft += 1;
-
-    if (el.scrollLeft >= el.scrollWidth / 2) {
-      el.scrollLeft = 0;
-    }
-  }, 15);
-
-  return () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-  };
-}, []);
+    return () => {
+      if (intervalRef.current) {
+        window.clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
 
   return (
     <section className="sm:py-16 bg-white">
@@ -88,9 +68,14 @@ useEffect(() => {
         <div className="mx-auto mb-10 max-w-2xl text-center">
           <h2
             className="text-3xl font-extrabold md:text-4xl"
-            style={{ color: NAVY }}
+            style={{
+              background: `linear-gradient(90deg, ${NAVY}, ${GREEN})`,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              color: "transparent",
+            }}
           >
-            Student Success Stories
+            Success Stories (Candidates)
           </h2>
 
           <span
@@ -102,65 +87,61 @@ useEffect(() => {
         </div>
 
         {/* SLIDER */}
-      <div
-  ref={sliderRef}
-       className="flex gap-5 overflow-x-auto scrollbar-hide pb-4 pt-2"
+        <div
+          ref={sliderRef}
+          className="flex gap-5 overflow-x-auto scrollbar-hide pb-4 pt-2"
         >
-         {[...reviews, ...reviews].map((review, index) => {
+          {[...reviews, ...reviews].map((review, index) => {
             const color = brandColors[index % brandColors.length];
 
             return (
               <div
                 key={index}
-                className="group relative flex min-w-[280px] flex-shrink-0 flex-col rounded-3xl border bg-white p-7 shadow-sm transition hover:-translate-y-2 hover:shadow-2xl sm:min-w-[340px]"
+                className="group relative flex w-[240px] shrink-0 flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-white p-0 shadow-sm transition hover:-translate-y-2 hover:shadow-2xl sm:w-[280px]"
               >
-                {/* Top bar */}
-                <span
-                  className="absolute inset-x-0 top-0 h-1.5 scale-x-0 origin-left transition group-hover:scale-x-100"
-                  style={{ backgroundColor: color }}
-                />
-
-                {/* Quote icon */}
-                <Quote
-                  size={32}
-                  style={{ color }}
-                  fill="currentColor"
-                  strokeWidth={0}
-                />
-
-                {/* Review text */}
-                <p className="mt-3 text-[15px] text-slate-700">
-                  {review.review}
-                </p>
-
-                {/* Stars */}
-                <div className="mt-4 flex">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <Star
-                      key={s}
-                      size={16}
-                      style={{ color: AMBER }}
-                      fill="currentColor"
-                    />
-                  ))}
+                <div className="p-5">
+                  <p className="text-[15px] leading-7 text-slate-700">
+                    {review.review}
+                  </p>
                 </div>
 
-                {/* Footer */}
-                <div className="mt-5 flex items-center gap-3 border-t pt-5">
-                  <div
-                    className="flex h-12 w-12 items-center justify-center rounded-full font-bold text-white"
-                    style={{ backgroundColor: color }}
+                <div className="relative h-[360px] overflow-hidden">
+                  <video
+                    className="h-full w-full object-cover"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload="metadata"
+                    style={{
+                      objectPosition: "center top",
+                      transform: "rotate(90deg) scale(1.45)",
+                      transformOrigin: "center center",
+                    }}
                   >
-                    {review.name.charAt(0)}
-                  </div>
+                    <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
+                  </video>
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/20 via-transparent to-transparent" />
+                </div>
 
-                  <div>
-                    <h3 className="text-sm font-bold" style={{ color: NAVY }}>
-                      {review.name}
-                    </h3>
-                    <p className="text-xs font-medium" style={{ color }}>
-                      {review.role}
-                    </p>
+                <div className="p-5 pt-4">
+
+                  <div className="mt-5 flex items-center gap-3 border-t border-slate-200 pt-5">
+                    <div
+                      className="flex h-11 w-11 items-center justify-center rounded-full font-bold text-white"
+                      style={{ backgroundColor: color }}
+                    >
+                      {review.name.charAt(0)}
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-bold" style={{ color: NAVY }}>
+                        {review.name}
+                      </h3>
+                      <p className="text-xs font-medium" style={{ color }}>
+                        {review.role}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

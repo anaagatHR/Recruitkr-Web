@@ -12,8 +12,6 @@ import WhyRecruitkrSection from "@/components/WhyRecruitkrSection";
 import DualCtaSection from "@/components/DualCtaSection";
 import Footer from "@/components/Footer";
 import Placement from "@/components/placement";
-import FreeCost from "@/components/FreeCost";
-import RealWorld from "@/components/RealWorld"; 
 import ReviewsSlider from "@/components/rating";
 import PartnerCompanies from  "@/components/company";
 import JobShowcase from "@/components/JobShowcase";
@@ -24,12 +22,11 @@ const Index = () => {
       <Navbar />
       <HeroSection />
       <JobShowcase />
-      <Placement />
-      <FreeCost />
-      <RealWorld />
       <ReviewsSlider />
+      <Placement />
+      
       <PartnerCompanies />
-      <FeaturedJobsSection />
+      {/* <FeaturedJobsSection /> */}
       <Footer />
     </div>
   );
