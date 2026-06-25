@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "@/index.css";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import ApiKeepAlive from "@/components/ApiKeepAlive";
+import RecruitKrBot from "@/components/RecruitKrBot";
 import ThemeProvider from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -111,6 +112,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AnalyticsTracker />
           <ApiKeepAlive />
           {children}
+          <RecruitKrBot />
           <Toaster />
         </ThemeProvider>
       </body>

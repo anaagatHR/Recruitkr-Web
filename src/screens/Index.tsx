@@ -15,12 +15,14 @@ import Placement from "@/components/placement";
 import ReviewsSlider from "@/components/rating";
 import PartnerCompanies from  "@/components/company";
 import JobShowcase from "@/components/JobShowcase";
+import VideoShowcase from "@/components/VideoShowcase";
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <HeroSection />
+      <VideoShowcase />
       <JobShowcase />
       <ReviewsSlider />
       <Placement />

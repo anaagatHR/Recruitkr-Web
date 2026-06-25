@@ -1649,11 +1649,9 @@ const CandidateDashboard = () => {
         )}
 
         {tab === "jobs" && (
-          <div className="">
-            <div className="">
-              
-
-              <div className="border-t border-[#264a7f]/10 bg-white p-4 sm:p-5">
+          <div className="space-y-4 sm:space-y-5">
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)] sm:p-5">
                 <div className="grid gap-3 md:grid-cols-[1.4fr,1fr,1fr,auto]">
                   <SearchBar
                     value={jobSearch}

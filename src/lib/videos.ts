@@ -13,6 +13,26 @@ type ApiEnvelope<T> = { success?: boolean; data: T };
 
 export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 
+export type ShowcaseVideo = {
+  id: string;
+  url: string;
+  name: string;
+  candidateName: string;
+  role: string;
+  photoUrl: string;
+  kind: "candidate" | "client";
+};
+
+/** Public — real candidate videos for the home page showcase. */
+export const fetchShowcaseVideos = async (limit = 12): Promise<ShowcaseVideo[]> => {
+  try {
+    const res = await apiGet<ApiEnvelope<ShowcaseVideo[]>>(`/videos/showcase?limit=${limit}`);
+    return res?.data ?? [];
+  } catch {
+    return [];
+  }
+};
+
 /** List the signed-in candidate's uploaded videos. */
 export const fetchMyVideos = async (): Promise<CandidateVideoItem[]> => {
   const res = await apiGet<ApiEnvelope<CandidateVideoItem[]>>("/users/candidate/videos", {

@@ -34,7 +34,7 @@ const DualCtaSection = () => {
               Upload your resume and let opportunities find you.
             </p>
             <Link
-              to="/register/candidate"
+              to="/signup"
               className="btn-gradient inline-flex w-full items-center justify-center gap-2 rounded-lg px-6 py-3.5 font-bold transition-transform hover:scale-105 sm:w-auto sm:px-8"
             >
               Upload Your Resume

@@ -16,12 +16,12 @@ import logoImage from "@/assets/logo.jpeg";
 import { Link, NavLink } from "@/compat/router";
 
 const navItems: { label: string; path: string; icon: LucideIcon }[] = [
-  { label: "Candidate", path: "/about", icon: Info },
-  { label: "Employer", path: "/jobs", icon: Briefcase },
-  { label: "Assessment", path: "/blog", icon: Newspaper },
-  { label: "Training", path: "/contact", icon: Mail },
-  { label: "Partners", path: "/success-stories", icon: Trophy },
-  { label: "our Team", path: "/our-team", icon: Users },
+  { label: "Candidate", path: "/candidates", icon: Info },
+  { label: "Employer", path: "/employers", icon: Briefcase },
+  { label: "Assessment", path: "/assessment", icon: Newspaper },
+  { label: "Training", path: "/training", icon: Mail },
+  { label: "Partners", path: "/partners", icon: Trophy },
+  { label: "Our Team", path: "/our-team", icon: Users },
 ];
 
 const navLinkClass = (isActive: boolean) =>

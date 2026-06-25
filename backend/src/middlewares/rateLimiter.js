@@ -31,3 +31,10 @@ export const contactLimiter = buildLimiter({
   message: 'Too many contact requests. Try again later.',
 });
 
+// RecruitKrBot is native (no external API) but still public — cap per-IP for abuse.
+export const assistantLimiter = buildLimiter({
+  max: 60,
+  windowMs: 60 * 1000,
+  message: 'You are sending messages too quickly. Please wait a moment.',
+});
+

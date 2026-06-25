@@ -4,7 +4,7 @@ import { Link, useNavigate } from "@/compat/router";
 import OptimizedLogo from "@/components/OptimizedLogo";
 import ApplicationStepTracker from "@/components/ApplicationStepTracker";
 import DashboardLayout, { type DashboardNavItem } from "@/components/DashboardLayout";
-import { Building2, ClipboardList, FileText, MessageSquare, Sparkles, UserSearch, Users } from "lucide-react";
+import { Building2, ClipboardList, MessageSquare, Sparkles, UserSearch, Users } from "lucide-react";
 import CandidateSearch from "@/components/search/CandidateSearch";
 import { API_BASE, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { clearSession, getSession } from "@/lib/auth";
@@ -942,7 +942,6 @@ const ClientDashboard = () => {
     { key: "applications", label: "Applications", icon: Users },
     { key: "candidates", label: "Candidates", icon: UserSearch },
     { key: "messages", label: "Messages", icon: MessageSquare },
-    { key: "resumes", label: "Resumes", icon: FileText },
     { key: "profile", label: "Profile", icon: Building2 },
   ];
 
@@ -963,8 +962,8 @@ const ClientDashboard = () => {
                 <p className="mt-1 break-all text-sm text-slate-500">{resume.fileName || "candidate_resume.pdf"}</p>
                 <p className="mt-1 text-xs text-slate-400">
                   {resume.source === "uploaded" ? "Uploaded resume" : "Generated resume"}
-                  {resume.updatedAt ? ` â€¢ Updated ${new Date(resume.updatedAt).toLocaleDateString()}` : ""}
-                  {resume.isLegacy ? " â€¢ Legacy record" : ""}
+                  {resume.updatedAt ? ` • Updated ${new Date(resume.updatedAt).toLocaleDateString()}` : ""}
+                  {resume.isLegacy ? " • Legacy record" : ""}
                 </p>
               </div>
 
@@ -983,16 +982,6 @@ const ClientDashboard = () => {
                   className="rounded-lg border border-border bg-white px-4 py-2 text-sm font-medium text-slate-700"
                 >
                   Download Resume
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTab("applications");
-                    void openApplicationDetails(resume.applicationId);
-                  }}
-                  className="rounded-lg bg-[#264a7f] px-4 py-2 text-sm font-medium text-white"
-                >
-                  View Application
                 </button>
               </div>
             </div>

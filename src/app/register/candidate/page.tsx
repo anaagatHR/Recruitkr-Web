@@ -1,14 +1,8 @@
-﻿import type { Metadata } from "next";
-import { buildMetadata } from "@/lib/seo";
-import CandidateRegister from "@/screens/CandidateRegister";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = buildMetadata({
-  title: "Complete Candidate Profile",
-  description: "Add your full professional profile and resume to get matched with the best jobs on RecruitKr.",
-  path: "/register/candidate",
-  noindex: true,
-});
-
+// The old long candidate registration form was retired in favour of the modern,
+// minimal /signup flow (email + password; the rest is completed from the
+// dashboard). Keep this route as a redirect so old links/bookmarks still work.
 export default function Page() {
-  return <CandidateRegister />;
+  redirect("/signup");
 }

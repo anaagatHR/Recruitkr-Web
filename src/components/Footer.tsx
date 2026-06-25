@@ -26,6 +26,11 @@ const socialLinks = [
 const footerLinks = [
   { label: "Home", to: "/" },
   { label: "Browse Jobs", to: "/jobs" },
+  { label: "For Candidates", to: "/candidates" },
+  { label: "For Employers", to: "/employers" },
+  { label: "Assessment", to: "/assessment" },
+  { label: "Training", to: "/training" },
+  { label: "Partners", to: "/partners" },
   { label: "Companies", to: "/companies" },
   { label: "About Us", to: "/about" },
   { label: "Goal", to: "/goal" },
