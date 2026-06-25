@@ -269,7 +269,11 @@ const Messages = ({
           const match = list.find((c) => c.applicationId === preferApplicationId);
           if (match) return match.id;
         }
-        return list[0]?.id ?? null;
+        // On phones, show the conversation list first instead of jumping into a
+        // chat. Only auto-open the most recent thread on tablet/desktop, where
+        // the list stays visible alongside it.
+        const isWide = typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches;
+        return isWide ? list[0]?.id ?? null : null;
       });
     } catch {
       // Keep whatever we have rather than blanking the UI.
@@ -1117,7 +1121,7 @@ const Messages = ({
                         <button
                           type="button"
                           onClick={() => setShowEmoji((v) => !v)}
-                          className="rounded-lg p-2.5 text-muted-foreground transition hover:bg-muted hover:text-primary"
+                          className="rounded-lg p-2 text-muted-foreground transition hover:bg-muted hover:text-primary sm:p-2.5"
                           aria-label="Emoji"
                         >
                           <Smile size={20} />
@@ -1125,7 +1129,7 @@ const Messages = ({
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="rounded-lg p-2.5 text-muted-foreground transition hover:bg-muted hover:text-primary"
+                          className="rounded-lg p-2 text-muted-foreground transition hover:bg-muted hover:text-primary sm:p-2.5"
                           aria-label="Attach a file"
                         >
                           <Paperclip size={20} />
@@ -1141,7 +1145,7 @@ const Messages = ({
                           }}
                           rows={1}
                           placeholder="Write a message…"
-                          className="max-h-32 flex-1 resize-none rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:border-primary focus:outline-none"
+                          className="max-h-32 min-h-[2.75rem] min-w-0 flex-1 resize-none rounded-xl border border-border bg-background px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none sm:px-4 sm:py-2.5 sm:text-sm"
                         />
                         {draft.trim() || file ? (
                           <button

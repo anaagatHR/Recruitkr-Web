@@ -2,20 +2,9 @@
 
 import { Users, Search, MessagesSquare, CalendarCheck, Kanban, BarChart3, Star, Quote } from "lucide-react";
 import MarketingPage from "@/components/MarketingPage";
-import YouTubeShorts, { type Short } from "@/components/YouTubeShorts";
+import YouTubeShorts from "@/components/YouTubeShorts";
 
-// 👉 Paste your channel's employer Shorts video IDs here (after youtube.com/shorts/).
-//    These are placeholder IDs just so the carousel previews — replace them.
-const CLIENT_SHORTS: Short[] = [
-  { id: "jNQXAC9IVRw", title: "We hired in a week — our review" },
-  { id: "9bZkp7q19f0", title: "Why we hire on RecruitKr" },
-  { id: "kJQP7kiw5Fk", title: "Faster shortlisting, real results" },
-  { id: "dQw4w9WgXcQ", title: "Our RecruitKr hiring review" },
-  { id: "JGwWNGJdvx8", title: "Built our team Befikr" },
-  { id: "aqz-KE-bpKQ", title: "Highly recommend RecruitKr" },
-];
-
-const CHANNEL_URL = "https://www.youtube.com/@recruitkr";
+const CHANNEL_URL = "https://www.youtube.com/@RecruitKr_official";
 
 const REVIEWS = [
   {
@@ -48,7 +37,7 @@ export default function ForEmployers() {
       title="Hire faster with less effort"
       highlight="faster"
       subtitle="Post a role, search verified candidates, chat instantly, and schedule interviews — your whole hiring pipeline in one place."
-      primaryCta={{ label: "Post a job", to: "/register/client" }}
+      primaryCta={{ label: "Post a job", to: "/signup/employer" }}
       secondaryCta={{ label: "Talk to us", to: "/contact" }}
       stats={[
         { value: "3.5k+", label: "Companies hiring" },
@@ -113,7 +102,7 @@ export default function ForEmployers() {
 
       {/* Employer Shorts — right-to-left auto-scrolling carousel */}
       <YouTubeShorts
-        shorts={CLIENT_SHORTS}
+        audience="employer"
         eyebrow="Employer Reviews"
         title="Employers who hired from RecruitKr — their reviews"
         subtitle="Real reviews from companies that built their teams on RecruitKr."

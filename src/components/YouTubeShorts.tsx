@@ -1,12 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Play, Youtube } from "lucide-react";
+import { fetchShorts } from "@/lib/videos";
 
-export type Short = { id: string; title?: string };
+export type Short = {
+  id: string;
+  title?: string;
+  source?: "youtube" | "upload";
+  url?: string;
+  posterUrl?: string;
+};
 
 type YouTubeShortsProps = {
-  shorts: Short[];
+  /** Provide shorts directly… */
+  shorts?: Short[];
+  /** …or fetch them from the database by audience ("all" = candidate + employer mixed). */
+  audience?: "candidate" | "employer" | "all";
   eyebrow?: string;
   title?: string;
   subtitle?: string;
@@ -27,6 +37,28 @@ const ShortCard = ({
   onPlay: (key: string) => void;
 }) => {
   const isPlaying = playingKey === cardKey;
+
+  // Uploaded videos play inline with native controls (no YouTube embed).
+  if (short.source === "upload" && short.url) {
+    return (
+      <div className="relative aspect-[9/16] w-[160px] shrink-0 overflow-hidden rounded-2xl border border-border bg-black shadow-sm sm:w-[200px]">
+        <video
+          src={short.url}
+          poster={short.posterUrl || undefined}
+          controls
+          playsInline
+          preload="metadata"
+          className="h-full w-full object-cover"
+        />
+        {short.title && (
+          <span className="pointer-events-none absolute inset-x-0 bottom-0 line-clamp-2 bg-gradient-to-t from-black/75 to-transparent px-2.5 py-2 text-xs font-medium text-white">
+            {short.title}
+          </span>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="relative aspect-[9/16] w-[160px] shrink-0 overflow-hidden rounded-2xl border border-border bg-black shadow-sm sm:w-[200px]">
       {isPlaying ? (
@@ -73,6 +105,7 @@ const ShortCard = ({
  */
 export default function YouTubeShorts({
   shorts,
+  audience,
   eyebrow = "Candidate Shorts",
   title = "See how candidates get hired",
   subtitle = "Real stories and tips from candidates on our YouTube channel.",
@@ -80,10 +113,30 @@ export default function YouTubeShorts({
   speedSeconds = 45,
 }: YouTubeShortsProps) {
   const [playingKey, setPlayingKey] = useState<string | null>(null);
-  if (!shorts || shorts.length === 0) return null;
+  const [remote, setRemote] = useState<Short[] | null>(audience ? null : shorts ?? []);
+
+  useEffect(() => {
+    if (!audience) return;
+    let cancelled = false;
+    fetchShorts(audience)
+      .then((data) => {
+        if (!cancelled) setRemote(data);
+      })
+      .catch(() => {
+        if (!cancelled) setRemote([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [audience]);
+
+  const items = audience ? remote : shorts ?? [];
+
+  // Hide while loading from the DB, and when there are no Shorts.
+  if (items === null || items.length === 0) return null;
 
   // Duplicate the list so the marquee loops seamlessly.
-  const loop = [...shorts, ...shorts];
+  const loop = [...items, ...items];
 
   return (
     <section className="overflow-hidden py-14 sm:py-20">

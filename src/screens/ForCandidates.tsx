@@ -2,21 +2,10 @@
 
 import { Briefcase, MessageSquare, FileText, Bell, ShieldCheck, TrendingUp, Video, Play, ArrowRight } from "lucide-react";
 import MarketingPage, { MarketingCheck } from "@/components/MarketingPage";
-import YouTubeShorts, { type Short } from "@/components/YouTubeShorts";
+import YouTubeShorts from "@/components/YouTubeShorts";
 import { Link } from "@/compat/router";
 
-// 👉 Paste your channel's Shorts video IDs here (the part after youtube.com/shorts/).
-//    These are placeholder IDs just so the carousel previews — replace them.
-const CANDIDATE_SHORTS: Short[] = [
-  { id: "jNQXAC9IVRw", title: "I got hired in 5 days — my review" },
-  { id: "dQw4w9WgXcQ", title: "How RecruitKr got me the job" },
-  { id: "9bZkp7q19f0", title: "My RecruitKr success story" },
-  { id: "kJQP7kiw5Fk", title: "From fresher to first job" },
-  { id: "JGwWNGJdvx8", title: "Best decision for my career" },
-  { id: "aqz-KE-bpKQ", title: "Why I recommend RecruitKr" },
-];
-
-const CHANNEL_URL = "https://www.youtube.com/@recruitkr";
+const CHANNEL_URL = "https://www.youtube.com/@RecruitKr_official";
 
 export default function ForCandidates() {
   return (
@@ -97,7 +86,7 @@ export default function ForCandidates() {
 
       {/* Candidate Shorts — right-to-left auto-scrolling carousel */}
       <YouTubeShorts
-        shorts={CANDIDATE_SHORTS}
+        audience="candidate"
         eyebrow="Candidate Reviews"
         title="Candidates who got hired — their reviews"
         subtitle="Real reviews from people who landed their job through RecruitKr."

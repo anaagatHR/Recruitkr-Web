@@ -1926,7 +1926,7 @@ const ClientDashboard = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => navigate("/register/client")}
+                  onClick={() => navigate("/signup/employer")}
                   className="rounded-lg border border-border bg-background px-4 py-2 text-sm"
                 >
                   Update via form

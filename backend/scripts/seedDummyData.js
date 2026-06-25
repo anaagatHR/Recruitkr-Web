@@ -8,6 +8,7 @@ import { ClientProfile } from '../src/models/ClientProfile.js';
 import { ContactMessage } from '../src/models/ContactMessage.js';
 import { JobRequirement } from '../src/models/JobRequirement.js';
 import { Resume } from '../src/models/Resume.js';
+import { ShortVideo } from '../src/models/ShortVideo.js';
 import { User } from '../src/models/User.js';
 import { hashPassword } from '../src/utils/security.js';
 
@@ -519,6 +520,28 @@ const seed = async () => {
     ),
   ]);
 
+  // YouTube Shorts for the candidate/employer carousels (replace videoId with
+  // your channel's real Shorts IDs from the dashboard or DB).
+  const shorts = [
+    { videoId: 'jNQXAC9IVRw', title: 'I got hired in 5 days — my review', audience: 'candidate', order: 1 },
+    { videoId: 'dQw4w9WgXcQ', title: 'How RecruitKr got me the job', audience: 'candidate', order: 2 },
+    { videoId: '9bZkp7q19f0', title: 'My RecruitKr success story', audience: 'candidate', order: 3 },
+    { videoId: 'kJQP7kiw5Fk', title: 'From fresher to first job', audience: 'candidate', order: 4 },
+    { videoId: 'JGwWNGJdvx8', title: 'We hired in a week — our review', audience: 'employer', order: 1 },
+    { videoId: 'aqz-KE-bpKQ', title: 'Why we hire on RecruitKr', audience: 'employer', order: 2 },
+    { videoId: 'M7lc1UVf-VE', title: 'Faster shortlisting, real results', audience: 'employer', order: 3 },
+    { videoId: 'ScMzIvxBSi4', title: 'Built our team Befikr', audience: 'employer', order: 4 },
+  ];
+  await Promise.all(
+    shorts.map((s) =>
+      ShortVideo.findOneAndUpdate(
+        { audience: s.audience, videoId: s.videoId },
+        { $set: { ...s, isActive: true } },
+        { new: true, upsert: true, setDefaultsOnInsert: true },
+      ),
+    ),
+  );
+
   const summary = {
     users: await User.countDocuments({
       email: {
@@ -537,6 +560,7 @@ const seed = async () => {
     jobs: await JobRequirement.countDocuments({ clientId: client._id }),
     applications: await Application.countDocuments({ clientId: client._id }),
     blogPosts: await BlogPost.countDocuments({ slug: 'how-to-prepare-for-a-frontend-interview' }),
+    shortVideos: await ShortVideo.countDocuments({}),
     contactMessages: await ContactMessage.countDocuments({
       email: { $in: ['founder@example.com', 'candidate.help@example.com'] },
     }),

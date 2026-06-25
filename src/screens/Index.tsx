@@ -12,19 +12,22 @@ import WhyRecruitkrSection from "@/components/WhyRecruitkrSection";
 import DualCtaSection from "@/components/DualCtaSection";
 import Footer from "@/components/Footer";
 import Placement from "@/components/placement";
-import ReviewsSlider from "@/components/rating";
 import PartnerCompanies from  "@/components/company";
 import JobShowcase from "@/components/JobShowcase";
-import VideoShowcase from "@/components/VideoShowcase";
+import YouTubeShorts from "@/components/YouTubeShorts";
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <HeroSection />
-      <VideoShowcase />
       <JobShowcase />
-      <ReviewsSlider />
+      <YouTubeShorts
+        audience="all"
+        eyebrow="Success Stories"
+        title="Success stories from RecruitKr"
+        subtitle="Real videos from candidates who got hired and the companies that built their teams."
+      />
       <Placement />
       
       <PartnerCompanies />

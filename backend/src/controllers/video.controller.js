@@ -1,5 +1,61 @@
+import mongoose from 'mongoose';
+
 import { CandidateProfile } from '../models/CandidateProfile.js';
+import { ShortVideo } from '../models/ShortVideo.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+
+/**
+ * GET /api/v1/videos/stories  (public)
+ *
+ * Home "Success Stories" cards (image/video + text + link) managed from the
+ * RecruitKr CRM Web Panel and stored in the shared `home_stories` collection.
+ */
+export const getHomeStories = asyncHandler(async (req, res) => {
+  const col = mongoose.connection.db.collection('home_stories');
+  const docs = await col
+    .find({ active: { $ne: false } })
+    .sort({ createdAt: -1 })
+    .limit(24)
+    .toArray();
+  const data = docs.map((d) => ({
+    id: String(d._id),
+    text: d.text || '',
+    link: d.link || '',
+    name: d.name || '',
+    role: d.role || '',
+    image: d.image || '',
+    video: d.video || '',
+  }));
+  res.json({ success: true, data });
+});
+
+/**
+ * GET /api/v1/videos/shorts?audience=candidate|employer  (public)
+ * Returns the active YouTube Shorts for the carousel, newest/ordered first.
+ */
+export const getShorts = asyncHandler(async (req, res) => {
+  const audience = ['candidate', 'employer'].includes(req.query.audience) ? req.query.audience : null;
+  const filter = { isActive: true };
+  if (audience) filter.audience = { $in: [audience, 'both'] };
+
+  const shorts = await ShortVideo.find(filter)
+    .select('videoId title source url posterUrl')
+    .sort({ order: 1, createdAt: -1 })
+    .limit(100)
+    .lean()
+    .exec();
+
+  res.json({
+    success: true,
+    data: shorts.map((s) => ({
+      id: s.videoId || String(s._id),
+      title: s.title || '',
+      source: s.source || 'youtube',
+      url: s.url || '',
+      posterUrl: s.posterUrl || '',
+    })),
+  });
+});
 
 /**
  * GET /api/v1/videos/showcase  (public)

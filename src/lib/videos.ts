@@ -33,6 +33,47 @@ export const fetchShowcaseVideos = async (limit = 12): Promise<ShowcaseVideo[]> 
   }
 };
 
+export type ShortItem = {
+  id: string;
+  title?: string;
+  source?: "youtube" | "upload";
+  url?: string;
+  posterUrl?: string;
+};
+
+/** Public — short videos (YouTube + uploads). "all" returns candidate + employer mixed. */
+export const fetchShorts = async (
+  audience: "candidate" | "employer" | "all",
+): Promise<ShortItem[]> => {
+  try {
+    const qs = audience === "all" ? "" : `?audience=${audience}`;
+    const res = await apiGet<ApiEnvelope<ShortItem[]>>(`/videos/shorts${qs}`);
+    return res?.data ?? [];
+  } catch {
+    return [];
+  }
+};
+
+export type HomeStory = {
+  id: string;
+  text: string;
+  link: string;
+  name: string;
+  role: string;
+  image: string;
+  video: string;
+};
+
+/** Public — home "Success Stories" cards managed from the CRM Web Panel. */
+export const fetchHomeStories = async (): Promise<HomeStory[]> => {
+  try {
+    const res = await apiGet<ApiEnvelope<HomeStory[]>>("/videos/stories");
+    return res?.data ?? [];
+  } catch {
+    return [];
+  }
+};
+
 /** List the signed-in candidate's uploaded videos. */
 export const fetchMyVideos = async (): Promise<CandidateVideoItem[]> => {
   const res = await apiGet<ApiEnvelope<CandidateVideoItem[]>>("/users/candidate/videos", {

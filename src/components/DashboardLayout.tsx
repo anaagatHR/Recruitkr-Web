@@ -55,7 +55,7 @@ export default function DashboardLayout<K extends string>({
   children,
 }: DashboardLayoutProps<K>) {
   return (
-    <div className="dashboard-theme flex min-h-screen w-full lg:h-screen lg:overflow-hidden">
+    <div className="dashboard-theme flex h-screen w-full overflow-hidden supports-[height:100dvh]:h-[100dvh]">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-card/80 backdrop-blur-xl lg:flex">
         <div className="flex h-16 items-center border-b border-border px-5">
@@ -158,9 +158,9 @@ export default function DashboardLayout<K extends string>({
 
         <main
           className={cn(
-            // On desktop the shell is viewport-height; content scrolls inside main
-            // (not the page) so the embedded chat fits exactly with no page scroll.
-            "min-h-0 flex-1 lg:overflow-y-auto",
+            // The shell is viewport-height (dvh); content scrolls inside main (not
+            // the page) on every screen, so the embedded chat fits exactly.
+            "min-h-0 flex-1 overflow-y-auto",
             // Mobile clears the fixed bottom nav (pb-24); desktop uses normal padding.
             onMessagesClick
               ? "flex flex-col px-4 pb-24 pt-6 sm:px-6 lg:px-8 lg:pb-6"

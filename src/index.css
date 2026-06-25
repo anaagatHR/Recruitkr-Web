@@ -104,9 +104,12 @@
   --sidebar-ring: 212 60% 62%;
 }
 
-/* Dashboard shell — gradient surface that works in both modes. */
+/* Dashboard shell — gradient surface that works in both modes.
+   Uses dvh so it matches the visible mobile viewport (excludes the URL bar),
+   keeping the embedded chat fully on-screen. */
 .dashboard-theme {
-  min-height: 100vh;
+  min-height: 100vh; /* fallback for browsers without dvh */
+  min-height: 100dvh;
   background:
     radial-gradient(circle at top, hsl(var(--primary) / 0.10), transparent 38%),
     hsl(var(--background));
