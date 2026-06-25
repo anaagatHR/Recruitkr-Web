@@ -53,7 +53,7 @@ const Login = () => {
       config: "Google sign-in setup issue. Please contact support.",
       failed: "Google sign-in failed. Please try again.",
     };
-    setFormError(messages[reason] || messages.failed);
+    setFormError(`${messages[reason] || messages.failed} (code: ${reason})`);
   }, [location.search]);
 
 useEffect(() => {
@@ -71,10 +71,34 @@ useEffect(() => {
     try {
       setLoading(true);
 
-      // The OAuth callback set httpOnly access/refresh cookies but no longer
-      // leaks tokens through the URL. Bootstrap the session from the refresh
-      // cookie (refresh -> /users/me), exactly like silent auto-login.
-      const session = await tryAutoLogin();
+      // Bootstrap the session. Preferred path: exchange the one-time `code` from
+      // the callback for tokens via a normal body response (works in every
+      // browser, unlike the httpOnly cookie which can be dropped during the
+      // cross-site OAuth redirect). Fall back to the cookie-based auto-login.
+      const code = params.get("code");
+      let session: { user: { role: "candidate" | "client" | "admin" } } | null = null;
+
+      if (code) {
+        const res = await apiPost<{
+          success: boolean;
+          data?: {
+            accessToken: string;
+            refreshToken?: string;
+            user: { id: string; email: string; role: "candidate" | "client" | "admin" };
+          };
+        }>("/auth/oauth/exchange", { code });
+
+        if (res?.success && res.data?.accessToken && res.data.user) {
+          setSession({
+            accessToken: res.data.accessToken,
+            refreshToken: res.data.refreshToken,
+            user: res.data.user,
+          });
+          session = { user: res.data.user };
+        }
+      } else {
+        session = await tryAutoLogin();
+      }
 
       if (!session) {
         throw new Error("Unable to complete Google sign-in");

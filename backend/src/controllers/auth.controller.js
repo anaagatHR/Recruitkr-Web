@@ -37,7 +37,10 @@ const getRefreshCookieOptions = () => {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'none' : 'lax',
-    path: '/api/v1/auth/refresh',
+    // Broad path so the cookie is reliably sent on the refresh call. A narrow
+    // path (/api/v1/auth/refresh) was silently dropped behind the Next.js dev
+    // proxy, breaking the Google OAuth session bootstrap (refresh -> 401).
+    path: '/',
   };
 };
 
@@ -494,6 +497,60 @@ export const login = asyncHandler(async (req, res) => {
   });
 });
 
+// --- One-time OAuth bootstrap codes ---------------------------------------
+// The httpOnly auth cookies set during the cross-site Google redirect are not
+// reliably available to the frontend's bootstrap fetch in every browser. So we
+// also hand the frontend a single-use, short-lived code in the success URL,
+// which it exchanges for tokens via a normal body response (like password
+// login, which works in every browser). The tokens never appear in the URL.
+const oauthBootstrapCodes = new Map();
+const OAUTH_CODE_TTL_MS = 60_000;
+
+const createOAuthBootstrapCode = ({ accessToken, refreshToken, userId }) => {
+  const code = crypto.randomBytes(32).toString('hex');
+  oauthBootstrapCodes.set(code, {
+    accessToken,
+    refreshToken,
+    userId,
+    expiresAt: Date.now() + OAUTH_CODE_TTL_MS,
+  });
+  return code;
+};
+
+const consumeOAuthBootstrapCode = (code) => {
+  const entry = code ? oauthBootstrapCodes.get(code) : null;
+  if (entry) oauthBootstrapCodes.delete(code);
+  if (!entry || entry.expiresAt < Date.now()) return null;
+  return entry;
+};
+
+export const oauthExchange = asyncHandler(async (req, res) => {
+  const code = typeof req.body?.code === 'string' ? req.body.code : '';
+  const entry = consumeOAuthBootstrapCode(code);
+
+  if (!entry) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid or expired sign-in code');
+  }
+
+  const user = await User.findById(entry.userId).select('email role').lean();
+  if (!user) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Account no longer exists');
+  }
+
+  // Re-set the cookies on this same-origin response too (belt and suspenders).
+  setAccessCookie(res, entry.accessToken);
+  setRefreshCookie(res, entry.refreshToken);
+
+  return res.status(StatusCodes.OK).json({
+    success: true,
+    data: {
+      accessToken: entry.accessToken,
+      refreshToken: entry.refreshToken,
+      user: { id: String(user._id), email: user.email, role: user.role },
+    },
+  });
+});
+
 export const googleStart = asyncHandler(async (req, res) => {
   const role = req.query.role === "client" ? "client" : "candidate";
   const redirect = typeof req.query.redirect === "string" ? req.query.redirect : "";
@@ -594,10 +651,17 @@ export const googleCallback = asyncHandler(async (req, res) => {
     setAccessCookie(res, tokens.accessToken);
     setRefreshCookie(res, tokens.refreshToken);
 
+    const bootstrapCode = createOAuthBootstrapCode({
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      userId: user.id,
+    });
+
     const url = new URL(`${normalizeUrl(env.FRONTEND_URL)}/login`);
 
     url.searchParams.set("oauth", "success");
     url.searchParams.set("role", user.role);
+    url.searchParams.set("code", bootstrapCode);
 
     if (safeRedirect) {
       url.searchParams.set("redirect", safeRedirect);
@@ -633,7 +697,10 @@ export const googleCallback = asyncHandler(async (req, res) => {
 });
 
 export const refresh = asyncHandler(async (req, res) => {
-  const suppliedToken = req.body.refreshToken || req.cookies?.refreshToken;
+  // Prefer the httpOnly cookie (freshest + most trustworthy). The body token is
+  // a fallback for non-cookie clients; preferring it broke the Google OAuth
+  // bootstrap when a stale token lingered in the frontend's localStorage.
+  const suppliedToken = req.cookies?.refreshToken || req.body.refreshToken;
   if (!suppliedToken) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Missing refresh token');
   }

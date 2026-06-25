@@ -7,6 +7,7 @@ import {
   googleStart,
   login,
   logout,
+  oauthExchange,
   refresh,
   registerCandidate,
   registerClient,
@@ -39,6 +40,7 @@ router.post('/login', authLimiter, validate(loginSchema), login);
 // Google OAuth
 router.get('/google', googleStart);
 router.get('/google/callback', googleCallback);
+router.post('/oauth/exchange', oauthExchange);
 
 // Token refresh/logout
 router.post('/refresh', validate(refreshSchema), refresh);
