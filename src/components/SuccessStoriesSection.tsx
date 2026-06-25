@@ -150,7 +150,7 @@ const SuccessStoriesSection = () => {
         <div className="mx-auto mt-12 max-w-3xl text-center">
           <h3 className="text-xl font-semibold text-foreground">Want results like these?</h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            Whether you're hiring or looking for a career change, RecruitKr partners with you to
+            Whether you&apos;re hiring or looking for a career change, RecruitKr partners with you to
             deliver measurable outcomes. Start a conversation today.
           </p>
           <div className="mt-6 flex justify-center gap-3">

@@ -30,13 +30,15 @@ export const getHomeStories = asyncHandler(async (req, res) => {
 });
 
 /**
- * GET /api/v1/videos/shorts?audience=candidate|employer  (public)
- * Returns the active YouTube Shorts for the carousel, newest/ordered first.
+ * GET /api/v1/videos/shorts?audience=candidate|employer|both  (public)
+ * Returns the active Shorts for the carousel, newest/ordered first.
+ * Audience is matched EXACTLY so each home section (success="both", candidate,
+ * employer) shows a distinct set of videos with no overlap. No audience = all.
  */
 export const getShorts = asyncHandler(async (req, res) => {
-  const audience = ['candidate', 'employer'].includes(req.query.audience) ? req.query.audience : null;
+  const audience = ['candidate', 'employer', 'both'].includes(req.query.audience) ? req.query.audience : null;
   const filter = { isActive: true };
-  if (audience) filter.audience = { $in: [audience, 'both'] };
+  if (audience) filter.audience = audience;
 
   const shorts = await ShortVideo.find(filter)
     .select('videoId title source url posterUrl')

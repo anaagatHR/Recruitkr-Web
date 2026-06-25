@@ -12,10 +12,9 @@ import {
   registerClient,
   resetPassword,
 } from '../controllers/auth.controller.js';
-
 import { requireAuth } from '../middlewares/auth.js';
+import { authLimiter } from '../middlewares/rateLimiter.js';
 import { validate } from '../middlewares/validate.js';
-
 import {
   candidateRegisterSchema,
   changePasswordSchema,
@@ -30,11 +29,12 @@ import {
 const router = Router();
 
 // Registration
-router.post('/register/candidate', validate(candidateRegisterSchema), registerCandidate);
-router.post('/register/client', validate(clientRegisterSchema), registerClient);
+router.post('/register/candidate', authLimiter, validate(candidateRegisterSchema), registerCandidate);
+router.post('/register/client', authLimiter, validate(clientRegisterSchema), registerClient);
 
-// Login
-router.post('/login', validate(loginSchema), login);
+// Login — authLimiter caps repeated failed attempts (brute-force protection);
+// successful logins are skipped so normal users aren't throttled.
+router.post('/login', authLimiter, validate(loginSchema), login);
 
 // Google OAuth
 router.get('/google', googleStart);
@@ -54,12 +54,14 @@ router.post(
 
 router.post(
   '/forgot-password',
+  authLimiter,
   validate(forgotPasswordSchema),
   forgotPassword,
 );
 
 router.post(
   '/reset-password/:token',
+  authLimiter,
   validate(resetPasswordParamsSchema, 'params'),
   validate(resetPasswordSchema),
   resetPassword,

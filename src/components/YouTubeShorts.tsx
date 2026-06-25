@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Play, Youtube } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Pause, Play, X, Youtube } from "lucide-react";
 import { fetchShorts } from "@/lib/videos";
 
 export type Short = {
@@ -15,14 +15,125 @@ export type Short = {
 type YouTubeShortsProps = {
   /** Provide shorts directly… */
   shorts?: Short[];
-  /** …or fetch them from the database by audience ("all" = candidate + employer mixed). */
-  audience?: "candidate" | "employer" | "all";
+  /** …or fetch them from the database by audience ("all" = every audience; otherwise exact). */
+  audience?: "candidate" | "employer" | "both" | "all";
   eyebrow?: string;
   title?: string;
   subtitle?: string;
   channelUrl?: string;
   /** Marquee duration in seconds (lower = faster). */
   speedSeconds?: number;
+};
+
+/**
+ * Minimal player for uploaded videos: only a play/pause control and a seek
+ * timeline. No native settings, fullscreen, download, PiP or volume UI. Plays
+ * the source file at full quality.
+ */
+const UploadVideoPlayer = ({
+  short,
+  cardKey,
+  onPlay,
+}: {
+  short: Short;
+  cardKey: string;
+  onPlay: (key: string | null) => void;
+}) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const toggle = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) void v.play();
+    else v.pause();
+  };
+
+  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const v = videoRef.current;
+    if (!v || !v.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    v.currentTime = ratio * v.duration;
+    setProgress(ratio);
+  };
+
+  return (
+    <div
+      className="relative aspect-[9/16] w-[160px] shrink-0 overflow-hidden rounded-2xl border border-border bg-black shadow-sm sm:w-[200px]"
+      onMouseEnter={() => {
+        const v = videoRef.current;
+        if (v) {
+          v.muted = false;
+          void v.play().catch(() => {});
+        }
+      }}
+      onMouseLeave={() => {
+        videoRef.current?.pause();
+      }}
+    >
+      <video
+        ref={videoRef}
+        src={short.url}
+        poster={short.posterUrl || undefined}
+        playsInline
+        preload="metadata"
+        disablePictureInPicture
+        controlsList="nodownload nofullscreen noremoteplayback"
+        onContextMenu={(e) => e.preventDefault()}
+        onPlay={() => {
+          setPlaying(true);
+          onPlay(cardKey);
+        }}
+        onPause={() => {
+          setPlaying(false);
+          onPlay(null);
+        }}
+        onEnded={() => {
+          setPlaying(false);
+          onPlay(null);
+        }}
+        onTimeUpdate={() => {
+          const v = videoRef.current;
+          if (v && v.duration) setProgress(v.currentTime / v.duration);
+        }}
+        className="h-full w-full object-cover"
+      />
+
+      {short.title && (
+        <span className="pointer-events-none absolute inset-x-0 top-0 line-clamp-2 bg-gradient-to-b from-black/70 to-transparent px-2.5 py-2 text-xs font-medium text-white">
+          {short.title}
+        </span>
+      )}
+
+      {/* Play / pause — the only button */}
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={playing ? "Pause" : "Play"}
+        className="group/btn absolute inset-0 flex items-center justify-center"
+      >
+        <span
+          className={`flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-[#264a7f] shadow-lg transition-opacity ${
+            playing ? "opacity-0 group-hover/btn:opacity-100" : "opacity-100"
+          }`}
+        >
+          {playing ? <Pause size={20} className="fill-current" /> : <Play size={22} className="ml-0.5 fill-current" />}
+        </span>
+      </button>
+
+      {/* Timeline (seek) — the only other control */}
+      <div
+        className="absolute inset-x-0 bottom-0 z-10 cursor-pointer px-2.5 pb-2.5 pt-3"
+        onClick={seek}
+      >
+        <div className="h-1 w-full overflow-hidden rounded-full bg-white/30">
+          <div className="h-full rounded-full bg-white" style={{ width: `${progress * 100}%` }} />
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const ShortCard = ({
@@ -34,41 +145,40 @@ const ShortCard = ({
   short: Short;
   cardKey: string;
   playingKey: string | null;
-  onPlay: (key: string) => void;
+  onPlay: (key: string | null) => void;
 }) => {
   const isPlaying = playingKey === cardKey;
 
-  // Uploaded videos play inline with native controls (no YouTube embed).
+  // Uploaded videos use a minimal custom player (play/pause + timeline only).
   if (short.source === "upload" && short.url) {
-    return (
-      <div className="relative aspect-[9/16] w-[160px] shrink-0 overflow-hidden rounded-2xl border border-border bg-black shadow-sm sm:w-[200px]">
-        <video
-          src={short.url}
-          poster={short.posterUrl || undefined}
-          controls
-          playsInline
-          preload="metadata"
-          className="h-full w-full object-cover"
-        />
-        {short.title && (
-          <span className="pointer-events-none absolute inset-x-0 bottom-0 line-clamp-2 bg-gradient-to-t from-black/75 to-transparent px-2.5 py-2 text-xs font-medium text-white">
-            {short.title}
-          </span>
-        )}
-      </div>
-    );
+    return <UploadVideoPlayer short={short} cardKey={cardKey} onPlay={onPlay} />;
   }
 
   return (
-    <div className="relative aspect-[9/16] w-[160px] shrink-0 overflow-hidden rounded-2xl border border-border bg-black shadow-sm sm:w-[200px]">
+    <div
+      className="relative aspect-[9/16] w-[160px] shrink-0 overflow-hidden rounded-2xl border border-border bg-black shadow-sm sm:w-[200px]"
+      onMouseEnter={() => onPlay(cardKey)}
+      onMouseLeave={() => onPlay(null)}
+    >
       {isPlaying ? (
-        <iframe
-          src={`https://www.youtube.com/embed/${short.id}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
-          title={short.title || "Candidate Short"}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-          className="h-full w-full"
-        />
+        <>
+          <iframe
+            src={`https://www.youtube.com/embed/${short.id}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
+            title={short.title || "Candidate Short"}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            className="h-full w-full"
+          />
+          {/* Stop button (esp. for phones, where there's no mouse-leave). */}
+          <button
+            type="button"
+            onClick={() => onPlay(null)}
+            aria-label="Stop video"
+            className="absolute right-1.5 top-1.5 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/80"
+          >
+            <X size={15} />
+          </button>
+        </>
       ) : (
         <button
           type="button"
@@ -113,6 +223,7 @@ export default function YouTubeShorts({
   speedSeconds = 45,
 }: YouTubeShortsProps) {
   const [playingKey, setPlayingKey] = useState<string | null>(null);
+  const [hovered, setHovered] = useState(false);
   const [remote, setRemote] = useState<Short[] | null>(audience ? null : shorts ?? []);
 
   useEffect(() => {
@@ -138,6 +249,9 @@ export default function YouTubeShorts({
   // Duplicate the list so the marquee loops seamlessly.
   const loop = [...items, ...items];
 
+  // Stop the scroll on hover, while touched (phones), or while a video plays.
+  const paused = hovered || playingKey !== null;
+
   return (
     <section className="overflow-hidden py-14 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
@@ -150,17 +264,24 @@ export default function YouTubeShorts({
         <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">{subtitle}</p>
       </div>
 
-      {/* Marquee — pauses on hover or while playing */}
-      <div className="group relative mt-8 sm:mt-12">
+      {/* Marquee — pauses on hover, touch (phones), or while playing */}
+      <div
+        className="group relative mt-8 sm:mt-12"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onTouchStart={() => setHovered(true)}
+        onTouchEnd={() => setHovered(false)}
+      >
         {/* Edge fades */}
         <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-background to-transparent sm:w-16" />
         <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-background to-transparent sm:w-16" />
 
         <div
-          className={`marquee-track flex w-max gap-3 px-4 group-hover:[animation-play-state:paused] sm:gap-4 ${
-            playingKey ? "[animation-play-state:paused]" : ""
-          }`}
-          style={{ animation: `marquee ${speedSeconds}s linear infinite` }}
+          className="marquee-track flex w-max gap-3 px-4 sm:gap-4"
+          style={{
+            animation: `marquee ${speedSeconds}s linear infinite`,
+            animationPlayState: paused ? "paused" : "running",
+          }}
         >
           {loop.map((short, i) => {
             const cardKey = `${short.id}-${i}`;

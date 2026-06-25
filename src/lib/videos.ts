@@ -41,9 +41,9 @@ export type ShortItem = {
   posterUrl?: string;
 };
 
-/** Public — short videos (YouTube + uploads). "all" returns candidate + employer mixed. */
+/** Public — short videos (YouTube + uploads). "all" = every audience; otherwise an exact match. */
 export const fetchShorts = async (
-  audience: "candidate" | "employer" | "all",
+  audience: "candidate" | "employer" | "both" | "all",
 ): Promise<ShortItem[]> => {
   try {
     const qs = audience === "all" ? "" : `?audience=${audience}`;

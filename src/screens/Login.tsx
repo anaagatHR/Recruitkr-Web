@@ -1,11 +1,13 @@
 ﻿"use client";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { motion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "@/compat/router";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AuthHero from "@/components/auth/AuthHero";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiPost } from "@/lib/api";
 import { setSession } from "@/lib/auth";
+import { tryAutoLogin } from "@/lib/autoLogin";
 
 // Brand palette (navy / green / amber).
 const NAVY = "#264a7f";
@@ -61,19 +63,7 @@ useEffect(() => {
 
   if (params.get("oauth") !== "success") return;
 
-  const accessToken = params.get("accessToken");
-  const refreshToken = params.get("refreshToken") || undefined;
-  const role = params.get("role");
   const redirect = params.get("redirect");
-
-  if (
-    !accessToken ||
-    (role !== "candidate" &&
-      role !== "client" &&
-      role !== "admin")
-  ) {
-    return;
-  }
 
   oauthProcessed.current = true;
 
@@ -81,43 +71,22 @@ useEffect(() => {
     try {
       setLoading(true);
 
-      const me = await apiGet<{
-        data?: {
-          _id?: string;
-          id?: string;
-          email?: string;
-          role?: "candidate" | "client" | "admin";
-        };
-      }>("/users/me", {
-        auth: false,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      // The OAuth callback set httpOnly access/refresh cookies but no longer
+      // leaks tokens through the URL. Bootstrap the session from the refresh
+      // cookie (refresh -> /users/me), exactly like silent auto-login.
+      const session = await tryAutoLogin();
 
-      const user = me.data;
-
-      if (!user?.email || !user?.role) {
-        throw new Error("Unable to load profile");
+      if (!session) {
+        throw new Error("Unable to complete Google sign-in");
       }
-
-      setSession({
-        accessToken,
-        refreshToken,
-        user: {
-          id: user._id || user.id || user.email,
-          email: user.email,
-          role: user.role,
-        },
-      });
 
       const destination =
         redirect ||
-        (user.role === "client"
+        (session.user.role === "client"
           ? "/dashboard/client"
           : "/dashboard/candidate");
 
-      // remove tokens from URL
+      // Drop the oauth query params from the address bar.
       window.history.replaceState({}, "", destination);
 
       navigate(destination, {
@@ -216,7 +185,12 @@ useEffect(() => {
           <AuthHero className="hidden lg:flex" />
 
           {/* Form card */}
-          <div className="mx-auto w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-xl">
+          <motion.div
+            initial={{ opacity: 0, y: 28 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="mx-auto w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-xl"
+          >
             <div className="text-center mb-8">
               <Link to="/" className="font-heading text-3xl font-bold">
                 Recruit<span style={{ color: "#264a7f" }}>kr</span>
@@ -351,7 +325,7 @@ useEffect(() => {
                 </Link>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
       <Footer />

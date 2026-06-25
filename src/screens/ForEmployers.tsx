@@ -3,6 +3,7 @@
 import { Users, Search, MessagesSquare, CalendarCheck, Kanban, BarChart3, Star, Quote } from "lucide-react";
 import MarketingPage from "@/components/MarketingPage";
 import YouTubeShorts from "@/components/YouTubeShorts";
+import { Reveal, RevealGroup, RevealItem } from "@/components/motion/Reveal";
 
 const CHANNEL_URL = "https://www.youtube.com/@RecruitKr_official";
 
@@ -65,18 +66,20 @@ export default function ForEmployers() {
       {/* Employer reviews */}
       <section className="bg-muted/40 py-14 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="text-center font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            What employers say
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground sm:text-base">
-            Recruiters and hiring teams trust RecruitKr to hire faster.
-          </p>
+          <Reveal as="div">
+            <h2 className="text-center font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              What employers say
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground sm:text-base">
+              Recruiters and hiring teams trust RecruitKr to hire faster.
+            </p>
+          </Reveal>
 
-          <div className="mt-8 grid gap-4 sm:mt-12 sm:grid-cols-3">
+          <RevealGroup className="mt-8 grid gap-4 sm:mt-12 sm:grid-cols-3">
             {REVIEWS.map((r) => (
-              <figure
+              <RevealItem
                 key={r.name}
-                className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-[0_1px_2px_rgba(16,24,40,0.05)] sm:p-6"
+                className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all hover:-translate-y-1 hover:shadow-md sm:p-6"
               >
                 <Quote size={22} className="text-[#264a7f]/30" />
                 <div className="mt-2 flex gap-0.5">
@@ -94,18 +97,18 @@ export default function ForEmployers() {
                     <span className="block truncate text-xs text-muted-foreground">{r.company}</span>
                   </span>
                 </figcaption>
-              </figure>
+              </RevealItem>
             ))}
-          </div>
+          </RevealGroup>
         </div>
       </section>
 
-      {/* Employer Shorts — right-to-left auto-scrolling carousel */}
+      {/* Candidate success — shown to employers (proof of talent) */}
       <YouTubeShorts
-        audience="employer"
-        eyebrow="Employer Reviews"
-        title="Employers who hired from RecruitKr — their reviews"
-        subtitle="Real reviews from companies that built their teams on RecruitKr."
+        audience="candidate"
+        eyebrow="Candidate Success"
+        title="How candidates get hired on RecruitKr"
+        subtitle="Real stories from people who landed their job through RecruitKr."
         channelUrl={CHANNEL_URL}
       />
     </MarketingPage>

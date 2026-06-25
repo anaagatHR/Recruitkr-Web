@@ -2,13 +2,18 @@ import { io, type Socket } from "socket.io-client";
 
 // Socket.IO must reach the Express backend directly (WebSockets don't ride the
 // Next.js same-origin rewrite proxy cleanly). Derive the backend origin from
-// the configured API URL.
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+// the configured API URL. When NEXT_PUBLIC_API_URL is unset we fall back to the
+// current page origin in the browser (matching resolveApiBase in lib/api.ts)
+// instead of a hardcoded localhost, so realtime features don't silently break
+// in a same-origin deployment.
+const browserOrigin =
+  typeof window !== "undefined" ? window.location.origin : "http://localhost:5000";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || `${browserOrigin}/api/v1`;
 const SOCKET_URL = (() => {
   try {
     return new URL(apiUrl).origin;
   } catch {
-    return "http://localhost:5000";
+    return browserOrigin;
   }
 })();
 

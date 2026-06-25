@@ -3,6 +3,7 @@
 import { type LucideIcon, ArrowRight, CheckCircle2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { Reveal, RevealGroup, RevealItem } from "@/components/motion/Reveal";
 import { Link } from "@/compat/router";
 
 export type MarketingFeature = { icon: LucideIcon; title: string; description: string };
@@ -92,38 +93,40 @@ export default function MarketingPage({
           className="pointer-events-none absolute inset-0"
           style={{ background: "linear-gradient(180deg, rgba(13,26,48,.25) 0%, rgba(13,26,48,.1) 45%, rgba(13,26,48,.55) 100%)" }}
         />
-        <div className="relative z-10 mx-auto max-w-5xl px-4 py-16 text-center sm:px-6 sm:py-20 lg:py-24">
-          <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-white/70 sm:text-xs">{eyebrow}</p>
-          <h1 className="mt-3 font-heading text-3xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-4xl md:text-5xl">
-            {titleNode}
-          </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-white/80 sm:text-base">{subtitle}</p>
-          <div className="mx-auto mt-7 flex max-w-md flex-col gap-2.5 sm:flex-row sm:justify-center sm:gap-3">
+        <RevealGroup stagger={0.1} className="relative z-10 mx-auto max-w-5xl px-4 py-16 text-center sm:px-6 sm:py-20 lg:py-24">
+          <RevealItem className="text-[11px] font-bold uppercase tracking-[0.28em] text-white/70 sm:text-xs">{eyebrow}</RevealItem>
+          <RevealItem as="div" className="mt-3 font-heading text-3xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-4xl md:text-5xl">
+            <h1>{titleNode}</h1>
+          </RevealItem>
+          <RevealItem className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-white/80 sm:text-base">{subtitle}</RevealItem>
+          <RevealItem className="mx-auto mt-7 flex max-w-md flex-col gap-2.5 sm:flex-row sm:justify-center sm:gap-3">
             <Cta cta={primaryCta} variant="solid" />
             {secondaryCta && <Cta cta={secondaryCta} variant="outline" />}
-          </div>
+          </RevealItem>
 
           {stats && stats.length > 0 && (
-            <div className="mt-10 grid grid-cols-3 gap-3 border-t border-white/15 pt-8 sm:gap-6">
+            <RevealItem className="mt-10 grid grid-cols-3 gap-3 border-t border-white/15 pt-8 sm:gap-6">
               {stats.map((s) => (
                 <div key={s.label}>
                   <div className="text-xl font-extrabold text-white sm:text-3xl">{s.value}</div>
                   <div className="mt-1 text-[11px] font-medium text-white/65 sm:text-sm">{s.label}</div>
                 </div>
               ))}
-            </div>
+            </RevealItem>
           )}
-        </div>
+        </RevealGroup>
       </section>
 
       {/* Features */}
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
-        <h2 className="text-center font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          {featuresTitle}
-        </h2>
-        <div className="mt-8 grid gap-4 sm:mt-12 sm:grid-cols-2 lg:grid-cols-3">
+        <Reveal as="div">
+          <h2 className="text-center font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            {featuresTitle}
+          </h2>
+        </Reveal>
+        <RevealGroup className="mt-8 grid gap-4 sm:mt-12 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
-            <div
+            <RevealItem
               key={f.title}
               className="rounded-2xl border border-border bg-card p-5 shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all hover:-translate-y-0.5 hover:shadow-md sm:p-6"
             >
@@ -132,29 +135,31 @@ export default function MarketingPage({
               </span>
               <h3 className="mt-4 text-base font-bold text-foreground">{f.title}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{f.description}</p>
-            </div>
+            </RevealItem>
           ))}
-        </div>
+        </RevealGroup>
       </section>
 
       {/* Steps */}
       {steps && steps.length > 0 && (
         <section className="bg-muted/40 py-14 sm:py-20">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <h2 className="text-center font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              {stepsTitle}
-            </h2>
-            <div className="mt-8 grid gap-4 sm:mt-12 sm:grid-cols-2 lg:grid-cols-4">
+            <Reveal as="div">
+              <h2 className="text-center font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                {stepsTitle}
+              </h2>
+            </Reveal>
+            <RevealGroup className="mt-8 grid gap-4 sm:mt-12 sm:grid-cols-2 lg:grid-cols-4">
               {steps.map((step, i) => (
-                <div key={step.title} className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+                <RevealItem key={step.title} className="rounded-2xl border border-border bg-card p-5 sm:p-6">
                   <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
                     {i + 1}
                   </span>
                   <h3 className="mt-4 text-base font-bold text-foreground">{step.title}</h3>
                   <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{step.description}</p>
-                </div>
+                </RevealItem>
               ))}
-            </div>
+            </RevealGroup>
           </div>
         </section>
       )}
@@ -164,7 +169,7 @@ export default function MarketingPage({
 
       {/* Closing CTA */}
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
-        <div className="relative overflow-hidden rounded-3xl bg-[#16305a] p-8 text-center sm:p-12">
+        <Reveal className="relative overflow-hidden rounded-3xl bg-[#16305a] p-8 text-center sm:p-12">
           <div aria-hidden className="hero-drift pointer-events-none absolute inset-0" />
           <div className="relative z-10">
             <h2 className="font-heading text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
@@ -176,7 +181,7 @@ export default function MarketingPage({
               {secondaryCta && <Cta cta={secondaryCta} variant="outline" />}
             </div>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       <Footer />

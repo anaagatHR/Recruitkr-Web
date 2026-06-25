@@ -3,6 +3,7 @@
 import { Briefcase, MessageSquare, FileText, Bell, ShieldCheck, TrendingUp, Video, Play, ArrowRight } from "lucide-react";
 import MarketingPage, { MarketingCheck } from "@/components/MarketingPage";
 import YouTubeShorts from "@/components/YouTubeShorts";
+import { Reveal } from "@/components/motion/Reveal";
 import { Link } from "@/compat/router";
 
 const CHANNEL_URL = "https://www.youtube.com/@RecruitKr_official";
@@ -43,7 +44,7 @@ export default function ForCandidates() {
       <section className="bg-muted/40 py-14 sm:py-20">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <div className="grid items-center gap-8 lg:grid-cols-2">
-            <div>
+            <Reveal as="div">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#264a7f]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-[#264a7f]">
                 <Video size={13} /> Profile Video
               </span>
@@ -65,10 +66,10 @@ export default function ForCandidates() {
               >
                 Add your video <ArrowRight size={16} />
               </Link>
-            </div>
+            </Reveal>
 
             {/* Visual */}
-            <div className="relative mx-auto w-full max-w-sm">
+            <Reveal as="div" delay={0.15} className="relative mx-auto w-full max-w-sm">
               <div className="relative aspect-[4/5] overflow-hidden rounded-3xl border border-border bg-[#16305a] shadow-lg">
                 <div aria-hidden className="hero-drift pointer-events-none absolute inset-0" />
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
@@ -79,17 +80,17 @@ export default function ForCandidates() {
                   <p className="text-xs text-white/70">0:30 • shown to employers</p>
                 </div>
               </div>
-            </div>
+            </Reveal>
           </div>
         </div>
       </section>
 
-      {/* Candidate Shorts — right-to-left auto-scrolling carousel */}
+      {/* Employer reviews — shown to candidates (cross-trust) */}
       <YouTubeShorts
-        audience="candidate"
-        eyebrow="Candidate Reviews"
-        title="Candidates who got hired — their reviews"
-        subtitle="Real reviews from people who landed their job through RecruitKr."
+        audience="employer"
+        eyebrow="Employer Reviews"
+        title="What employers say about hiring with RecruitKr"
+        subtitle="Hear from the companies building their teams on RecruitKr."
         channelUrl={CHANNEL_URL}
       />
     </MarketingPage>

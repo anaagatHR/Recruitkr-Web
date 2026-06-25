@@ -167,31 +167,6 @@ const parseOAuthState = (state) => {
   }
 };
 
-const buildFrontendOAuthSuccessUrl = ({
-  accessToken,
-  refreshToken,
-  role,
-  redirect,
-}) => {
-  const url = new URL(`${normalizeUrl(env.FRONTEND_URL)}/login`);
-
-  url.searchParams.set("oauth", "success");
-  url.searchParams.set("accessToken", accessToken);
-  url.searchParams.set("refreshToken", refreshToken);
-  url.searchParams.set("role", role);
-
-  if (redirect) {
-    url.searchParams.set("redirect", redirect);
-  }
-
-  return url.toString();
-};
-
-
-
-
-
-
 
 const buildFrontendErrorUrl = ({ reason, role, redirect }) => {
   const url = new URL(`${normalizeUrl(env.FRONTEND_URL)}/login`);
@@ -609,7 +584,11 @@ export const googleCallback = asyncHandler(async (req, res) => {
       role: resolvedRole,
     });
 
-    // Generate tokens directly
+    // Issue tokens and persist them ONLY as httpOnly cookies. We deliberately do
+    // not put the access/refresh tokens in the redirect URL: query strings get
+    // written to browser history, the Referer header, and server access logs
+    // (morgan 'combined'), which would leak the long-lived refresh token. The
+    // frontend bootstraps its session from the cookie via /auth/refresh instead.
     const tokens = await issueTokensAndPersistRefresh(user);
 
     setAccessCookie(res, tokens.accessToken);
@@ -618,8 +597,6 @@ export const googleCallback = asyncHandler(async (req, res) => {
     const url = new URL(`${normalizeUrl(env.FRONTEND_URL)}/login`);
 
     url.searchParams.set("oauth", "success");
-    url.searchParams.set("accessToken", tokens.accessToken);
-    url.searchParams.set("refreshToken", tokens.refreshToken);
     url.searchParams.set("role", user.role);
 
     if (safeRedirect) {
