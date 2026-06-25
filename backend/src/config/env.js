@@ -56,6 +56,7 @@ const envSchema = z.object({
   // a cached MongoDB query, so the app keeps working without a Solr server.
   SOLR_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
   SOLR_JOBS_CORE: z.string().trim().min(1).default('jobs'),
+  SOLR_CANDIDATES_CORE: z.string().trim().min(1).default('candidates'),
   SOLR_TIMEOUT_MS: z.coerce.number().int().positive().default(4000),
 
   FRONTEND_URL: z.preprocess(

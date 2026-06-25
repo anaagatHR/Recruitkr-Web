@@ -1,3 +1,6 @@
 node_modules
 .env
 npm-debug.log*
+
+# Puppeteer Chrome profile (caches, cookies, local DBs) — never commit
+.puppeteer-user-data/

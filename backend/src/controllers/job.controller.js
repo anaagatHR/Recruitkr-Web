@@ -643,12 +643,12 @@ const syncJobToSolr = (jobDoc, sourceCollection = 'jobRequirements') => {
 };
 
 export const listPublicJobs = asyncHandler(async (req, res) => {
-  const { q, page = 1, limit = 10, location, type } = req.query;
+  const { q, page = 1, limit = 10, location, type, minSalary, maxSalary } = req.query;
 
   // Fast path: Apache Solr (when configured and healthy).
   if (isSolrConfigured() && (await pingSolr())) {
     try {
-      const { jobs, total } = await searchJobsViaSolr({ q, location, type, page, limit });
+      const { jobs, total } = await searchJobsViaSolr({ q, location, type, minSalary, maxSalary, page, limit });
       const currentPage = Math.max(1, Number(page));
       const pageLimit = Math.max(1, Number(limit));
       return res.json({
@@ -669,7 +669,7 @@ export const listPublicJobs = asyncHandler(async (req, res) => {
 
   // Fallback path: cached MongoDB normalization + in-memory filter/paginate.
   const jobs = await getActiveNormalizedJobs(loadActiveNormalizedJobs);
-  const { data, meta } = filterSortPaginateJobs(jobs, { q, location, type, page, limit });
+  const { data, meta } = filterSortPaginateJobs(jobs, { q, location, type, minSalary, maxSalary, page, limit });
   res.json({ success: true, data, meta, source: 'mongo' });
 });
 

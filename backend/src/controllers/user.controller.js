@@ -6,6 +6,7 @@ import { Resume } from '../models/Resume.js';
 import { User } from '../models/User.js';
 import { deleteImageKitFile, uploadBufferToImageKit } from '../services/imagekit.js';
 import { buildGeneratedResumeData } from '../services/resume.service.js';
+import { indexCandidate, isSolrConfigured } from '../services/solr.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -254,6 +255,12 @@ export const updateCandidateProfile = asyncHandler(async (req, res) => {
   syncCandidateLegacyFields({ profile, user, resumeLocation });
 
   await profile.save();
+
+  // Keep the recruiter-facing Solr candidate index in sync. Fire-and-forget:
+  // Solr failures are swallowed inside the service so Mongo stays source of truth.
+  if (isSolrConfigured()) {
+    void indexCandidate(profile.toObject ? profile.toObject() : profile);
+  }
 
   res.json({ success: true, data: profile });
 });

@@ -6,6 +6,8 @@ import { CandidateProfile } from '../models/CandidateProfile.js';
 import { ClientProfile } from '../models/ClientProfile.js';
 import { Conversation } from '../models/Conversation.js';
 import { Message } from '../models/Message.js';
+import { User } from '../models/User.js';
+import { buildCandidateSnapshot } from '../services/conversation.service.js';
 import { uploadBufferToImageKit } from '../services/imagekit.js';
 import { isUserOnline, publishLiveUpdate } from '../services/liveUpdate.service.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -228,6 +230,76 @@ export const createConversation = asyncHandler(async (req, res) => {
     success: true,
     data: serializeConversation(conversation, req.user),
   });
+});
+
+/**
+ * Recruiter starts (or reopens) a direct chat with a candidate straight from the
+ * candidate search — no prior application required. One direct thread per
+ * candidate/client pair (applicationId stays unset).
+ */
+export const createDirectConversation = asyncHandler(async (req, res) => {
+  if (req.user.role !== 'client') {
+    throw new ApiError(StatusCodes.FORBIDDEN, 'Only employers can start a direct chat');
+  }
+  const { candidateId } = req.body || {};
+  if (!isValidId(candidateId)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'A valid candidateId is required');
+  }
+
+  const candidateUser = await User.findById(candidateId).select('_id role email mobile').lean().exec();
+  if (!candidateUser || candidateUser.role !== 'candidate') {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Candidate not found');
+  }
+
+  const clientId = req.user.id;
+
+  // Reuse the existing direct thread (applicationId unset) if present.
+  let conversation = await Conversation.findOne({
+    candidateId,
+    clientId,
+    applicationId: { $exists: false },
+  }).exec();
+
+  let isNew = false;
+  if (!conversation) {
+    const candidateProfile = await CandidateProfile.findOne({ userId: candidateId }).lean().exec();
+    const snapshot = buildCandidateSnapshot({
+      candidateUser,
+      candidateProfile,
+      resume: null,
+      appliedFor: '',
+      appliedAt: new Date(),
+    });
+    try {
+      conversation = await Conversation.create({
+        candidateId,
+        clientId,
+        candidateName: snapshot.fullName || candidateProfile?.fullName || '',
+        candidateSnapshot: snapshot,
+        lastSenderRole: 'system',
+      });
+      isNew = true;
+    } catch (error) {
+      // A concurrent request may have created it first — re-read and reuse.
+      if (error?.code === 11000) {
+        conversation = await Conversation.findOne({
+          candidateId,
+          clientId,
+          applicationId: { $exists: false },
+        }).exec();
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  if (!conversation) {
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Could not start the conversation');
+  }
+
+  res
+    .status(isNew ? StatusCodes.CREATED : StatusCodes.OK)
+    .json({ success: true, data: serializeConversation(conversation, req.user) });
 });
 
 export const getMessages = asyncHandler(async (req, res) => {

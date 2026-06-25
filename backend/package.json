@@ -12,6 +12,7 @@
     "seed:dummy": "node scripts/seedDummyData.js",
     "migrate:imagekit": "node scripts/migrateToImageKitProduction.js",
     "solr:reindex": "node scripts/reindexSolr.js",
+    "solr:reindex:candidates": "node scripts/reindexCandidatesSolr.js",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

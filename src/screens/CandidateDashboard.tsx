@@ -1,17 +1,20 @@
 ﻿"use client";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, useNavigate } from "@/compat/router";
-import { ArrowLeft, BriefcaseBusiness, Building2, Camera, CheckCircle2, ChevronDown, Clock3, FileText, Filter, MapPin, MessageSquare, Pencil, Search, Sparkles, UserCircle2, X, XCircle } from "lucide-react";
+import { ArrowLeft, BriefcaseBusiness, Building2, Camera, CheckCircle2, ChevronDown, Clock3, FileText, Filter, Loader2, MapPin, MessageSquare, Pencil, Search, Sparkles, UserCircle2, X, XCircle } from "lucide-react";
 import OptimizedLogo from "@/components/OptimizedLogo";
 import ApplicationStepTracker from "@/components/ApplicationStepTracker";
 import CandidateVideos from "@/components/CandidateVideos";
 import DashboardLayout, { type DashboardNavItem } from "@/components/DashboardLayout";
+import SearchBar from "@/components/search/SearchBar";
+import StatCard from "@/components/dashboard/StatCard";
+import { fetchJobSuggestions } from "@/lib/search";
 import { API_BASE, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { clearSession, getSession } from "@/lib/auth";
 import { useServerEvents, type SseConnectionStatus } from "@/hooks/useServerEvents";
 import { tryAutoLogin } from "@/lib/autoLogin";
 import { uploadFile, uploadRules, validateUploadFile } from "@/lib/uploadFile";
-
+import Messages from "./Messages";
 const JOBS_PAGE_LIMIT = 20;
 const LIVE_REFRESH_MS = 5000;
 const BRAND_PRIMARY = "#264a7f";
@@ -20,9 +23,20 @@ const dashboardShellClass = "dashboard-theme";
 const dashboardHeaderClass =
   "sticky top-0 z-30 border-b border-[#264a7f]/10 bg-white/88 backdrop-blur-xl shadow-[0_12px_40px_rgba(38,74,127,0.08)]";
 const brandCardClass =
-  "   border border-[#264a7f]/10 bg-white/92 shadow-[0_20px_60px_rgba(38,74,127,0.08)] backdrop-blur";
+  "rounded-[28px] border border-[#264a7f]/10 bg-white/92 shadow-[0_20px_60px_rgba(38,74,127,0.08)] backdrop-blur";
 const statCardClass =
-  "rounded-2xl border border-[#264a7f]/10 bg-white/95 p-5 shadow-[0_16px_40px_rgba(38,74,127,0.08)]";
+  "rounded-2xl border border-[#264a7f]/10 bg-white/95 p-4 shadow-[0_16px_40px_rgba(38,74,127,0.08)] sm:p-5";
+
+// Status → dot colour for the Recent activity feed.
+const ACTIVITY_DOT: Record<string, string> = {
+  applied: "bg-slate-400",
+  "under-review": "bg-sky-500",
+  screening: "bg-emerald-500",
+  interview: "bg-violet-500",
+  offer: "bg-amber-500",
+  hired: "bg-emerald-500",
+  rejected: "bg-red-500",
+};
 const JOBS_HERO_GRADIENT = "linear-gradient(90deg, rgba(36, 70, 121, 1) 0%, rgba(105, 164, 79, 1) 100%)";
 
 type ApplicationStatus =
@@ -432,7 +446,8 @@ type EditableProfileField =
 
 const CandidateDashboard = () => {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"overview" | "jobs" | "applications" | "resume" | "profile">("jobs");
+  const [tab, setTab] = useState<"overview" | "jobs" | "applications" | "messages" | "resume" | "profile">("jobs");
+  const [chatApplicationId, setChatApplicationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboard, setDashboard] = useState<CandidateDashboardResponse["data"] | null>(null);
@@ -870,7 +885,8 @@ const CandidateDashboard = () => {
     try {
       await apiPost("/jobs/apply", { jobId }, true);
       await Promise.all([refreshDashboard(), refreshApplications()]);
-      setTab("applications");
+      // The application now lives as a chat thread with the employer.
+      openChat();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to apply");
     } finally {
@@ -1332,20 +1348,48 @@ const CandidateDashboard = () => {
     navigate("/login");
   };
 
-  if (!sessionState?.accessToken) {
-    return <div className="min-h-screen bg-background p-8">Checking your session...</div>;
+  const openChat = (applicationId?: string | null) => {
+    setChatApplicationId(applicationId ?? null);
+    setTab("messages");
+  };
+
+  if (!sessionState?.accessToken || loading) {
+    return (
+      <div className="min-h-screen bg-background p-4 sm:p-6 lg:p-8" aria-busy="true" aria-label="Loading dashboard">
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div className="space-y-2">
+            <div className="skeleton h-5 w-40 rounded-lg" />
+            <div className="skeleton h-3 w-56 rounded-lg" />
+          </div>
+          <div className="skeleton h-9 w-9 rounded-xl" />
+        </div>
+        {/* Hero */}
+        <div className="skeleton mb-6 h-40 w-full rounded-3xl" />
+        {/* Stat cards */}
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="skeleton h-24 w-full rounded-2xl" />
+          ))}
+        </div>
+        {/* List rows */}
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="skeleton h-20 w-full rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
-  if (loading) {
-    return <div className="min-h-screen bg-background p-8">Loading candidate dashboard...</div>;
-  }
-
+  // Candidate ↔ employer communication happens entirely in the chat, so the
+  // dashboard intentionally exposes only these five destinations.
   const candidateTabs: DashboardNavItem<typeof tab>[] = [
     { key: "overview", label: "Overview", icon: Sparkles },
-    { key: "jobs", label: "Browse Jobs", icon: BriefcaseBusiness },
-    { key: "applications", label: "My Applications", icon: FileText },
+    { key: "jobs", label: "Find Jobs", icon: BriefcaseBusiness },
+    { key: "messages", label: "My Chat", icon: MessageSquare },
     { key: "profile", label: "Profile", icon: UserCircle2 },
-    { key: "resume", label: "My Resume", icon: Pencil },
+    { key: "resume", label: "My Card", icon: Pencil },
   ];
 
   const profileSummaryCards = [
@@ -1445,6 +1489,8 @@ const CandidateDashboard = () => {
       activeKey={tab}
       onSelect={(key) => setTab(key)}
       onLogout={logout}
+      onMessagesClick={() => openChat()}
+      showMessagesShortcut={false}
       userLabel={profile?.fullName || sessionState?.user.email}
       headerExtra={
         <span
@@ -1457,36 +1503,56 @@ const CandidateDashboard = () => {
         {error && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
 
         {tab === "overview" && (
-          <>
-            <div
-              className={`${brandCardClass} overflow-hidden p-6 md:p-8`}
-              style={{
-                background: "linear-gradient(135deg, rgba(38,74,127,0.96) 0%, rgba(55,110,168,0.95) 58%, rgba(105,164,79,0.9) 100%)",
-              }}
-            >
-              <div className="grid gap-6 lg:grid-cols-[1.25fr,0.75fr] lg:items-end">
+          <div className="space-y-5 sm:space-y-6">
+            <div className={`${brandCardClass} relative overflow-hidden bg-[#16305a] p-5 sm:p-6 md:p-8`}>
+              {/* Hero background image — drop your file at public/hero-bg.jpg (or change src). */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/hero-bg.jpg"
+                alt=""
+                aria-hidden
+                className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+              {/* Animated drift gradient tint — RecruitKr design hero */}
+              <div aria-hidden className="hero-drift pointer-events-none absolute inset-0" />
+              {/* Diagonal texture */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0"
+                style={{ background: "repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 2px, transparent 2px 22px)" }}
+              />
+              {/* Soft vignette for text contrast over any image */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0"
+                style={{ background: "linear-gradient(180deg, rgba(13,26,48,.35) 0%, rgba(13,26,48,.15) 45%, rgba(13,26,48,.6) 100%)" }}
+              />
+              <div className="relative z-10 grid gap-6 lg:grid-cols-[1.25fr,0.75fr] lg:items-end">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/75">RecruitKr Candidate Space</p>
-                  <h1 className="mt-3 font-heading text-3xl font-bold text-white md:text-4xl">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/75 sm:text-xs">RecruitKr Candidate Space</p>
+                  <h1 className="mt-2 font-heading text-2xl font-bold text-white break-words sm:mt-3 sm:text-3xl md:text-4xl">
                     Welcome, {profile?.fullName || sessionState?.user.email}
                   </h1>
                   <p className="mt-3 max-w-2xl text-sm text-white/80 md:text-base">
                     Keep your applications moving, stay ready for interviews, and make your profile recruiter-ready.
                   </p>
-                  <div className="mt-5 flex flex-wrap gap-3">
+                  <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:gap-3">
                     <button
                       type="button"
                       onClick={() => setTab("jobs")}
-                      className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-[#264a7f] shadow-sm transition hover:bg-white/95"
+                      className="w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-[#264a7f] shadow-sm transition hover:bg-white/95 sm:w-auto"
                     >
                       Browse jobs and apply
                     </button>
                     <button
                       type="button"
-                      onClick={() => setTab("applications")}
-                      className="rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15"
+                      onClick={() => openChat()}
+                      className="w-full rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15 sm:w-auto"
                     >
-                      View my applications
+                      Open my chat
                     </button>
                   </div>
                 </div>
@@ -1501,100 +1567,85 @@ const CandidateDashboard = () => {
               </div>
             </div>
 
-           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-  
-  {/* Applications */}
-  <div className="group rounded-2xl border border-[#264a7f]/10 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
-    <div className="flex items-center justify-between">
-      <p className="text-xs font-semibold uppercase tracking-wider text-[#264a7f]">
-        Applications
-      </p>
-      <div className="rounded-xl bg-[#264a7f]/10 p-2">
-        <FileText className="h-5 w-5 text-[#264a7f]" />
-      </div>
-    </div>
+           <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+              <StatCard
+                icon={FileText}
+                label="Applications"
+                value={dashboard?.stats.applicationsSent || 0}
+                tone="bg-[#264a7f]/10 text-[#264a7f]"
+              />
+              <StatCard
+                icon={MessageSquare}
+                label="Interviews"
+                value={dashboard?.stats.interviewCalls || 0}
+                tone="bg-sky-100 text-sky-600"
+              />
+              <StatCard
+                icon={CheckCircle2}
+                label="Offers"
+                value={dashboard?.stats.offersReceived || 0}
+                tone="bg-[#69a44f]/10 text-[#69a44f]"
+              />
+              <StatCard
+                icon={UserCircle2}
+                label="Profile strength"
+                value={`${dashboard?.stats.profileCompletion || 0}%`}
+                tone="bg-amber-100 text-amber-600"
+                footer={
+                  <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-amber-500 transition-all"
+                      style={{ width: `${dashboard?.stats.profileCompletion || 0}%` }}
+                    />
+                  </div>
+                }
+              />
+            </div>
 
-    <h3 className="mt-4 text-4xl font-bold text-slate-900">
-      {dashboard?.stats.applicationsSent || 0}
-    </h3>
-
-    <p className="mt-2 text-sm text-slate-500">
-      Roles you have already applied for
-    </p>
-  </div>
-
-  {/* Interview Calls */}
-  <div className="group rounded-2xl border border-sky-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
-    <div className="flex items-center justify-between">
-      <p className="text-xs font-semibold uppercase tracking-wider text-sky-600">
-        Interviews
-      </p>
-      <div className="rounded-xl bg-sky-100 p-2">
-        <MessageSquare className="h-5 w-5 text-sky-600" />
-      </div>
-    </div>
-
-    <h3 className="mt-4 text-4xl font-bold text-slate-900">
-      {dashboard?.stats.interviewCalls || 0}
-    </h3>
-
-    <p className="mt-2 text-sm text-slate-500">
-      Interview opportunities received
-    </p>
-  </div>
-
-  {/* Offers */}
-  <div className="group rounded-2xl border border-[#69a44f]/15 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
-    <div className="flex items-center justify-between">
-      <p className="text-xs font-semibold uppercase tracking-wider text-[#69a44f]">
-        Offers
-      </p>
-      <div className="rounded-xl bg-[#69a44f]/10 p-2">
-        <CheckCircle2 className="h-5 w-5 text-[#69a44f]" />
-      </div>
-    </div>
-
-    <h3 className="mt-4 text-4xl font-bold text-slate-900">
-      {dashboard?.stats.offersReceived || 0}
-    </h3>
-
-    <p className="mt-2 text-sm text-slate-500">
-      Offers received from employers
-    </p>
-  </div>
-
-  {/* Profile Strength */}
-  <div className="group rounded-2xl border border-amber-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
-    <div className="flex items-center justify-between">
-      <p className="text-xs font-semibold uppercase tracking-wider text-amber-600">
-        Profile Strength
-      </p>
-      <div className="rounded-xl bg-amber-100 p-2">
-        <UserCircle2 className="h-5 w-5 text-amber-600" />
-      </div>
-    </div>
-
-    <h3 className="mt-4 text-4xl font-bold text-slate-900">
-      {dashboard?.stats.profileCompletion || 0}%
-    </h3>
-
-    {/* Progress Bar */}
-    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-      <div
-        className="h-full rounded-full bg-amber-500 transition-all"
-        style={{
-          width: `${dashboard?.stats.profileCompletion || 0}%`,
-        }}
-      />
-    </div>
-
-    <p className="mt-2 text-sm text-slate-500">
-      Complete your profile to improve visibility
-    </p>
-  </div>
-
-</div>
-          </>
+            {/* Recent activity */}
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.05)] dark:border-border dark:bg-card">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-base font-bold text-slate-900 dark:text-foreground">Recent activity</h3>
+                <button
+                  type="button"
+                  onClick={() => openChat()}
+                  className="text-[13px] font-bold text-[#264a7f] hover:underline dark:text-[#7da7df]"
+                >
+                  Open my chat →
+                </button>
+              </div>
+              {recentApplicationUpdates.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-8 text-center">
+                  <Sparkles className="text-slate-300" size={28} />
+                  <p className="text-sm text-slate-500">
+                    No activity yet — apply to a job and updates show up here.
+                  </p>
+                </div>
+              ) : (
+                <ul className="space-y-1">
+                  {recentApplicationUpdates.map((u) => (
+                    <li
+                      key={u.id}
+                      className="flex items-start gap-3 rounded-xl px-2 py-2.5 transition hover:bg-slate-50 dark:hover:bg-muted/40"
+                    >
+                      <span
+                        className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${ACTIVITY_DOT[u.status] || "bg-slate-300"}`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-foreground">
+                          {u.jobTitle}
+                        </p>
+                        <p className="truncate text-[13px] text-slate-500 dark:text-muted-foreground">{u.message}</p>
+                      </div>
+                      <span className="shrink-0 text-[11px] text-slate-400">
+                        {new Date(u.changedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
         )}
 
         {tab === "jobs" && (
@@ -1604,15 +1655,13 @@ const CandidateDashboard = () => {
 
               <div className="border-t border-[#264a7f]/10 bg-white p-4 sm:p-5">
                 <div className="grid gap-3 md:grid-cols-[1.4fr,1fr,1fr,auto]">
-                  <label className="relative block">
-                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input
-                      value={jobSearch}
-                      onChange={(event) => setJobSearch(event.target.value)}
-                      placeholder="Search job title or company"
-                      className="w-full rounded-xl border border-[#264a7f]/12 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-700 outline-none"
-                    />
-                  </label>
+                  <SearchBar
+                    value={jobSearch}
+                    onChange={setJobSearch}
+                    onSubmit={setJobSearch}
+                    fetchSuggestions={fetchJobSuggestions}
+                    placeholder="Search job title or company"
+                  />
 
                   <label className="relative block">
                     <MapPin className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -1677,32 +1726,35 @@ const CandidateDashboard = () => {
                       ? "Applying..."
                       : "Apply now";
 
-                const helperText = isApplied
-                  ? "You have already applied to this job. Open My Applications to track updates."
-                  : job.canApply === false
-                    ? job.applyDisabledReason || "Applications are not available for this opening yet."
-                    : "This job is live and ready for direct application.";
-
                     return (
                       <div
                         key={job._id}
-                        className="rounded-2xl border border-[#264a7f]/10 bg-white p-4 shadow-sm"
+                        className="group rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all hover:-translate-y-0.5 hover:border-[#264a7f]/25 hover:shadow-md sm:p-5"
                       >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="line-clamp-2 text-base font-semibold text-slate-900">
-                            {job.jobTitle || "Job Opening"}
-                          </h3>
-                          <p className="mt-1 text-sm text-slate-600">
+                      <div className="flex items-start gap-3.5">
+                        <div
+                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-extrabold text-white shadow-sm"
+                          style={{ background: JOBS_HERO_GRADIENT }}
+                        >
+                          {(job.companyName || job.jobTitle || "?").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="line-clamp-1 text-[15px] font-bold text-slate-900">
+                              {job.jobTitle || "Job Opening"}
+                            </h3>
+                            <span className="shrink-0 rounded-full bg-[#69a44f]/10 px-2.5 py-0.5 text-xs font-bold text-[#4d7a38]">
+                              {job.minCtcLpa || 0}–{job.maxCtcLpa || 0} LPA
+                            </span>
+                          </div>
+                          <p className="mt-0.5 truncate text-sm font-medium text-slate-600">
                             {job.companyName || "Company not shared"}
                           </p>
-                          <p className="mt-1 text-sm text-slate-500">
-                            {job.jobLocation || "Location not shared"} â€¢ {job.employmentType || "Job type pending"}
+                          <p className="mt-0.5 flex items-center gap-1.5 truncate text-[13px] text-slate-500">
+                            <MapPin size={13} className="shrink-0" />
+                            {job.jobLocation || "Location not shared"} • {job.employmentType || "Job type pending"}
                           </p>
                         </div>
-                        <span className="rounded-full bg-[#264a7f]/8 px-3 py-1 text-xs font-medium text-[#264a7f]">
-                          {job.minCtcLpa || 0} - {job.maxCtcLpa || 0} LPA
-                        </span>
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
@@ -1732,15 +1784,11 @@ const CandidateDashboard = () => {
                         </div>
                       )}
 
-                      <p className="mt-3 text-xs text-slate-500">
-                        {helperText}
-                      </p>
-
                       <div className="mt-4 flex gap-2">
                         <button
                           type="button"
                           onClick={() => setExpandedJobId((current) => (current === job._id ? null : job._id))}
-                          className="flex-1 rounded-xl border border-[#264a7f]/12 bg-white px-4 py-2.5 text-sm font-semibold text-[#264a7f]"
+                          className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#264a7f] transition hover:bg-slate-50"
                         >
                           {isExpanded ? "Hide details" : "View details"}
                         </button>
@@ -1751,8 +1799,8 @@ const CandidateDashboard = () => {
                           }}
                           disabled={job.canApply === false || isApplied || applyLoadingJobId === job._id}
                           title={job.canApply === false ? job.applyDisabledReason || "Applications are not available for this opening yet." : undefined}
-                          className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                          style={{ background: JOBS_HERO_GRADIENT }}
+                          className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                          style={isApplied ? { background: "#69a44f" } : { background: JOBS_HERO_GRADIENT }}
                         >
                           {applyLabel}
                         </button>
@@ -1771,7 +1819,7 @@ const CandidateDashboard = () => {
                       Page {currentJobsPage} is showing {filteredJobs.length} jobs
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      {jobsMeta.total} total active jobs across {jobsMeta.totalPages} pages {" â€¢ "} up to {JOBS_PAGE_LIMIT} jobs per page
+                      {jobsMeta.total} total active jobs across {jobsMeta.totalPages} pages {" • "} up to {JOBS_PAGE_LIMIT} jobs per page
                     </p>
                   </div>
 
@@ -1788,7 +1836,14 @@ const CandidateDashboard = () => {
                       disabled={jobsLoadingMore || currentJobsPage >= jobsMeta.totalPages}
                       className="rounded-xl border border-[#264a7f]/12 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm disabled:opacity-60"
                     >
-                      {jobsLoadingMore ? "Loading..." : "Next page"}
+                      {jobsLoadingMore ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Loader2 size={15} className="animate-spin" />
+                          Next page
+                        </span>
+                      ) : (
+                        "Next page"
+                      )}
                     </button>
                   </div>
                 </div>
@@ -1806,130 +1861,205 @@ const CandidateDashboard = () => {
 
 
         {tab === "applications" && (
-        
-               
-
-<div className="bg-white">
-  <div className="border-b border-slate-200 px-4 py-4">
-    <h2 className="text-xl font-bold text-slate-900">
-      My Applications
-    </h2>
-    <p className="text-sm text-slate-500">
-      Track recruiter updates and interview progress
-    </p>
-  </div>
-
-  <div className="divide-y divide-slate-100">
-    {(applications || []).map((application) => {
-      const applicationResponse = getApplicationResponseSnapshot(
-        application as Record<string, any>
-      );
-
-      const latestNote =
-        applicationResponse.statusNote ||
-        (applicationResponse.interviewDetails?.scheduledAt
-          ? `Interview scheduled for ${formatInterviewDate(
-              applicationResponse.interviewDetails.scheduledAt
-            )}`
-          : "Application submitted successfully");
-
-      const unreadCount = (application as any).unreadCandidateCount || 0;
-
-      return (
-        <div key={application._id} className="relative">
-          <button
-            onClick={() =>
-              setExpandedApplicationId(application._id)
-            }
-            className="w-full px-4 py-4 pr-16 hover:bg-slate-50 transition text-left"
-          >
-          <div className="flex items-start gap-4">
-
-            {/* Avatar */}
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#264a7f] text-white font-bold text-lg shadow">
-              {(
-                application.jobId?.jobTitle?.substring(0, 2) ||
-                "RK"
-              ).toUpperCase()}
-            </div>
-
-            {/* Content */}
-            <div className="min-w-0 flex-1">
-
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="truncate text-sm font-semibold text-slate-900">
-                  {application.jobId?.jobTitle || "Job Opening"}
-                </h3>
-
-                <span className="text-xs text-slate-400 whitespace-nowrap">
-                  {new Date(
-                    (application as any).updatedAt || application.createdAt
-                  ).toLocaleDateString()}
-                </span>
+          <div className="grid gap-6 lg:grid-cols-[380px,1fr]">
+            <div className={`${brandCardClass} overflow-hidden`}>
+              <div className="border-b border-[#264a7f]/10 px-4 py-5 sm:px-6">
+                <h2 className="font-heading text-lg font-semibold text-slate-900">My Applications</h2>
+                <p className="mt-1 text-sm text-slate-500">Track recruiter updates and open chat with employers.</p>
               </div>
+              <div className="divide-y divide-border">
+                {(applications || []).map((application) => {
+                  const applicationResponse = getApplicationResponseSnapshot(application as Record<string, any>);
+                  const latestNote =
+                    applicationResponse.statusNote ||
+                    (applicationResponse.interviewDetails?.scheduledAt
+                      ? `Interview scheduled for ${formatInterviewDate(applicationResponse.interviewDetails.scheduledAt)}`
+                      : "Application submitted successfully");
+                  const unreadCount = (application as Record<string, unknown>).unreadCandidateCount as number | undefined;
 
-              <p className="mt-1 text-xs text-slate-500 truncate">
-                {application.jobId?.sourceLabel ||
-                  "RecruitKr Hiring"}
-              </p>
-
-              <div className="mt-2 flex items-center justify-between gap-3">
-
-                <p className="truncate text-sm text-slate-600">
-                  {latestNote}
-                </p>
-
-                {unreadCount > 0 && (
-                  <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#69A44F] px-1.5 text-[11px] font-bold text-white">
-                    {unreadCount}
-                  </span>
+                  return (
+                    <div key={application._id} className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedApplicationId(application._id)}
+                        className={`w-full px-4 py-4 pb-10 text-left transition sm:px-6 ${
+                          expandedApplicationId === application._id
+                            ? "bg-[#264a7f]/5"
+                            : "hover:bg-[#264a7f]/[0.03]"
+                        }`}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#264a7f] text-sm font-bold text-white shadow">
+                            {(application.jobId?.jobTitle?.substring(0, 2) || "RK").toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <h3 className="truncate text-sm font-semibold text-slate-900">
+                                {application.jobId?.jobTitle || "Job Opening"}
+                              </h3>
+                              <span className="whitespace-nowrap text-xs text-slate-400">
+                                {new Date(application.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="mt-1 truncate text-xs text-slate-500">
+                              {application.jobId?.sourceLabel || "RecruitKr Hiring"}
+                            </p>
+                            <div className="mt-2 flex items-center justify-between gap-3">
+                              <p className="truncate text-sm text-slate-600">{latestNote}</p>
+                              {unreadCount ? (
+                                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#69A44F] px-1.5 text-[11px] font-bold text-white">
+                                  {unreadCount}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                  PROFILE_STATUS_BADGE_CLASSNAMES[application.status]
+                                }`}
+                              >
+                                {PROFILE_STATUS_LABELS[application.status]}
+                              </span>
+                              <span className="text-[11px] text-slate-400">
+                                {application.jobId?.jobLocation || "Location pending"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openChat(application._id)}
+                        title="Chat with employer"
+                        className="absolute bottom-3 right-4 flex items-center gap-1.5 rounded-lg border border-[#264a7f]/20 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#264a7f] shadow-sm transition hover:bg-[#264a7f] hover:text-white"
+                      >
+                        <MessageSquare size={15} />
+                        <span className="hidden sm:inline">Chat</span>
+                      </button>
+                    </div>
+                  );
+                })}
+                {applications.length === 0 && (
+                  <div className="px-4 py-8 text-center text-sm text-slate-500 sm:px-6">
+                    No applications yet. Browse jobs and apply to start a conversation with employers.
+                  </div>
                 )}
               </div>
+            </div>
 
-              <div className="mt-2 flex items-center gap-2">
+            <div className={`${brandCardClass} p-6`}>
+              {!selectedApplication && (
+                <p className="text-sm text-slate-500">
+                  Select an application to see your hiring progress and employer updates.
+                </p>
+              )}
 
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                    PROFILE_STATUS_BADGE_CLASSNAMES[
-                      application.status
-                    ]
-                  }`}
-                >
-                  {
-                    PROFILE_STATUS_LABELS[
-                      application.status
-                    ]
-                  }
-                </span>
+              {selectedApplication && (
+                <div className="space-y-6">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h3 className="font-heading text-xl font-semibold text-slate-900">
+                        {selectedApplication.jobId?.jobTitle || "Job Opening"}
+                      </h3>
+                      <p className="text-sm text-slate-500">
+                        {selectedApplication.jobId?.sourceLabel || "RecruitKr Hiring"}
+                        {selectedApplication.jobId?.jobLocation
+                          ? ` • ${selectedApplication.jobId.jobLocation}`
+                          : ""}
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${
+                        PROFILE_STATUS_BADGE_CLASSNAMES[selectedApplication.status]
+                      }`}
+                    >
+                      {PROFILE_STATUS_LABELS[selectedApplication.status]}
+                    </span>
+                  </div>
 
-                <span className="text-[11px] text-slate-400">
-                  {application.jobId?.jobLocation ||
-                    "Location Pending"}
-                </span>
-              </div>
+                  <ApplicationStepTracker
+                    status={selectedApplication.status}
+                    timeline={selectedApplication.timeline}
+                    className="rounded-xl border border-[#264a7f]/10 bg-slate-50 p-4"
+                  />
+
+                  {(() => {
+                    const snapshot = getApplicationResponseSnapshot(selectedApplication as Record<string, any>);
+                    const timing = getInterviewTimingMeta(snapshot.interviewDetails?.scheduledAt);
+                    return (
+                      <div className="space-y-4">
+                        {snapshot.statusNote && (
+                          <div className="rounded-xl border border-[#264a7f]/10 bg-slate-50 p-4">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Latest update</p>
+                            <p className="mt-2 text-sm text-slate-700">{snapshot.statusNote}</p>
+                          </div>
+                        )}
+
+                        {(selectedApplication.status === "interview" || snapshot.interviewDetails?.scheduledAt) && (
+                          <div className="rounded-xl border border-violet-200 bg-violet-50/70 p-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-sm font-semibold text-violet-900">Interview details</p>
+                              <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${timing.tone}`}>
+                                {timing.label}
+                              </span>
+                            </div>
+                            {snapshot.interviewDetails?.scheduledAt && (
+                              <p className="mt-2 text-sm text-slate-700">
+                                {formatInterviewDate(snapshot.interviewDetails.scheduledAt)}
+                                {formatInterviewTime(snapshot.interviewDetails.scheduledAt)
+                                  ? ` at ${formatInterviewTime(snapshot.interviewDetails.scheduledAt)}`
+                                  : ""}
+                              </p>
+                            )}
+                            {snapshot.interviewDetails?.locationText && (
+                              <p className="mt-1 text-sm text-slate-600">{snapshot.interviewDetails.locationText}</p>
+                            )}
+                            {snapshot.interviewDetails?.meetingLink && (
+                              <a
+                                href={snapshot.interviewDetails.meetingLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn-gradient mt-3 inline-flex rounded-lg px-4 py-2 text-sm font-semibold"
+                              >
+                                Join meeting
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  <button
+                    type="button"
+                    onClick={() => openChat(selectedApplication._id)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#264a7f]/20 bg-white px-4 py-2.5 text-sm font-semibold text-[#264a7f] transition hover:bg-[#264a7f] hover:text-white"
+                  >
+                    <MessageSquare size={16} />
+                    Message employer
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-          </button>
-          <Link
-            to={`/messages?application=${application._id}`}
-            title="Chat with employer"
-            className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1.5 rounded-lg border border-[#264a7f]/20 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#264a7f] shadow-sm transition hover:bg-[#264a7f] hover:text-white"
-          >
-            <MessageSquare size={15} />
-            <span className="hidden sm:inline">Chat</span>
-          </Link>
-        </div>
-      );
-    })}
-  </div>
-</div>
- )}
+        )}
+
+        {tab === "messages" && (
+          <Messages
+            embedded
+            preferApplicationId={chatApplicationId}
+            loginRedirect="/dashboard/candidate"
+            className="h-full min-h-0 w-full flex-1"
+          />
+        )}
+
+
 
         {tab === "profile" && (
           <section className="w-full">
-            <div className="mx-auto w-full max-w-screen-xl px-4 md:px-8 lg:px-12">
-              <div className="space-y-6 rounded-2xl bg-slate-50 py-2">
-                <div className="rounded-lg border border-[#264a7f]/10 bg-white p-5 text-center shadow-sm sm:p-6 md:text-left">
+            <div className="w-full">
+              <div className="space-y-5 sm:space-y-6">
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-5 text-center shadow-sm sm:p-6 md:text-left">
                   <h2 className="font-heading text-2xl font-bold text-slate-900">Candidate Profile</h2>
                   <p className="mt-2 text-sm text-slate-500">
                     Your basic profile details and job preferences in one place.
@@ -1937,7 +2067,7 @@ const CandidateDashboard = () => {
                   {resumeNotice && <p className="mt-3 text-sm text-green-600">{resumeNotice}</p>}
                 </div>
 
-                <div className="rounded-lg border border-[#264a7f]/10 bg-white p-5 shadow-sm sm:p-6">
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
                   <div className="flex flex-col items-center gap-5 text-center md:flex-row md:items-center md:text-left">
                     <button
                       type="button"
@@ -2020,7 +2150,7 @@ const CandidateDashboard = () => {
 
                 <div className="grid gap-6 xl:grid-cols-[1.7fr_1fr]">
                   <div className="space-y-6">
-                    <div className="rounded-lg border border-[#264a7f]/10 bg-white p-5 shadow-sm sm:p-6">
+                    <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
                       <h3 className="text-center text-lg font-bold text-slate-900 md:text-left">Basic Details</h3>
                       <div className="mt-5 grid gap-4 md:grid-cols-2">
                         <div
@@ -2186,7 +2316,7 @@ const CandidateDashboard = () => {
                       </div>
                     </div>
 
-                    <div className="rounded-lg border border-[#264a7f]/10 bg-white p-5 shadow-sm sm:p-6">
+                    <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
                       <h3 className="text-center text-lg font-bold text-slate-900 md:text-left">Contact &amp; Links</h3>
                       <div className="mt-5 grid gap-4 md:grid-cols-2">
                         <div className="rounded-lg border border-gray-200 bg-slate-50 p-4">
@@ -2254,7 +2384,7 @@ const CandidateDashboard = () => {
                       </div>
                     </div>
 
-                    <div className="rounded-lg border border-[#264a7f]/10 bg-white p-5 shadow-sm sm:p-6">
+                    <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
                       <h3 className="text-center text-lg font-bold text-slate-900 md:text-left">Work Mode</h3>
                       <div
                         className="group mt-5 rounded-lg border border-gray-200 bg-slate-50 p-4 transition hover:border-[#264a7f]/15 hover:bg-white"
@@ -2303,7 +2433,7 @@ const CandidateDashboard = () => {
                   </div>
 
                   <div className="space-y-6">
-                    <div className="rounded-lg border border-[#264a7f]/10 bg-white p-5 shadow-sm sm:p-6">
+                    <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
                       <h3 className="text-center text-lg font-bold text-slate-900 md:text-left">Quick Snapshot</h3>
                       <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                         <div className="rounded-lg border border-gray-200 bg-slate-50 p-5">
@@ -2335,7 +2465,7 @@ const CandidateDashboard = () => {
                     </div>
 
                     {(inlineSavingField || resumeSaving || profilePhotoLoading) && (
-                      <div className="rounded-lg border border-[#264a7f]/10 bg-white p-4 text-sm text-slate-500 shadow-sm">
+                      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 text-sm text-slate-500 shadow-sm">
                         Saving your latest profile updates...
                       </div>
                     )}
@@ -2349,7 +2479,7 @@ const CandidateDashboard = () => {
         {tab === "resume" && (
           <div className="space-y-4">
             <CandidateVideos />
-            <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+            <div className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-[0_1px_2px_rgba(16,24,40,0.05)] sm:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="font-heading text-xl font-bold">Resume Editor</h2>
@@ -2676,7 +2806,7 @@ const CandidateDashboard = () => {
                       <div>
                         <p className="text-sm font-medium">{c.title || c.fileName}</p>
                         <p className="text-xs text-muted-foreground">
-                          {c.mimeType} â€¢ {(c.size / 1024).toFixed(0)} KB â€¢{" "}
+                          {c.mimeType} • {(c.size / 1024).toFixed(0)} KB •{" "}
                           {new Date(c.createdAt).toLocaleDateString()}
                         </p>
                       </div>

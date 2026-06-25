@@ -336,6 +336,39 @@
   }
 }
 
+/* Slow drifting gradient for the dashboard hero banner (from the RecruitKr design). */
+@keyframes drift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-drift {
+    animation: none !important;
+  }
+}
+
+/* Semi-transparent so a hero background image shows through; over the hero's
+   own dark base (#16305a) it still reads as a rich gradient with no image. */
+.hero-drift {
+  background: linear-gradient(
+    120deg,
+    rgba(42, 80, 137, 0.82),
+    rgba(28, 58, 102, 0.78),
+    rgba(38, 74, 127, 0.82),
+    rgba(22, 48, 90, 0.9)
+  );
+  background-size: 300% 300%;
+  animation: drift 16s ease infinite;
+}
+
 @keyframes pop-in {
   from {
     opacity: 0;

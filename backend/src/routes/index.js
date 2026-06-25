@@ -10,6 +10,7 @@ import dashboardRoutes from './dashboard.routes.js';
 import jobsRoutes from './jobs.routes.js';
 import messageRoutes from './message.routes.js';
 import resumeRoutes from './resume.routes.js';
+import searchRoutes from './search.routes.js';
 import uploadRoutes from './upload.routes.js';
 import userRoutes from './user.routes.js';
 
@@ -32,6 +33,7 @@ router.use('/auth', authRoutes);
 router.use('/blogs', blogRoutes);
 router.use('/users', userRoutes);
 router.use('/jobs', jobsRoutes);
+router.use('/search', searchRoutes);
 router.use('/resumes', resumeRoutes);
 router.use('/dashboards', dashboardRoutes);
 router.use('/contact', contactRoutes);

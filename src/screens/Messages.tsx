@@ -26,9 +26,11 @@ import {
   Video,
   X,
 } from "lucide-react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+
+
+
 import { Link, useLocation, useNavigate } from "@/compat/router";
+import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/auth";
 import { useServerEvents } from "@/hooks/useServerEvents";
 import {
@@ -159,9 +161,8 @@ const StatusPipeline = ({ status }: { status: ApplicationStatus }) => {
             <div className="flex w-full items-center">
               <span className={`h-0.5 flex-1 ${idx === 0 ? "opacity-0" : done ? "bg-primary" : "bg-border"}`} />
               <span
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition ${
-                  done ? "bg-primary text-white" : "border border-border bg-card text-muted-foreground"
-                }`}
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition ${done ? "bg-primary text-white" : "border border-border bg-card text-muted-foreground"
+                  }`}
               >
                 {idx + 1}
               </span>
@@ -185,7 +186,21 @@ const Ticks = ({ status }: { status: ChatMessage["status"] }) => {
   return <Check size={15} className="text-white/70" />;
 };
 
-const Messages = () => {
+type MessagesProps = {
+  /** Render inside a dashboard tab instead of the standalone /messages page. */
+  embedded?: boolean;
+  className?: string;
+  /** Open chat for this application when switching to the Messages tab. */
+  preferApplicationId?: string | null;
+  loginRedirect?: string;
+};
+
+const Messages = ({
+  embedded = false,
+  className,
+  preferApplicationId = null,
+  loginRedirect = "/messages",
+}: MessagesProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const session = typeof window !== "undefined" ? getSession() : null;
@@ -236,11 +251,13 @@ const Messages = () => {
   // Gate the screen behind login.
   useEffect(() => {
     if (!session) {
-      navigate("/login?redirect=/messages");
+      if (!embedded) {
+        navigate(`/login?redirect=${encodeURIComponent(loginRedirect)}`);
+      }
       return;
     }
     setAuthChecked(true);
-  }, [navigate, session]);
+  }, [embedded, loginRedirect, navigate, session]);
 
   const loadConversations = useCallback(async (preferApplicationId?: string | null) => {
     try {
@@ -277,12 +294,25 @@ const Messages = () => {
     }
   }, []);
 
+  const openApplicationChat = useCallback(
+    async (applicationId: string) => {
+      try {
+        const conv = await openConversation(applicationId);
+        setActiveId(conv.id);
+        setConversations((prev) => (prev.some((c) => c.id === conv.id) ? prev : [conv, ...prev]));
+      } catch {
+        setError("Could not open this conversation. Please try again.");
+      }
+    },
+    [],
+  );
+
   // Initial load (+ deep link via ?application= or ?c=).
   useEffect(() => {
     if (!authChecked) return;
     const params = new URLSearchParams(location.search);
     const deepConv = params.get("c");
-    const deepApp = params.get("application");
+    const deepApp = params.get("application") || preferApplicationId || null;
 
     void loadConversations(deepApp);
 
@@ -291,17 +321,12 @@ const Messages = () => {
     if (deepConv) {
       setActiveId(deepConv);
     } else if (deepApp) {
-      void openConversation(deepApp)
-        .then((conv) => {
-          setActiveId(conv.id);
-          setConversations((prev) => (prev.some((c) => c.id === conv.id) ? prev : [conv, ...prev]));
-        })
-        .catch(() => {});
+      void openApplicationChat(deepApp);
     }
 
     const id = window.setInterval(() => loadConversations(), CONVERSATION_POLL_MS);
     return () => window.clearInterval(id);
-  }, [authChecked, loadConversations, location.search]);
+  }, [authChecked, loadConversations, location.search, openApplicationChat, preferApplicationId]);
 
   // Load the active thread when it changes.
   useEffect(() => {
@@ -338,11 +363,11 @@ const Messages = () => {
             prev.map((c) =>
               c.id === payload.conversationId
                 ? {
-                    ...c,
-                    lastMessage: payload.lastMessage || c.lastMessage,
-                    lastMessageAt: new Date().toISOString(),
-                    unread: (c.unread || 0) + 1,
-                  }
+                  ...c,
+                  lastMessage: payload.lastMessage || c.lastMessage,
+                  lastMessageAt: new Date().toISOString(),
+                  unread: (c.unread || 0) + 1,
+                }
                 : c,
             ),
           );
@@ -586,19 +611,45 @@ const Messages = () => {
 
   if (!authChecked) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div
+        className={cn(
+          "flex items-center justify-center bg-background",
+          embedded ? "h-[420px] w-full rounded-2xl border border-border" : "min-h-screen",
+        )}
+      >
         <Loader2 className="animate-spin text-primary" size={28} />
       </div>
     );
   }
 
+  const chatShellClass = embedded
+    ? cn(
+        "grid h-full min-h-0 w-full overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:grid-cols-[330px_1fr]",
+        className ?? "h-[calc(100vh-11rem)] min-h-[480px]",
+      )
+    : cn(
+        "mx-auto grid h-[calc(100vh-2rem)] min-h-[560px] w-full max-w-[1600px] overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:grid-cols-[360px_1fr]",
+        className,
+      );
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Navbar />
-      <main className="container mx-auto flex-1 px-2 pb-10 pt-24 sm:px-4">
-        <div className="mx-auto grid h-[calc(100vh-9rem)] max-w-7xl overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:grid-cols-[330px_1fr]">
-          {/* Conversation list */}
-          <aside className={`flex flex-col border-r border-border ${activeId ? "hidden md:flex" : "flex"}`}>
+    <div className={embedded ? "flex min-h-0 w-full flex-1" : "min-h-screen bg-background px-3 py-4 sm:px-4 sm:py-6"}>
+      {!embedded && (
+        <div className="mx-auto mb-4 flex max-w-[1600px] items-center justify-between gap-3 px-1">
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Messages</h1>
+            <p className="text-sm text-muted-foreground">Chat with employers and candidates in real time.</p>
+          </div>
+          <Link
+            to={myRole === "client" ? "/dashboard/client" : "/dashboard/candidate"}
+            className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+          >
+            Back to dashboard
+          </Link>
+        </div>
+      )}
+      <div className={chatShellClass}>
+          <aside className={`flex flex-col border-r  border-border ${activeId ? "hidden md:flex" : "flex"}`}>
             <header className="border-b border-border px-4 py-4">
               <h1 className="text-lg font-bold text-foreground">Messages</h1>
               <div className="relative mt-3">
@@ -611,7 +662,7 @@ const Messages = () => {
                 />
               </div>
             </header>
-            <div className="scrollbar-slim flex-1 overflow-y-auto">
+            <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
               {loadingList ? (
                 <div className="space-y-1 p-3">
                   {Array.from({ length: 6 }).map((_, i) => (
@@ -638,9 +689,8 @@ const Messages = () => {
                   <button
                     key={conv.id}
                     onClick={() => openConversationRow(conv.id)}
-                    className={`flex w-full items-center gap-3 border-b border-border/60 px-4 py-3 text-left transition hover:bg-muted/50 ${
-                      activeId === conv.id ? "bg-muted/60" : ""
-                    }`}
+                    className={`flex w-full items-center gap-3 border-b border-border/60 px-4 py-3 text-left transition hover:bg-muted/50 ${activeId === conv.id ? "bg-muted/60" : ""
+                      }`}
                   >
                     <div className="relative">
                       <Avatar name={conv.withName} photoUrl={conv.withPhotoUrl} />
@@ -675,8 +725,14 @@ const Messages = () => {
           </aside>
 
           {/* Chat + details */}
-          <section className={`grid min-w-0 ${activeId ? "grid" : "hidden md:grid"} ${showDetails && canShowDetails ? "lg:grid-cols-[1fr_300px]" : "grid-cols-1"}`}>
-            <div className="flex min-w-0 flex-col">
+          <section
+            className={`grid min-w-0 min-h-0 ${activeId ? "grid" : "hidden md:grid"
+              } ${showDetails && canShowDetails
+                ? "lg:grid-cols-[1fr_300px]"
+                : "grid-cols-1"
+              }`}
+          >
+            <div className="flex min-w-0 min-h-0 flex-col">
               {!activeConv ? (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -721,9 +777,8 @@ const Messages = () => {
                     {myRole === "client" && (
                       <button
                         onClick={() => setShowInterview((v) => !v)}
-                        className={`rounded-lg p-2 transition hover:bg-muted ${
-                          showInterview ? "text-primary" : "text-muted-foreground hover:text-primary"
-                        }`}
+                        className={`rounded-lg p-2 transition hover:bg-muted ${showInterview ? "text-primary" : "text-muted-foreground hover:text-primary"
+                          }`}
                         aria-label="Schedule interview"
                         title="Schedule interview"
                       >
@@ -818,7 +873,7 @@ const Messages = () => {
                     </form>
                   )}
 
-                  <div className="scrollbar-slim flex-1 space-y-1.5 overflow-y-auto bg-muted/20 px-4 py-4">
+                  <div className="scrollbar-slim min-h-0 flex-1 space-y-1.5 overflow-y-auto bg-muted/20 px-4 py-4">
                     {loadingThread ? (
                       <div className="flex justify-center py-10 text-muted-foreground">
                         <Loader2 className="animate-spin" size={20} />
@@ -921,11 +976,10 @@ const Messages = () => {
                             )}
                             <div className={`flex ${msg.mine ? "justify-end" : "justify-start"}`}>
                               <div
-                                className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
-                                  msg.mine
-                                    ? "rounded-br-sm bg-primary text-white"
-                                    : "rounded-bl-sm border border-border bg-card text-foreground"
-                                }`}
+                                className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm ${msg.mine
+                                  ? "rounded-br-sm bg-primary text-white"
+                                  : "rounded-bl-sm border border-border bg-card text-foreground"
+                                  }`}
                               >
                                 {isImage ? (
                                   <a href={msg.attachment!.url} target="_blank" rel="noopener noreferrer">
@@ -952,9 +1006,8 @@ const Messages = () => {
                                       href={msg.attachment.url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className={`mb-1 flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium ${
-                                        msg.mine ? "bg-white/15" : "bg-muted"
-                                      }`}
+                                      className={`mb-1 flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium ${msg.mine ? "bg-white/15" : "bg-muted"
+                                        }`}
                                     >
                                       <FileText size={15} />
                                       <span className="truncate">{msg.attachment.name}</span>
@@ -963,9 +1016,8 @@ const Messages = () => {
                                 )}
                                 {msg.body && <p className="whitespace-pre-wrap break-words">{msg.body}</p>}
                                 <div
-                                  className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${
-                                    msg.mine ? "text-white/70" : "text-muted-foreground"
-                                  }`}
+                                  className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${msg.mine ? "text-white/70" : "text-muted-foreground"
+                                    }`}
                                 >
                                   {formatTime(msg.createdAt)}
                                   {msg.mine && <Ticks status={msg.status} />}
@@ -1246,9 +1298,7 @@ const Messages = () => {
               </aside>
             )}
           </section>
-        </div>
-      </main>
-      <Footer />
+      </div>
     </div>
   );
 };

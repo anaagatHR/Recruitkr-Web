@@ -4,11 +4,13 @@ import { Link, useNavigate } from "@/compat/router";
 import OptimizedLogo from "@/components/OptimizedLogo";
 import ApplicationStepTracker from "@/components/ApplicationStepTracker";
 import DashboardLayout, { type DashboardNavItem } from "@/components/DashboardLayout";
-import { Building2, ClipboardList, FileText, MessageSquare, Sparkles, Users } from "lucide-react";
+import { Building2, ClipboardList, FileText, MessageSquare, Sparkles, UserSearch, Users } from "lucide-react";
+import CandidateSearch from "@/components/search/CandidateSearch";
 import { API_BASE, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { clearSession, getSession } from "@/lib/auth";
 import { useServerEvents, type SseConnectionStatus } from "@/hooks/useServerEvents";
 import { tryAutoLogin } from "@/lib/autoLogin";
+import Messages from "@/screens/Messages";
 
 type ApplicationStatus =
   | "applied"
@@ -29,7 +31,7 @@ const dashboardHeaderClass =
 const brandCardClass =
   "rounded-[28px] border border-[#264a7f]/10 bg-white/92 shadow-[0_20px_60px_rgba(38,74,127,0.08)] backdrop-blur";
 const statCardClass =
-  "rounded-2xl border border-[#264a7f]/10 bg-white/95 p-5 shadow-[0_16px_40px_rgba(38,74,127,0.08)]";
+  "rounded-2xl border border-[#264a7f]/10 bg-white/95 p-4 shadow-[0_16px_40px_rgba(38,74,127,0.08)] sm:p-5";
 // Consistent inner card used across the application-detail panel so the sections
 // share one clean, brand-aligned style instead of mismatched grey borders.
 const detailCardClass = "rounded-2xl border border-[#264a7f]/10 bg-white p-5 shadow-sm";
@@ -337,7 +339,8 @@ const ClientDashboard = () => {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsFormVisible, setDetailsFormVisible] = useState(false);
   const [savingApplicationId, setSavingApplicationId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"overview" | "requirements" | "applications" | "resumes" | "profile">("overview");
+  const [tab, setTab] = useState<"overview" | "requirements" | "applications" | "candidates" | "messages" | "resumes" | "profile">("overview");
+  const [chatApplicationId, setChatApplicationId] = useState<string | null>(null);
   const [showCreateRequirementForm, setShowCreateRequirementForm] = useState(false);
   const [creatingRequirement, setCreatingRequirement] = useState(false);
   const [editingRequirementId, setEditingRequirementId] = useState<string | null>(null);
@@ -892,6 +895,11 @@ const ClientDashboard = () => {
     navigate("/login");
   };
 
+  const openChat = (applicationId?: string | null) => {
+    setChatApplicationId(applicationId ?? null);
+    setTab("messages");
+  };
+
   const uploadProfileImage = async (file: File) => {
     setError("");
     try {
@@ -932,6 +940,8 @@ const ClientDashboard = () => {
     { key: "overview", label: "Overview", icon: Sparkles },
     { key: "requirements", label: "Requirements", icon: ClipboardList },
     { key: "applications", label: "Applications", icon: Users },
+    { key: "candidates", label: "Candidates", icon: UserSearch },
+    { key: "messages", label: "Messages", icon: MessageSquare },
     { key: "resumes", label: "Resumes", icon: FileText },
     { key: "profile", label: "Profile", icon: Building2 },
   ];
@@ -1030,14 +1040,15 @@ const ClientDashboard = () => {
                 </div>
               </div>
             </button>
-            <Link
-              to={`/messages?application=${application._id}`}
+            <button
+              type="button"
+              onClick={() => openChat(application._id)}
               title="Chat with candidate"
               className="absolute bottom-3 right-4 flex items-center gap-1.5 rounded-lg border border-[#264a7f]/20 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#264a7f] shadow-sm transition hover:bg-[#264a7f] hover:text-white"
             >
               <MessageSquare size={15} />
               <span className="hidden sm:inline">Chat</span>
-            </Link>
+            </button>
             </div>
           ))}
           {applications.length === 0 && (
@@ -1232,12 +1243,13 @@ const ClientDashboard = () => {
               >
                 {savingApplicationId === selectedApplicationDetails.application._id ? "Rejecting..." : "Reject"}
               </button>
-              <Link
-                to={`/messages?application=${selectedApplicationDetails.application._id}`}
+              <button
+                type="button"
+                onClick={() => openChat(selectedApplicationDetails.application._id)}
                 className="inline-flex items-center gap-2 rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary hover:text-white"
               >
                 <MessageSquare size={16} /> Message Candidate
-              </Link>
+              </button>
             </div>
 
             {detailsFormVisible && (
@@ -1545,12 +1557,28 @@ const ClientDashboard = () => {
     </div>
   );
 
-  if (!sessionState?.accessToken) {
-    return <div className="min-h-screen bg-background p-8">Checking your session...</div>;
-  }
-
-  if (loading) {
-    return <div className="min-h-screen bg-background p-8">Loading employer dashboard...</div>;
+  if (!sessionState?.accessToken || loading) {
+    return (
+      <div className="min-h-screen bg-background p-4 sm:p-6 lg:p-8" aria-busy="true" aria-label="Loading dashboard">
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div className="space-y-2">
+            <div className="skeleton h-5 w-44 rounded-lg" />
+            <div className="skeleton h-3 w-60 rounded-lg" />
+          </div>
+          <div className="skeleton h-9 w-9 rounded-xl" />
+        </div>
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="skeleton h-24 w-full rounded-2xl" />
+          ))}
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="skeleton h-20 w-full rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1562,6 +1590,7 @@ const ClientDashboard = () => {
       activeKey={tab}
       onSelect={(key) => setTab(key)}
       onLogout={logout}
+      onMessagesClick={() => openChat()}
       userLabel={profile?.companyName || sessionState?.user.email}
       headerExtra={
         <span
@@ -1575,16 +1604,36 @@ const ClientDashboard = () => {
 
         {tab === "overview" && (
           <>
-            <div
-              className={`${brandCardClass} overflow-hidden p-6 md:p-8`}
-              style={{
-                background: "linear-gradient(135deg, rgba(38,74,127,0.96) 0%, rgba(55,110,168,0.95) 58%, rgba(105,164,79,0.9) 100%)",
-              }}
-            >
-              <div className="grid gap-6 lg:grid-cols-[1.25fr,0.75fr] lg:items-end">
+            <div className={`${brandCardClass} relative overflow-hidden bg-[#16305a] p-5 sm:p-6 md:p-8`}>
+              {/* Hero background image — drop your file at public/hero-bg.jpg (or change src). */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/hero-bg.jpg"
+                alt=""
+                aria-hidden
+                className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+              {/* Animated drift gradient tint — RecruitKr design hero */}
+              <div aria-hidden className="hero-drift pointer-events-none absolute inset-0" />
+              {/* Diagonal texture */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0"
+                style={{ background: "repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 2px, transparent 2px 22px)" }}
+              />
+              {/* Soft vignette for text contrast over any image */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0"
+                style={{ background: "linear-gradient(180deg, rgba(13,26,48,.35) 0%, rgba(13,26,48,.15) 45%, rgba(13,26,48,.6) 100%)" }}
+              />
+              <div className="relative z-10 grid gap-6 lg:grid-cols-[1.25fr,0.75fr] lg:items-end">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/75">RecruitKr Employer Space</p>
-                  <h1 className="mt-3 break-words font-heading text-3xl font-bold text-white md:text-4xl">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/75 sm:text-xs">RecruitKr Employer Space</p>
+                  <h1 className="mt-2 break-words font-heading text-2xl font-bold text-white sm:mt-3 sm:text-3xl md:text-4xl">
                     {profile?.companyName || sessionState?.user.email}
                   </h1>
                   <p className="mt-3 max-w-2xl text-sm text-white/80 md:text-base">
@@ -1602,7 +1651,7 @@ const ClientDashboard = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
               <div className={statCardClass}><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#264a7f]">Active Roles</p><p className="mt-3 text-3xl font-bold text-slate-900">{dashboard?.stats.activeRequirements || 0}</p><p className="mt-1 text-sm text-slate-500">Open requirements currently live</p></div>
               <div className={statCardClass}><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#264a7f]">Candidates</p><p className="mt-3 text-3xl font-bold text-slate-900">{dashboard?.stats.candidatesSourced || 0}</p><p className="mt-1 text-sm text-slate-500">Profiles now in your hiring funnel</p></div>
               <div className={statCardClass}><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#69a44f]">Interviews</p><p className="mt-3 text-3xl font-bold text-slate-900">{dashboard?.stats.interviewsScheduled || 0}</p><p className="mt-1 text-sm text-slate-500">Scheduled interactions with shortlisted talent</p></div>
@@ -1863,6 +1912,17 @@ const ClientDashboard = () => {
         )}
 
         {tab === "applications" && renderApplicationsTab()}
+        {tab === "candidates" && (
+          <CandidateSearch onOpenChat={(conversationId) => navigate(`/messages?c=${conversationId}`)} />
+        )}
+        {tab === "messages" && (
+          <Messages
+            embedded
+            preferApplicationId={chatApplicationId}
+            loginRedirect="/dashboard/client"
+            className="h-full min-h-0 w-full flex-1"
+          />
+        )}
         {tab === "resumes" && renderResumesTab()}
 
         {tab === "profile" && (

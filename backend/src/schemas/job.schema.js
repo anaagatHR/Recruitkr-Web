@@ -46,6 +46,9 @@ export const listJobsQuerySchema = z
     limit: z.coerce.number().int().positive().max(50).default(10),
     location: z.string().trim().max(80).optional(),
     type: z.string().trim().max(50).optional(),
+    // Desired annual salary band in LPA; a job matches when its range overlaps.
+    minSalary: z.coerce.number().nonnegative().optional(),
+    maxSalary: z.coerce.number().nonnegative().optional(),
   })
    .strict();
 

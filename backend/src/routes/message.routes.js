@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import {
   createConversation,
+  createDirectConversation,
   getMessages,
   listConversations,
   markConversationRead,
@@ -19,6 +20,8 @@ router.use(requireAuth, requireRole('candidate', 'client'));
 
 router.get('/', listConversations);
 router.post('/', createConversation);
+// Recruiter → candidate direct chat from search (no application needed).
+router.post('/direct', createDirectConversation);
 router.get('/:id/messages', getMessages);
 router.post('/:id/messages', messageFileUpload.single('file'), sendMessage);
 router.post('/:id/typing', sendTyping);

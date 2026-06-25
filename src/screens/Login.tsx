@@ -1,10 +1,10 @@
 ﻿"use client";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "@/compat/router";
-import { Sparkles, ShieldCheck, Zap, Heart } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { apiGet } from "@/lib/api";
+import AuthHero from "@/components/auth/AuthHero";
+import { apiGet, apiPost } from "@/lib/api";
 import { setSession } from "@/lib/auth";
 
 // Brand palette (navy / green / amber).
@@ -12,11 +12,6 @@ const NAVY = "#264a7f";
 const GREEN = "#69a44f";
 const AMBER = "#e59f56";
 
-const perks = [
-  { icon: Zap, text: "Apply to jobs in one click", color: NAVY },
-  { icon: ShieldCheck, text: "Verified, top-rated companies", color: GREEN },
-  { icon: Heart, text: "Track every application in one place", color: AMBER },
-];
 
 const Login = () => {
   const navigate = useNavigate();
@@ -217,35 +212,8 @@ useEffect(() => {
         />
 
         <div className="container relative mx-auto grid max-w-5xl items-center gap-10 px-4 lg:grid-cols-2">
-          {/* Value side */}
-          <div className="hidden lg:block">
-            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
-              <Sparkles size={14} /> Welcome back
-            </p>
-            <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-foreground">
-              Log in to your{" "}
-              <span className="bg-gradient-to-r from-[#264a7f] via-[#69a44f] to-[#e59f56] bg-clip-text text-transparent">
-                RecruitKr
-              </span>{" "}
-              account
-            </h1>
-            <p className="mt-4 text-muted-foreground">
-              Pick up right where you left off — apply, track and manage everything in one place.
-            </p>
-            <ul className="mt-7 space-y-4">
-              {perks.map((perk) => (
-                <li key={perk.text} className="flex items-center gap-3 text-sm font-medium text-foreground">
-                  <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white"
-                    style={{ backgroundColor: perk.color }}
-                  >
-                    <perk.icon size={17} />
-                  </span>
-                  {perk.text}
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Value side — branded hero panel from the RecruitKr design */}
+          <AuthHero className="hidden lg:flex" />
 
           {/* Form card */}
           <div className="mx-auto w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-xl">

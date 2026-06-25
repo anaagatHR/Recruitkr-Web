@@ -34,11 +34,17 @@ export const getActiveNormalizedJobs = async (loader, { force = false } = {}) =>
 const includesCI = (haystack, needle) =>
   String(haystack || '').toLowerCase().includes(String(needle).trim().toLowerCase());
 
-export const filterSortPaginateJobs = (jobs, { q, location, type, page = 1, limit = 10 }) => {
+export const filterSortPaginateJobs = (jobs, { q, location, type, minSalary, maxSalary, page = 1, limit = 10 }) => {
+  const floor = minSalary != null && Number.isFinite(Number(minSalary)) ? Number(minSalary) : null;
+  const ceil = maxSalary != null && Number.isFinite(Number(maxSalary)) ? Number(maxSalary) : null;
+
   const filtered = jobs.filter((job) => {
     if (q && !includesCI(job.jobTitle, q) && !includesCI(job.companyName, q)) return false;
     if (location && !includesCI(job.jobLocation, location)) return false;
     if (type && job.employmentType !== type) return false;
+    // Salary band overlap against the job's [minCtcLpa, maxCtcLpa] range.
+    if (floor != null && Number.isFinite(job.maxCtcLpa) && job.maxCtcLpa < floor) return false;
+    if (ceil != null && Number.isFinite(job.minCtcLpa) && job.minCtcLpa > ceil) return false;
     return true;
   });
 

@@ -2,9 +2,10 @@
 
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "@/compat/router";
-import { Building2, CheckCircle2, Lock, Mail, Phone, User, Sparkles } from "lucide-react";
+import { Building2, CheckCircle2, Lock, Mail, Phone, User } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import AuthHero from "@/components/auth/AuthHero";
 import { apiPost } from "@/lib/api";
 import { setSession } from "@/lib/auth";
 
@@ -169,37 +170,8 @@ export default function SignupScreen({ role = "candidate" }: { role?: SignupRole
         />
 
         <div className="container relative mx-auto grid max-w-5xl gap-10 px-4 lg:grid-cols-2 lg:items-center">
-        {/* Value side */}
-        <div className="hidden lg:block">
-          <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
-            <Sparkles size={14} /> Join RecruitKr
-          </p>
-          <h1 className="font-heading text-4xl font-extrabold leading-tight tracking-tight text-foreground">
-            <span className="bg-gradient-to-r from-[#264a7f] via-[#69a44f] to-[#e59f56] bg-clip-text text-transparent">
-              {c.heading}
-            </span>
-          </h1>
-          <p className="mt-4 text-muted-foreground">{c.sub}</p>
-          <span className="mt-5 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-            {c.badge}
-          </span>
-          <ul className="mt-7 space-y-4">
-            {c.perks.map((p, i) => {
-              const colors = ["#264a7f", "#69a44f", "#e59f56"];
-              return (
-                <li key={p} className="flex items-center gap-3 text-sm font-medium text-foreground">
-                  <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white"
-                    style={{ backgroundColor: colors[i % colors.length] }}
-                  >
-                    <CheckCircle2 size={17} />
-                  </span>
-                  {p}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        {/* Value side — branded hero panel from the RecruitKr design */}
+        <AuthHero className="hidden lg:flex" />
 
         {/* Form */}
         <div className="mx-auto w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-xl">

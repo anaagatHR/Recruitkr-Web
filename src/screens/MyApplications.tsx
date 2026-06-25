@@ -163,7 +163,7 @@ const MyApplications = () => {
     <Navbar />
 
     <main className="container mx-auto flex-1 px-4 pb-16 pt-24">
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-7xl">
 
         {/* Header */}
      <header className="mb-8 rounded-3xl border border-border/40 bg-card/60 p-6 backdrop-blur-xl shadow-sm">
@@ -199,7 +199,7 @@ const MyApplications = () => {
 
         {/* Loading */}
         {loading ? (
-          <ul className="space-y-4">
+          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <li
                 key={i}
