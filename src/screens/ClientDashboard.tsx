@@ -9,6 +9,7 @@ import CandidateSearch from "@/components/search/CandidateSearch";
 import { API_BASE, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { clearSession, getSession } from "@/lib/auth";
 import { useServerEvents, type SseConnectionStatus } from "@/hooks/useServerEvents";
+import { useTabHistory } from "@/hooks/useTabHistory";
 import { tryAutoLogin } from "@/lib/autoLogin";
 import Messages from "@/screens/Messages";
 
@@ -340,6 +341,8 @@ const ClientDashboard = () => {
   const [detailsFormVisible, setDetailsFormVisible] = useState(false);
   const [savingApplicationId, setSavingApplicationId] = useState<string | null>(null);
   const [tab, setTab] = useState<"overview" | "requirements" | "applications" | "candidates" | "messages" | "resumes" | "profile">("overview");
+  // Back button (incl. phone) steps through tabs, leaving the page from Overview.
+  useTabHistory(tab, setTab, "overview");
   const [chatApplicationId, setChatApplicationId] = useState<string | null>(null);
   const [showCreateRequirementForm, setShowCreateRequirementForm] = useState(false);
   const [creatingRequirement, setCreatingRequirement] = useState(false);

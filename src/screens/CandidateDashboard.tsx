@@ -13,6 +13,7 @@ import { API_BASE, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { clearSession, getSession } from "@/lib/auth";
 import { useServerEvents, type SseConnectionStatus } from "@/hooks/useServerEvents";
 import { tryAutoLogin } from "@/lib/autoLogin";
+import { useTabHistory } from "@/hooks/useTabHistory";
 import { uploadFile, uploadRules, validateUploadFile } from "@/lib/uploadFile";
 import Messages from "./Messages";
 const JOBS_PAGE_LIMIT = 20;
@@ -447,6 +448,8 @@ type EditableProfileField =
 const CandidateDashboard = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState<"overview" | "jobs" | "applications" | "messages" | "resume" | "profile">("overview");
+  // Back button (incl. phone) steps through tabs, leaving the page from Overview.
+  useTabHistory(tab, setTab, "overview");
   const [chatApplicationId, setChatApplicationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
