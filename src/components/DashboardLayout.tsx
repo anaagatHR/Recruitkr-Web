@@ -60,8 +60,8 @@ export default function DashboardLayout<K extends string>({
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-card/80 backdrop-blur-xl lg:flex">
         <div className="flex h-16 items-center border-b border-border px-5">
           <OptimizedLogo
-            className="block h-9 w-auto"
-            imgClassName="h-9 w-auto object-contain object-left"
+            className="block h-14 w-auto"
+            imgClassName="h-14 w-auto object-contain object-left"
           />
         </div>
 
@@ -123,10 +123,10 @@ export default function DashboardLayout<K extends string>({
         <header className="sticky top-0 z-30 border-b border-border bg-card/80 px-4 py-3 backdrop-blur-xl sm:px-6">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="flex h-9 w-[120px] items-center lg:hidden">
+              <span className="flex h-11 items-center lg:hidden">
                 <OptimizedLogo
-                  className="block h-full w-full"
-                  imgClassName="h-full w-full object-contain object-left"
+                  className="block h-full w-auto"
+                  imgClassName="h-full w-auto object-contain object-left"
                 />
               </span>
               <div className="min-w-0">
@@ -162,9 +162,12 @@ export default function DashboardLayout<K extends string>({
             // the page) on every screen, so the embedded chat fits exactly.
             "min-h-0 flex-1 overflow-y-auto",
             // Mobile clears the fixed bottom nav (pb-24); desktop uses normal padding.
-            onMessagesClick
-              ? "flex flex-col px-4 pb-24 pt-6 sm:px-6 lg:px-8 lg:pb-6"
-              : "space-y-6 px-4 pb-24 pt-6 sm:px-6 lg:px-8 lg:pb-6",
+            // The chat tab uses tight padding so the conversation fills the space.
+            String(activeKey) === "messages"
+              ? "flex flex-col p-2 pb-20 sm:p-3 lg:p-4 lg:pb-4"
+              : onMessagesClick
+                ? "flex flex-col px-4 pb-24 pt-6 sm:px-6 lg:px-8 lg:pb-6"
+                : "space-y-6 px-4 pb-24 pt-6 sm:px-6 lg:px-8 lg:pb-6",
           )}
         >
           {children}

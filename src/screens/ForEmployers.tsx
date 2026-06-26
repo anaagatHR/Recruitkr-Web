@@ -72,6 +72,14 @@ export default function ForEmployers() {
       closingTitle="Build your team Befikr"
       closingSubtitle="Start hiring verified candidates on RecruitKr today."
     >
+      {/* Candidate success — how candidates get the job (shown to employers) */}
+      <YouTubeShorts
+        audience="candidate"
+        eyebrow="Candidate Success"
+        title="Candidate success stories"
+        subtitle="Real stories from people who landed their job through RecruitKr."
+        channelUrl={CHANNEL_URL}
+      />
       {/* Employer reviews */}
       <section className="bg-muted/40 py-14 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -111,15 +119,6 @@ export default function ForEmployers() {
           </RevealGroup>
         </div>
       </section>
-
-      {/* Candidate success — shown to employers (proof of talent) */}
-      <YouTubeShorts
-        audience="candidate"
-        eyebrow="Candidate Success"
-        title="How candidates get hired on RecruitKr"
-        subtitle="Real stories from people who landed their job through RecruitKr."
-        channelUrl={CHANNEL_URL}
-      />
     </MarketingPage>
   );
 }

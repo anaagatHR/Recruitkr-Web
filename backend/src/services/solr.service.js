@@ -73,6 +73,53 @@ export const pingSolr = async ({ force = false } = {}) => {
   }
 };
 
+/** Document count for a core (via a rows=0 match-all). Returns null on failure. */
+const coreDocCount = async (core) => {
+  try {
+    const body = await solrFetchCore(core, '/select?q=*:*&rows=0&wt=json');
+    const n = body?.response?.numFound;
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Prints a clear, human-readable Solr status banner at boot so operators can see
+ * at a glance whether search is running on Solr or the MongoDB fallback — and
+ * whether the cores still need a reindex. Never throws.
+ */
+export const reportSolrStatus = async () => {
+  if (!isConfigured()) {
+    console.log('🔎 Search: MongoDB (Solr not configured — set SOLR_URL to enable)');
+    return;
+  }
+
+  const url = env.SOLR_URL;
+  const reachable = await pingSolr({ force: true });
+  if (!reachable) {
+    console.warn(`⚠️  Solr: configured at ${url} but UNREACHABLE — using MongoDB fallback.`);
+    console.warn('    The backend re-checks every 15s and switches to Solr automatically once it is up.');
+    return;
+  }
+
+  const [jobs, candidates] = await Promise.all([
+    coreDocCount(env.SOLR_JOBS_CORE),
+    coreDocCount(env.SOLR_CANDIDATES_CORE),
+  ]);
+
+  console.log(`✅ Solr connected: ${url}`);
+  console.log(
+    `   • core "${env.SOLR_JOBS_CORE}": ${jobs ?? 'unknown'} docs` +
+      (jobs === 0 ? '  → run `npm run solr:reindex` to backfill' : ''),
+  );
+  console.log(
+    `   • core "${env.SOLR_CANDIDATES_CORE}": ${candidates ?? 'unknown'} docs` +
+      (candidates === 0 ? '  → run `npm run solr:reindex:candidates` to backfill' : ''),
+  );
+  console.log('   Search engine: Solr (MongoDB fallback active only if Solr goes down)');
+};
+
 const toEpochDate = (value) => {
   if (!value) return null;
   const date = new Date(value);

@@ -1917,20 +1917,24 @@ const ClientDashboard = () => {
         {tab === "profile" && (
           <div className="grid gap-6 lg:grid-cols-[1.2fr,0.8fr]">
             <div className="rounded-xl border border-border bg-card p-6">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h2 className="font-heading text-xl font-semibold">Company Profile</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Your recruiter-facing company information in one place.
-                  </p>
+              <div className="relative -mx-6 -mt-6 mb-6 overflow-hidden rounded-t-xl bg-[#16305a] px-6 py-5">
+                <div aria-hidden className="hero-drift pointer-events-none absolute inset-0" />
+                <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/70">My Profile</p>
+                    <h2 className="mt-1 font-heading text-xl font-bold text-white sm:text-2xl">Company Profile</h2>
+                    <p className="mt-1 text-sm text-white/80">
+                      Your recruiter-facing company information in one place.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/signup/employer")}
+                    className="shrink-0 rounded-lg border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
+                  >
+                    Update via form
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => navigate("/signup/employer")}
-                  className="rounded-lg border border-border bg-background px-4 py-2 text-sm"
-                >
-                  Update via form
-                </button>
               </div>
 
               <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-border bg-background/70 p-4 sm:flex-row sm:items-center">

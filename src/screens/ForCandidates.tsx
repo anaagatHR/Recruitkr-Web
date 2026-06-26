@@ -34,6 +34,14 @@ export default function ForCandidates() {
       closingTitle="Ready to build your career?"
       closingSubtitle="Join thousands of candidates finding better opportunities through RecruitKr."
     >
+      {/* Candidate profile shorts — how candidates find a job */}
+      <YouTubeShorts
+        audience="candidate"
+        eyebrow="Candidate Stories"
+        title="Candidate profile videos"
+        subtitle="Short profile videos from job seekers on RecruitKr."
+        channelUrl={CHANNEL_URL}
+      />
       {/* Employer reviews — shown to candidates (cross-trust) */}
       <YouTubeShorts
         audience="employer"

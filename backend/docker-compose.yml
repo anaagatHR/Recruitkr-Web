@@ -1,0 +1,67 @@
+# Full RecruitKr backend stack on ONE server: Express/Socket.IO backend + Solr.
+#
+#   docker compose up -d --build
+#
+# Both services use `restart: unless-stopped`, so once the Docker daemon starts on
+# boot (`sudo systemctl enable docker`) the whole stack comes back automatically
+# after a reboot — that is the "auto-start in production" behaviour.
+#
+# The backend connects to Solr over the private compose network at
+# http://solr:8983/solr (the `solr` service name), no localhost needed. It
+# re-pings Solr every 15s and falls back to MongoDB while Solr is starting, so
+# startup order is not a concern.
+#
+# IMPORTANT — MongoDB: this stack does NOT run Mongo. Set MONGODB_URI in
+# backend/.env to a reachable database:
+#   • MongoDB Atlas:           mongodb+srv://...    (recommended for production)
+#   • Mongo on the host:       mongodb://host.docker.internal:27017/recruitkr_os
+#   A bare 127.0.0.1 URI will NOT work from inside the container (it points at the
+#   container itself, not the host).
+#
+# After first boot, backfill the Solr index once:
+#   docker compose exec backend npm run solr:reindex
+#   docker compose exec backend npm run solr:reindex:candidates
+services:
+  solr:
+    image: solr:9.6
+    container_name: recruitkr-solr
+    restart: unless-stopped
+    ports:
+      - "8983:8983"
+    volumes:
+      - solr_data:/var/solr
+    command:
+      - bash
+      - "-c"
+      - "precreate-core jobs; precreate-core candidates; exec solr -f"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf 'http://localhost:8983/solr/jobs/admin/ping?wt=json' >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    build: .
+    container_name: recruitkr-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    # These override whatever is in .env so the backend runs in production mode
+    # (enables the rate limiter + combined access logs) and talks to the Solr
+    # container by its service name on the compose network.
+    environment:
+      NODE_ENV: production
+      SOLR_URL: http://solr:8983/solr
+      SOLR_JOBS_CORE: jobs
+      SOLR_CANDIDATES_CORE: candidates
+    depends_on:
+      # service_started (not service_healthy): the backend tolerates Solr being
+      # mid-startup and self-recovers, so we don't block boot on Solr's health.
+      solr:
+        condition: service_started
+    ports:
+      - "5000:5000"
+
+volumes:
+  solr_data:

@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { fetchJobs } from "@/lib/jobs";
+import { fetchBlogPosts } from "@/lib/blog";
 import { CITIES, citySlug } from "@/lib/locations";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
@@ -55,5 +56,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     /* no jobs available at build time — static + city routes still ship */
   }
 
-  return [...base, ...cityRoutes, ...jobRoutes];
+  // Individual blog posts — so each article gets crawled and indexed.
+  let blogRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const posts = await fetchBlogPosts();
+    blogRoutes = posts.map((post) => ({
+      url: `${SITE_URL}/blog/${post.slug}`,
+      lastModified: new Date(post.updatedAt || post.publishedAt || now),
+      changeFrequency: "weekly",
+      priority: 0.6,
+    }));
+  } catch {
+    /* no blog posts available at build time — the rest of the sitemap ships */
+  }
+
+  return [...base, ...cityRoutes, ...jobRoutes, ...blogRoutes];
 }

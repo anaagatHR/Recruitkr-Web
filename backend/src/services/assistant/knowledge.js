@@ -42,14 +42,6 @@ export const PAGES = [
     ],
   },
   {
-    key: 'companies',
-    title: 'Companies',
-    route: '/companies',
-    purpose: 'Discover hiring companies.',
-    description: 'Browse companies hiring on RecruitKr, with ratings and open roles.',
-    keywords: ['companies', 'employers list', 'organisations', 'firms'],
-  },
-  {
     key: 'candidates',
     title: 'For Candidates',
     route: '/candidates',

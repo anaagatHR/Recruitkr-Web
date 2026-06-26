@@ -1,8 +1,6 @@
-﻿"use client";
+"use client";
 import { memo } from "react";
-
-const logoPng = "/assets/logo.png";
-const logoWebp = "/assets/logo.webp";
+import logo from "@/assets/logo.jpeg";
 
 type OptimizedLogoProps = {
   alt?: string;
@@ -14,8 +12,8 @@ type OptimizedLogoProps = {
   sizes?: string;
 };
 
-const LOGO_SIZE = 500;
-
+// Uses the well-cropped wide wordmark (same source as the navbar) so the logo
+// looks correct everywhere instead of the heavily-padded square variant.
 const OptimizedLogo = memo(function OptimizedLogo({
   alt = "RecruitKr",
   className,
@@ -27,12 +25,11 @@ const OptimizedLogo = memo(function OptimizedLogo({
 }: OptimizedLogoProps) {
   return (
     <picture className={className}>
-      <source srcSet={logoWebp} type="image/webp" />
       <img
-        src={logoPng}
+        src={logo.src}
         alt={alt}
-        width={LOGO_SIZE}
-        height={LOGO_SIZE}
+        width={logo.width}
+        height={logo.height}
         loading={loading}
         fetchPriority={fetchPriority}
         decoding={decoding}

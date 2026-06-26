@@ -233,14 +233,36 @@ export default function YouTubeShorts({
 
   const items = audience ? remote : shorts ?? [];
 
+  // Stop the scroll on hover, while touched (phones), or while a video plays.
+  const paused = hovered || playingKey !== null;
+
+  const trackRef = useRef<HTMLDivElement>(null);
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
+
+  // Auto-advance via scrollLeft so users can ALSO swipe/scroll the strip
+  // manually (native horizontal scroll). Auto-scroll pauses while interacting.
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    let raf = 0;
+    const step = () => {
+      if (!pausedRef.current && el.scrollWidth > el.clientWidth) {
+        const half = el.scrollWidth / 2;
+        el.scrollLeft += half / Math.max(1, speedSeconds * 60);
+        if (el.scrollLeft >= half) el.scrollLeft -= half;
+      }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [speedSeconds, items?.length]);
+
   // Hide while loading from the DB, and when there are no Shorts.
   if (items === null || items.length === 0) return null;
 
-  // Duplicate the list so the marquee loops seamlessly.
+  // Duplicate the list so the strip loops seamlessly.
   const loop = [...items, ...items];
-
-  // Stop the scroll on hover, while touched (phones), or while a video plays.
-  const paused = hovered || playingKey !== null;
 
   return (
     <section className="overflow-hidden py-14 sm:py-20">
@@ -267,11 +289,8 @@ export default function YouTubeShorts({
         <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-background to-transparent sm:w-16" />
 
         <div
-          className="marquee-track flex w-max gap-3 px-4 sm:gap-4"
-          style={{
-            animation: `marquee ${speedSeconds}s linear infinite`,
-            animationPlayState: paused ? "paused" : "running",
-          }}
+          ref={trackRef}
+          className="flex gap-3 overflow-x-auto px-4 sm:gap-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {loop.map((short, i) => {
             const cardKey = `${short.id}-${i}`;

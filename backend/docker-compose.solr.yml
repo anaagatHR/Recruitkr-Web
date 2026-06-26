@@ -1,25 +1,43 @@
-# Local Apache Solr for RecruitKr job search.
+# Apache Solr for RecruitKr search — runs Solr ALONGSIDE a backend that runs
+# elsewhere (on the host with `npm run dev`, or in its own container/process).
 #
 #   docker compose -f docker-compose.solr.yml up -d
 #
-# This starts Solr and auto-creates the `jobs` core. The core uses Solr's
-# default config set, whose dynamic fields (*_t, *_s, *_ss, *_d, *_dt) match the
-# document shape produced by src/services/solr.service.js, so no manual schema
-# editing is required.
+# It auto-creates BOTH cores (`jobs` + `candidates`) using Solr's default config
+# set, whose dynamic fields (*_t, *_s, *_ss, *_d, *_dt) match the documents in
+# src/services/solr.service.js — so no manual schema editing is required.
 #
-# After it is healthy, backfill from MongoDB:
+# `restart: unless-stopped` means the container comes back automatically when the
+# server reboots (as long as the Docker daemon starts on boot:
+# `sudo systemctl enable docker`). That is the "auto-start in production" piece.
+#
+# The backend reads SOLR_URL and connects on its own; it re-pings every 15s and
+# falls back to MongoDB whenever Solr is down, so order of startup never matters.
+# Set this in backend/.env:   SOLR_URL=http://localhost:8983/solr
+#
+# After Solr is healthy, backfill existing data from MongoDB (one time):
 #   npm run solr:reindex
+#   npm run solr:reindex:candidates
 services:
   solr:
     image: solr:9.6
     container_name: recruitkr-solr
+    restart: unless-stopped
     ports:
       - "8983:8983"
     volumes:
       - solr_data:/var/solr
+    # precreate-core is idempotent: existing cores on the volume are left as-is.
     command:
-      - solr-precreate
-      - jobs
+      - bash
+      - "-c"
+      - "precreate-core jobs; precreate-core candidates; exec solr -f"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf 'http://localhost:8983/solr/jobs/admin/ping?wt=json' >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
 volumes:
   solr_data:

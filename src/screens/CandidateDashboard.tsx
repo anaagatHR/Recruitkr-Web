@@ -1382,11 +1382,12 @@ const CandidateDashboard = () => {
     );
   }
 
-  // Candidate ↔ employer communication happens entirely in the chat, so the
-  // dashboard intentionally exposes only these five destinations.
+  // Candidate destinations: overview, find jobs, applied jobs (read details +
+  // chat), chat, profile and card.
   const candidateTabs: DashboardNavItem<typeof tab>[] = [
     { key: "overview", label: "Overview", icon: Sparkles },
     { key: "jobs", label: "Find Jobs", icon: BriefcaseBusiness },
+    { key: "applications", label: "Applied Jobs", icon: FileText },
     { key: "messages", label: "My Chat", icon: MessageSquare },
     { key: "profile", label: "Profile", icon: UserCircle2 },
     { key: "resume", label: "My Card", icon: Pencil },
@@ -1859,81 +1860,134 @@ const CandidateDashboard = () => {
 
 
         {tab === "applications" && (
-          <div className="grid gap-6 lg:grid-cols-[380px,1fr]">
+          <div className="grid gap-6">
             <div className={`${brandCardClass} overflow-hidden`}>
               <div className="border-b border-[#264a7f]/10 px-4 py-5 sm:px-6">
-                <h2 className="font-heading text-lg font-semibold text-slate-900">My Applications</h2>
-                <p className="mt-1 text-sm text-slate-500">Track recruiter updates and open chat with employers.</p>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-heading text-lg font-semibold text-slate-900">My Applications</h2>
+                  <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-[#264a7f] px-2 text-xs font-bold text-white">
+                    {applications.length}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-slate-500">Your job application history — pick one to read details and chat.</p>
               </div>
               <div className="divide-y divide-border">
-                {(applications || []).map((application) => {
-                  const applicationResponse = getApplicationResponseSnapshot(application as Record<string, any>);
-                  const latestNote =
-                    applicationResponse.statusNote ||
-                    (applicationResponse.interviewDetails?.scheduledAt
-                      ? `Interview scheduled for ${formatInterviewDate(applicationResponse.interviewDetails.scheduledAt)}`
-                      : "Application submitted successfully");
+                {[...(applications || [])]
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((application) => {
                   const unreadCount = (application as Record<string, unknown>).unreadCandidateCount as number | undefined;
+                  const expanded = expandedApplicationId === application._id;
+                  const appliedJob = jobs.find((j) => j._id === application.jobId?._id);
 
                   return (
-                    <div key={application._id} className="relative">
+                    <div key={application._id}>
+                      {/* Applied job card — tap to read the job info */}
                       <button
                         type="button"
-                        onClick={() => setExpandedApplicationId(application._id)}
-                        className={`w-full px-4 py-4 pb-10 text-left transition sm:px-6 ${
-                          expandedApplicationId === application._id
-                            ? "bg-[#264a7f]/5"
-                            : "hover:bg-[#264a7f]/[0.03]"
+                        onClick={() => setExpandedApplicationId(expanded ? null : application._id)}
+                        className={`flex w-full items-center gap-4 px-4 py-4 text-left transition sm:px-6 ${
+                          expanded ? "bg-[#264a7f]/5" : "hover:bg-[#264a7f]/[0.03]"
                         }`}
                       >
-                        <div className="flex items-start gap-4">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#264a7f] text-sm font-bold text-white shadow">
-                            {(application.jobId?.jobTitle?.substring(0, 2) || "RK").toUpperCase()}
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#264a7f] text-sm font-bold text-white shadow">
+                          {(application.jobId?.jobTitle?.substring(0, 2) || "RK").toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <h3 className="truncate text-sm font-semibold text-slate-900">
+                              {application.jobId?.jobTitle || "Job Opening"}
+                            </h3>
+                            <span className="whitespace-nowrap text-xs text-slate-400">
+                              {new Date(application.createdAt).toLocaleDateString()}
+                            </span>
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-3">
-                              <h3 className="truncate text-sm font-semibold text-slate-900">
-                                {application.jobId?.jobTitle || "Job Opening"}
-                              </h3>
-                              <span className="whitespace-nowrap text-xs text-slate-400">
-                                {new Date(application.createdAt).toLocaleDateString()}
+                          <p className="mt-1 truncate text-xs text-slate-500">
+                            {application.jobId?.sourceLabel || "RecruitKr Hiring"}
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                PROFILE_STATUS_BADGE_CLASSNAMES[application.status]
+                              }`}
+                            >
+                              {PROFILE_STATUS_LABELS[application.status]}
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              {application.jobId?.jobLocation || "Location pending"}
+                            </span>
+                            {unreadCount ? (
+                              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#69A44F] px-1.5 text-[11px] font-bold text-white">
+                                {unreadCount}
                               </span>
-                            </div>
-                            <p className="mt-1 truncate text-xs text-slate-500">
-                              {application.jobId?.sourceLabel || "RecruitKr Hiring"}
-                            </p>
-                            <div className="mt-2 flex items-center justify-between gap-3">
-                              <p className="truncate text-sm text-slate-600">{latestNote}</p>
-                              {unreadCount ? (
-                                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#69A44F] px-1.5 text-[11px] font-bold text-white">
-                                  {unreadCount}
-                                </span>
-                              ) : null}
-                            </div>
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                              <span
-                                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                  PROFILE_STATUS_BADGE_CLASSNAMES[application.status]
-                                }`}
-                              >
-                                {PROFILE_STATUS_LABELS[application.status]}
-                              </span>
-                              <span className="text-[11px] text-slate-400">
-                                {application.jobId?.jobLocation || "Location pending"}
-                              </span>
-                            </div>
+                            ) : null}
                           </div>
                         </div>
+                        <ChevronDown
+                          size={18}
+                          className={`shrink-0 text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`}
+                        />
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => openChat(application._id)}
-                        title="Chat with employer"
-                        className="absolute bottom-3 right-4 flex items-center gap-1.5 rounded-lg border border-[#264a7f]/20 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#264a7f] shadow-sm transition hover:bg-[#264a7f] hover:text-white"
-                      >
-                        <MessageSquare size={15} />
-                        <span className="hidden sm:inline">Chat</span>
-                      </button>
+
+                      {expanded && (
+                        <div className="border-t border-[#264a7f]/10 bg-slate-50/50 px-4 py-5 sm:px-6">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Job information</p>
+                            {appliedJob?.minCtcLpa || appliedJob?.maxCtcLpa ? (
+                              <span className="shrink-0 rounded-full bg-[#69a44f]/10 px-2.5 py-0.5 text-xs font-bold text-[#4d7a38]">
+                                {appliedJob.minCtcLpa || 0}–{appliedJob.maxCtcLpa || 0} LPA
+                              </span>
+                            ) : null}
+                          </div>
+                          <h4 className="mt-2 text-base font-bold text-slate-900">
+                            {application.jobId?.jobTitle || appliedJob?.jobTitle || "Job Opening"}
+                          </h4>
+                          <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-slate-500">
+                            <MapPin size={13} className="shrink-0" />
+                            {application.jobId?.jobLocation || appliedJob?.jobLocation || "Location not shared"}
+                            {" • "}
+                            {application.jobId?.employmentType || appliedJob?.employmentType || "Job type pending"}
+                          </p>
+
+                          {appliedJob ? (
+                            <>
+                              <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                                {appliedJob.department ? <span className="rounded-full bg-slate-100 px-3 py-1">{appliedJob.department}</span> : null}
+                                {appliedJob.experienceRequired ? <span className="rounded-full bg-slate-100 px-3 py-1">{appliedJob.experienceRequired}</span> : null}
+                                {appliedJob.qualification ? <span className="rounded-full bg-slate-100 px-3 py-1">{appliedJob.qualification}</span> : null}
+                              </div>
+                              <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-600">
+                                {appliedJob.description || "No detailed description shared for this opening."}
+                              </p>
+                              {appliedJob.requirements?.length ? (
+                                <div className="mt-3">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Requirements</p>
+                                  <ul className="mt-2 space-y-1.5">
+                                    {appliedJob.requirements.map((req, i) => (
+                                      <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
+                                        <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-[#69a44f]" />
+                                        {req}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                            </>
+                          ) : (
+                            <p className="mt-3 text-sm text-slate-500">
+                              The full job description isn&apos;t available here (the posting may have closed).
+                            </p>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => openChat(application._id)}
+                            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[#264a7f]/20 bg-white px-4 py-2.5 text-sm font-semibold text-[#264a7f] transition hover:bg-[#264a7f] hover:text-white"
+                          >
+                            <MessageSquare size={16} />
+                            Message employer
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1943,101 +1997,6 @@ const CandidateDashboard = () => {
                   </div>
                 )}
               </div>
-            </div>
-
-            <div className={`${brandCardClass} p-6`}>
-              {!selectedApplication && (
-                <p className="text-sm text-slate-500">
-                  Select an application to see your hiring progress and employer updates.
-                </p>
-              )}
-
-              {selectedApplication && (
-                <div className="space-y-6">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <h3 className="font-heading text-xl font-semibold text-slate-900">
-                        {selectedApplication.jobId?.jobTitle || "Job Opening"}
-                      </h3>
-                      <p className="text-sm text-slate-500">
-                        {selectedApplication.jobId?.sourceLabel || "RecruitKr Hiring"}
-                        {selectedApplication.jobId?.jobLocation
-                          ? ` • ${selectedApplication.jobId.jobLocation}`
-                          : ""}
-                      </p>
-                    </div>
-                    <span
-                      className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${
-                        PROFILE_STATUS_BADGE_CLASSNAMES[selectedApplication.status]
-                      }`}
-                    >
-                      {PROFILE_STATUS_LABELS[selectedApplication.status]}
-                    </span>
-                  </div>
-
-                  <ApplicationStepTracker
-                    status={selectedApplication.status}
-                    timeline={selectedApplication.timeline}
-                    className="rounded-xl border border-[#264a7f]/10 bg-slate-50 p-4"
-                  />
-
-                  {(() => {
-                    const snapshot = getApplicationResponseSnapshot(selectedApplication as Record<string, any>);
-                    const timing = getInterviewTimingMeta(snapshot.interviewDetails?.scheduledAt);
-                    return (
-                      <div className="space-y-4">
-                        {snapshot.statusNote && (
-                          <div className="rounded-xl border border-[#264a7f]/10 bg-slate-50 p-4">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Latest update</p>
-                            <p className="mt-2 text-sm text-slate-700">{snapshot.statusNote}</p>
-                          </div>
-                        )}
-
-                        {(selectedApplication.status === "interview" || snapshot.interviewDetails?.scheduledAt) && (
-                          <div className="rounded-xl border border-violet-200 bg-violet-50/70 p-4">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <p className="text-sm font-semibold text-violet-900">Interview details</p>
-                              <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${timing.tone}`}>
-                                {timing.label}
-                              </span>
-                            </div>
-                            {snapshot.interviewDetails?.scheduledAt && (
-                              <p className="mt-2 text-sm text-slate-700">
-                                {formatInterviewDate(snapshot.interviewDetails.scheduledAt)}
-                                {formatInterviewTime(snapshot.interviewDetails.scheduledAt)
-                                  ? ` at ${formatInterviewTime(snapshot.interviewDetails.scheduledAt)}`
-                                  : ""}
-                              </p>
-                            )}
-                            {snapshot.interviewDetails?.locationText && (
-                              <p className="mt-1 text-sm text-slate-600">{snapshot.interviewDetails.locationText}</p>
-                            )}
-                            {snapshot.interviewDetails?.meetingLink && (
-                              <a
-                                href={snapshot.interviewDetails.meetingLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn-gradient mt-3 inline-flex rounded-lg px-4 py-2 text-sm font-semibold"
-                              >
-                                Join meeting
-                              </a>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  <button
-                    type="button"
-                    onClick={() => openChat(selectedApplication._id)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-[#264a7f]/20 bg-white px-4 py-2.5 text-sm font-semibold text-[#264a7f] transition hover:bg-[#264a7f] hover:text-white"
-                  >
-                    <MessageSquare size={16} />
-                    Message employer
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -2057,12 +2016,16 @@ const CandidateDashboard = () => {
           <section className="w-full">
             <div className="w-full">
               <div className="space-y-5 sm:space-y-6">
-                <div className="rounded-2xl border border-slate-200/80 bg-white p-5 text-center shadow-sm sm:p-6 md:text-left">
-                  <h2 className="font-heading text-2xl font-bold text-slate-900">Candidate Profile</h2>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Your basic profile details and job preferences in one place.
-                  </p>
-                  {resumeNotice && <p className="mt-3 text-sm text-green-600">{resumeNotice}</p>}
+                <div className="relative overflow-hidden rounded-2xl border border-[#264a7f]/15 bg-[#16305a] p-5 text-center shadow-sm sm:p-6 md:text-left">
+                  <div aria-hidden className="hero-drift pointer-events-none absolute inset-0" />
+                  <div className="relative">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/70">My Profile</p>
+                    <h2 className="mt-1 font-heading text-2xl font-bold text-white sm:text-3xl">Candidate Profile</h2>
+                    <p className="mt-2 text-sm text-white/80">
+                      Your basic profile details and job preferences in one place.
+                    </p>
+                    {resumeNotice && <p className="mt-3 text-sm font-medium text-[#bfe6ab]">{resumeNotice}</p>}
+                  </div>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
