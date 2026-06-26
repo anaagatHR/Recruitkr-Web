@@ -446,7 +446,7 @@ type EditableProfileField =
 
 const CandidateDashboard = () => {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"overview" | "jobs" | "applications" | "messages" | "resume" | "profile">("jobs");
+  const [tab, setTab] = useState<"overview" | "jobs" | "applications" | "messages" | "resume" | "profile">("overview");
   const [chatApplicationId, setChatApplicationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -684,6 +684,12 @@ const CandidateDashboard = () => {
         void loadProfilePhoto(nextProfile);
         void loadCertificates();
     } catch (err) {
+      // On an auth failure the API layer clears the dead session; rather than
+      // showing a broken dashboard, send the user to login to sign in again.
+      if (!getSession()?.accessToken) {
+        navigate("/login?role=candidate", { replace: true });
+        return;
+      }
       setError(err instanceof Error ? err.message : "Failed to load dashboard");
     } finally {
       setLoading(false);

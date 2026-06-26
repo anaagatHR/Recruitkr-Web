@@ -43,7 +43,9 @@ export const errorHandler = (error, _req, res, _next) => {
 
   const statusCode = error.statusCode || (isJwtError ? StatusCodes.UNAUTHORIZED : StatusCodes.INTERNAL_SERVER_ERROR);
 
-  if (statusCode >= StatusCodes.INTERNAL_SERVER_ERROR) {
+  const isServerError = statusCode >= StatusCodes.INTERNAL_SERVER_ERROR;
+
+  if (isServerError) {
     console.error(error);
   } else if (isJwtError) {
     console.warn('[jwt] request rejected', {
@@ -52,9 +54,17 @@ export const errorHandler = (error, _req, res, _next) => {
     });
   }
 
+  // Never leak internal error details (stack-adjacent messages, driver errors,
+  // file paths) to clients on a 5xx. Intentional 4xx errors (ApiError) keep
+  // their human-readable message; unexpected 5xx get a generic message in
+  // production. In development the real message is preserved for debugging.
+  const isProduction = process.env.NODE_ENV === 'production';
+  const safeMessage =
+    isServerError && isProduction ? 'Internal server error' : error.message || 'Internal server error';
+
   const response = {
     success: false,
-    message: error.message || 'Internal server error',
+    message: safeMessage,
   };
 
   if (error.details) {

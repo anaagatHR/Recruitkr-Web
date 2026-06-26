@@ -1,4 +1,4 @@
-import { getSession, updateSessionTokens } from "@/lib/auth";
+import { clearSession, getSession, updateSessionTokens } from "@/lib/auth";
 import {
   API_MISCONFIGURED_MESSAGE,
   buildApiError,
@@ -182,12 +182,22 @@ const performTokenRefresh = async (): Promise<string | null> => {
 
     const parsed = await parseResponse<{ success?: boolean; data?: { accessToken?: string; refreshToken?: string } }>(res);
     if (!res.ok || !parsed.json?.success || !parsed.json.data?.accessToken) {
+      // A definitive rejection (400/401/403, or an explicit success:false) means
+      // the refresh token itself is invalid/expired — the session is dead. Clear
+      // it so the app returns to a logged-out state and the user can sign in
+      // again, instead of being stuck behind an unusable token. We deliberately
+      // do NOT clear on network/timeout errors (handled in catch) since those
+      // are transient.
+      if (res.status === 400 || res.status === 401 || res.status === 403 || parsed.json?.success === false) {
+        clearSession();
+      }
       return null;
     }
 
     updateSessionTokens(parsed.json.data.accessToken, parsed.json.data.refreshToken);
     return parsed.json.data.accessToken;
   } catch (error) {
+    // Network/timeout — keep the session; the next request can retry.
     console.error("API ERROR:", error instanceof Error ? error.message : error, `${API_BASE}/auth/refresh`);
     return null;
   }

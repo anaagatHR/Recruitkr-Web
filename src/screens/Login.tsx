@@ -38,15 +38,18 @@ const Login = () => {
 
   // Already signed in? Never show the login page — send them to their dashboard.
   // This is what makes the browser Back button land on the dashboard instead of
-  // the login screen after a user has authenticated (back -> /login -> bounce).
+  // the login screen after a user has authenticated.
+  //
+  // We bounce REGARDLESS of any query params: if a valid session already exists
+  // there is no reason to re-run OAuth. (Important for Back onto a stale
+  // ?oauth=success&code=… URL — re-exchanging that one-time code would fail and
+  // dump the user back on the login form.) When there is no session, we do
+  // nothing and let the normal login / OAuth-callback effects below handle it.
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    // The OAuth callback handler below owns the oauth=success/error cases.
-    if (params.get("oauth")) return;
-
     const session = getSession();
     if (!session?.accessToken) return;
 
+    const params = new URLSearchParams(location.search);
     const redirect = params.get("redirect");
     const dest =
       redirect || (session.user.role === "client" ? "/dashboard/client" : "/dashboard/candidate");
@@ -209,6 +212,21 @@ useEffect(() => {
 
   const inputClass =
     "w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors";
+
+  // If a session already exists, never render the login / "choose account" form.
+  // Show a lightweight redirect screen while the guard effect above navigates to
+  // the dashboard. This stops the login screen from flashing when an
+  // authenticated user lands on /login — e.g. via the browser Back button.
+  if (typeof window !== "undefined" && getSession()?.accessToken) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3 text-muted-foreground">
+          <span className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" />
+          <p className="text-sm">Taking you to your dashboard…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

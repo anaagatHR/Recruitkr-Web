@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Don't advertise the framework (reduces fingerprinting) and never ship
+  // browser source maps in production (keeps original client source private).
+  poweredByHeader: false,
+  productionBrowserSourceMaps: false,
   eslint: {
     // Don't block production builds on lint; we run lint separately.
     ignoreDuringBuilds: true,

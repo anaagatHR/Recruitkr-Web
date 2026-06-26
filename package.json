@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "dev": "next dev -p 3000",
     "build": "cross-env NODE_ENV=production next build",
     "build:clean": "powershell -ExecutionPolicy Bypass -File scripts/build-clean.ps1",

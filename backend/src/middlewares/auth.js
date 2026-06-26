@@ -6,6 +6,13 @@ import { verifyAccessToken } from '../utils/jwt.js';
 
 const ACCESS_TOKEN_COOKIE_KEYS = ['accessToken', 'token', 'authToken'];
 
+// Per-request auth tracing is useful in development but in production it floods
+// logs with user IDs and request paths (activity/PII disclosure). Gate it.
+const isDev = process.env.NODE_ENV !== 'production';
+const authDebug = (...args) => {
+  if (isDev) console.info(...args);
+};
+
 const getBearerToken = (req) => {
   const header = req.headers.authorization || '';
   if (header.startsWith('Bearer ')) {
@@ -62,7 +69,7 @@ const resolveAccessToken = (req, { allowQueryToken = false } = {}) => {
 const authenticateRequest = async (req, { allowQueryToken = false, context = 'api' } = {}) => {
   const { token, source } = resolveAccessToken(req, { allowQueryToken });
 
-  console.info(`[auth] ${context} token source=${source} path=${req.originalUrl}`);
+  authDebug(`[auth] ${context} token source=${source} path=${req.originalUrl}`);
   if (!token) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Missing authentication token');
   }
@@ -95,7 +102,7 @@ const authenticateRequest = async (req, { allowQueryToken = false, context = 'ap
 
   req.user = { id: user.id, role: user.role };
   req.auth = { tokenSource: source };
-  console.info(`[auth] ${context} authenticated userId=${user.id} role=${user.role} source=${source}`);
+  authDebug(`[auth] ${context} authenticated userId=${user.id} role=${user.role} source=${source}`);
 };
 
 export const requireAuth = async (req, _res, next) => {

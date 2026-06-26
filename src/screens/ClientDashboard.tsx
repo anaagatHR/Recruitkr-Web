@@ -375,6 +375,12 @@ const ClientDashboard = () => {
       }));
       return profileRes.data;
     } catch (err) {
+      // On an auth failure the API layer clears the dead session; rather than
+      // showing a broken dashboard, send the user to login to sign in again.
+      if (!getSession()?.accessToken) {
+        navigate("/login?role=client", { replace: true });
+        return null;
+      }
       setError(err instanceof Error ? err.message : "Failed to load dashboard");
       return null;
     } finally {
