@@ -34,6 +34,27 @@ const nextConfig = {
         destination: `${root}/api/v1/:path*`,
       },
       {
+        // Blog posts are served by the backend at the un-versioned /api/blogposts
+        // mount (see backend app.js). Proxy them so the public blog renders.
+        // The bare path (list endpoint, hit as /api/blogposts?published=true) is
+        // matched explicitly so it proxies even though it has no trailing segment.
+        source: "/api/blogposts",
+        destination: `${root}/api/blogposts`,
+      },
+      {
+        source: "/api/blogposts/:path*",
+        destination: `${root}/api/blogposts/:path*`,
+      },
+      {
+        // Team members are served at the un-versioned /api/team mount.
+        source: "/api/team",
+        destination: `${root}/api/team`,
+      },
+      {
+        source: "/api/team/:path*",
+        destination: `${root}/api/team/:path*`,
+      },
+      {
         // Clean public URL for the city SEO landing pages.
         source: "/jobs-in-:city",
         destination: "/jobs/location/:city",
