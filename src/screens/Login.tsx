@@ -290,7 +290,12 @@ useEffect(() => {
                       role,
                       ...(redirect ? { redirect } : {}),
                     });
-                    window.location.href = `/api/v1/auth/google?${qs.toString()}`;
+                    // replace (not assign) so the /login entry is not left in
+                    // history during the OAuth round-trip — otherwise Back from
+                    // the dashboard would hit /login and the guard would bounce
+                    // the user forward, trapping them. With replace, Back goes to
+                    // the genuine previous page.
+                    window.location.replace(`/api/v1/auth/google?${qs.toString()}`);
                   }}
                   className="flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
                 >
