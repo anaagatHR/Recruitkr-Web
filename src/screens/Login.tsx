@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AuthHero from "@/components/auth/AuthHero";
 import { apiPost } from "@/lib/api";
-import { setSession } from "@/lib/auth";
+import { getSession, setSession } from "@/lib/auth";
 import { tryAutoLogin } from "@/lib/autoLogin";
 
 // Brand palette (navy / green / amber).
@@ -35,6 +35,23 @@ const Login = () => {
       setUserType(role);
     }
   }, [location.search]);
+
+  // Already signed in? Never show the login page — send them to their dashboard.
+  // This is what makes the browser Back button land on the dashboard instead of
+  // the login screen after a user has authenticated (back -> /login -> bounce).
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    // The OAuth callback handler below owns the oauth=success/error cases.
+    if (params.get("oauth")) return;
+
+    const session = getSession();
+    if (!session?.accessToken) return;
+
+    const redirect = params.get("redirect");
+    const dest =
+      redirect || (session.user.role === "client" ? "/dashboard/client" : "/dashboard/candidate");
+    navigate(dest, { replace: true });
+  }, [location.search, navigate]);
 
   
   useEffect(() => {
@@ -169,7 +186,11 @@ useEffect(() => {
       });
 
       const redirect = new URLSearchParams(location.search).get("redirect");
-      navigate(redirect || (userType === "candidate" ? "/dashboard/candidate" : "/dashboard/client"));
+      // replace (not push) so /login leaves the history stack — pressing Back
+      // from the dashboard won't return to the login page.
+      navigate(redirect || (userType === "candidate" ? "/dashboard/candidate" : "/dashboard/client"), {
+        replace: true,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Login failed";
       if (/not registered|sign up first/i.test(message)) {

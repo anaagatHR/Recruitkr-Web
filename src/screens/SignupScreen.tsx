@@ -140,7 +140,9 @@ export default function SignupScreen({ role = "candidate" }: { role?: SignupRole
         user: res.data.user,
       });
       setDone(true);
-      setTimeout(() => navigate(redirect), 900);
+      // replace so the signup page leaves the history stack — Back from the
+      // dashboard won't return to the (now-stale) signup form.
+      setTimeout(() => navigate(redirect, { replace: true }), 900);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign up failed.");
     } finally {

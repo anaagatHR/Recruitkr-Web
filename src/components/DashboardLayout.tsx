@@ -164,7 +164,7 @@ export default function DashboardLayout<K extends string>({
             // Mobile clears the fixed bottom nav (pb-24); desktop uses normal padding.
             // The chat tab uses tight padding so the conversation fills the space.
             String(activeKey) === "messages"
-              ? "flex flex-col p-2 pb-20 sm:p-3 lg:p-4 lg:pb-4"
+              ? "flex flex-col p-2 pb-24 sm:p-3 lg:p-4 lg:pb-4"
               : onMessagesClick
                 ? "flex flex-col px-4 pb-24 pt-6 sm:px-6 lg:px-8 lg:pb-6"
                 : "space-y-6 px-4 pb-24 pt-6 sm:px-6 lg:px-8 lg:pb-6",
@@ -176,7 +176,7 @@ export default function DashboardLayout<K extends string>({
 
       {/* Mobile bottom navigation — Instagram/WhatsApp style, large touch targets */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card/95 backdrop-blur-xl lg:hidden"
         style={{ paddingBottom: "max(0px, env(safe-area-inset-bottom))" }}
         aria-label="Primary"
       >

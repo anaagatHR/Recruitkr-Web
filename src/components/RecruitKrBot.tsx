@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { ArrowRight, Bot, Loader2, MessageCircle, Send, X } from "lucide-react";
 import { useNavigate } from "@/compat/router";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ const DEFAULT_SUGGESTIONS = [
 
 export default function RecruitKrBot() {
   const navigate = useNavigate();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: GREETING }]);
   const [suggestions, setSuggestions] = useState<string[]>(DEFAULT_SUGGESTIONS);
@@ -65,6 +67,10 @@ export default function RecruitKrBot() {
       setLoading(false);
     }
   };
+
+  // Hide on the dashboard and chat routes, where its floating button would sit
+  // on top of the chat composer's send button.
+  if (/^\/(dashboard|messages)(\/|$)/.test(pathname || "")) return null;
 
   return (
     <>

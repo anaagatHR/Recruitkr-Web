@@ -892,7 +892,8 @@ const ClientDashboard = () => {
     }
     clearSession();
     setSessionState(null);
-    navigate("/login");
+    // replace so Back after logout can't re-enter the dashboard.
+    navigate("/login", { replace: true });
   };
 
   const openChat = (applicationId?: string | null) => {

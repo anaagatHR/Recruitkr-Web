@@ -637,7 +637,18 @@ const Messages = ({
       );
 
   return (
-    <div className={embedded ? "flex min-h-0 w-full flex-1" : "min-h-screen bg-background px-3 py-4 sm:px-4 sm:py-6"}>
+    <div
+      className={
+        embedded
+          ? cn(
+              "flex min-h-0 w-full flex-1",
+              // Phones: full-screen immersive thread when a conversation is open
+              // (the in-chat back arrow returns to the list). Desktop unchanged.
+              activeId && "fixed inset-0 z-[70] bg-background md:static md:z-auto",
+            )
+          : "min-h-screen bg-background px-3 py-4 sm:px-4 sm:py-6"
+      }
+    >
       {!embedded && (
         <div className="mx-auto mb-4 flex max-w-[1600px] items-center justify-between gap-3 px-1">
           <div>
@@ -750,7 +761,11 @@ const Messages = ({
               ) : (
                 <>
                   <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-                    <button onClick={() => setActiveId(null)} className="text-muted-foreground md:hidden" aria-label="Back">
+                    <button
+                      onClick={() => setActiveId(null)}
+                      className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground transition hover:bg-muted md:hidden"
+                      aria-label="Back to conversations"
+                    >
                       <ArrowLeft size={20} />
                     </button>
                     <div className="relative">
