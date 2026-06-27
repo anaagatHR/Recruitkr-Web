@@ -28,6 +28,11 @@ const nextConfig = {
     // intermittent "ECONNREFUSED ::1:5000" proxy failures.
     const backend = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000/api/v1";
     const root = backend.replace(/\/api\/v\d+\/?$/, "");
+    // Blog images authored in the CRM are stored as relative /uploads/... paths
+    // and served by the CRM app (not this frontend or the API backend). Default
+    // to the local CRM on :8080; set NEXT_PUBLIC_CRM_URL to the CRM's public URL
+    // in production so the live blog can load those images.
+    const crmAssetBase = (process.env.NEXT_PUBLIC_CRM_URL || "http://localhost:8080").replace(/\/$/, "");
     return [
       {
         source: "/api/v1/:path*",
@@ -53,6 +58,13 @@ const nextConfig = {
       {
         source: "/api/team/:path*",
         destination: `${root}/api/team/:path*`,
+      },
+      {
+        // Blog cover/content images are stored as relative /uploads/... paths
+        // served by the CRM. Proxy them so the public blog renders the images
+        // instead of 404ing against this app's own origin.
+        source: "/uploads/:path*",
+        destination: `${crmAssetBase}/uploads/:path*`,
       },
       {
         // Clean public URL for the city SEO landing pages.
