@@ -195,7 +195,7 @@ const BlogPostApi = () => {
                 )}
 
                 <div
-                  className="blog-prose prose prose-sm mt-4 max-w-none overflow-hidden break-words text-slate-700 prose-headings:mt-4 prose-headings:scroll-mt-28 prose-headings:font-semibold prose-headings:text-slate-900 prose-h2:text-xl prose-h3:text-lg prose-p:mt-2 prose-p:text-sm prose-p:leading-relaxed prose-ul:mt-3 prose-ul:pl-5 prose-ol:mt-3 prose-ol:pl-5 prose-li:mt-1 prose-img:my-4 prose-img:w-full prose-img:max-w-full prose-img:rounded-xl prose-img:object-contain prose-a:text-primary md:prose-base"
+                  className="blog-content mt-4 max-w-none break-words"
                   dangerouslySetInnerHTML={{
                     __html: getRenderableBlogHtml(post.contentHtml, post.content, API_ROOT),
                   }}

@@ -941,7 +941,8 @@ export const applyToJob = asyncHandler(async (req, res) => {
 export const listCandidateApplications = asyncHandler(async (req, res) => {
   const applications = await Application.find({ candidateId: req.user.id })
     .populate('jobId')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
   res.json({ success: true, data: applications.map(normalizeApplicationResponse) });
 });
 
@@ -953,7 +954,8 @@ export const listClientApplications = asyncHandler(async (req, res) => {
         path: 'candidateId',
         select: 'email mobile',
       })
-      .sort({ createdAt: -1 }),
+      .sort({ createdAt: -1 })
+      .lean(),
     req.user.role === 'client' ? fetchLegacyApplicationsForClient(req.user.id) : Promise.resolve([]),
   ]);
 

@@ -84,8 +84,22 @@ export const extractImageUrlsFromBlogHtml = (html: string) =>
     (value): value is string => Boolean(value),
   );
 
-export const getRenderableBlogHtml = (contentHtml?: string, content: string[] = [], assetBaseUrl = "") =>
-  normalizeBlogImageUrls(cleanBlogHtml(contentHtml?.trim() || "") || paragraphsToHtml(content), assetBaseUrl);
+// Some legacy rows stored the HTML entity-escaped (e.g. "&lt;p&gt;"). Only decode
+// when the markup looks fully escaped, so we never corrupt real, authored HTML
+// (which may legitimately contain entities like &amp; inside text).
+const looksEntityEscaped = (html: string) =>
+  /&lt;\/?[a-z]/i.test(html) && !/<[a-z]/i.test(html);
+
+/**
+ * Render the post body exactly as authored in the CRM/Quill editor: preserve
+ * inline styles, classes, spans, <iframe>, <blockquote> and <pre>. We only drop
+ * base64 images (size/security) and normalize relative image asset URLs.
+ */
+export const getRenderableBlogHtml = (contentHtml?: string, content: string[] = [], assetBaseUrl = "") => {
+  const raw = contentHtml?.trim() || paragraphsToHtml(content);
+  const decoded = looksEntityEscaped(raw) ? decodeHtmlEntities(raw) : raw;
+  return normalizeBlogImageUrls(stripBase64Images(decoded), assetBaseUrl);
+};
 
 export const getPlainTextFromHtml = (html: string) =>
   html

@@ -42,16 +42,10 @@ const ensureUniqueSlug = async (baseSlug, excludeId) => {
 const containsBase64Image = (value = '') => /<img[^>]+src=["']data:image\/[^"']+["'][^>]*>/i.test(value);
 const imageTagPattern = /<img[^>]+src=(["'])([^"']+)\1[^>]*>/gi;
 
-const cleanHtml = (value = '') =>
-  value
-    .replace(/&nbsp;|\u00A0/g, ' ')
-    .replace(/\sstyle="[^"]*"/gi, '')
-    .replace(/\sclass="[^"]*"/gi, '')
-    .replace(/\sid="[^"]*"/gi, '')
-    .replace(/<span>(.*?)<\/span>/gi, '$1')
-    .replace(/<p>\s*<\/p>/gi, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+// Store the authored HTML as-is so it renders identically to the CRM/Quill
+// editor. We intentionally keep inline styles, classes, <span>, <iframe>,
+// <blockquote> and <pre> (collapsing whitespace would corrupt <pre> code).
+const cleanHtml = (value = '') => value.trim();
 
 const htmlToParagraphs = (value = '') => {
   const normalized = value
@@ -224,24 +218,59 @@ const normalizePayload = async (payload, existingPost) => {
   };
 };
 
+// The body HTML is stored under aliased fields across CRM versions. Read the
+// first that exists, in order: contentHtml (this app) -> content -> body -> html.
+// `content` may be a single HTML string (CRM) or an array of paragraphs (legacy).
+const resolveBodyHtml = (raw) => {
+  for (const candidate of [raw?.contentHtml, raw?.content, raw?.body, raw?.html]) {
+    if (typeof candidate === 'string' && candidate.trim()) return candidate;
+  }
+  if (Array.isArray(raw?.content) && raw.content.length > 0) {
+    return paragraphsToHtml(raw.content.filter(Boolean));
+  }
+  return '';
+};
+
+// Cover image lives under coverImage.url -> coverImageUrl -> image -> thumbnail.
+// Returns a tracked asset object when available, otherwise a bare URL string
+// (the frontend normalizes either form).
+const resolveCoverImage = (raw) => {
+  const tracked = normalizeImageAsset(raw?.coverImage);
+  if (tracked) return tracked;
+
+  const url =
+    (raw?.coverImage && typeof raw.coverImage === 'object' ? raw.coverImage.url : null) ||
+    (typeof raw?.coverImage === 'string' ? raw.coverImage : null) ||
+    raw?.coverImageUrl ||
+    raw?.image ||
+    raw?.thumbnail;
+
+  return typeof url === 'string' && url.trim() ? url.trim() : null;
+};
+
 const serializeBlogPost = (post) => {
   const raw = typeof post?.toObject === 'function' ? post.toObject() : post;
-  const content = Array.isArray(raw?.content) ? raw.content.filter(Boolean) : [];
-  const tags = Array.isArray(raw?.tags) ? raw.tags.filter(Boolean) : [];
+  const contentArray = Array.isArray(raw?.content) ? raw.content.filter(Boolean) : [];
+  const tags = Array.isArray(raw?.tags)
+    ? raw.tags.filter(Boolean)
+    : raw?.category
+      ? [raw.category]
+      : [];
+  const bodyHtml = resolveBodyHtml(raw);
 
   return {
     _id: raw?._id,
     slug: raw?.slug || '',
     title: raw?.title || 'Untitled blog post',
-    excerpt: raw?.excerpt || content[0]?.slice(0, 220) || 'No description available.',
-    authorName: raw?.authorName || 'RecruitKr Editorial',
-    coverImage: normalizeImageAsset(raw?.coverImage),
-    contentHtml: raw?.contentHtml || paragraphsToHtml(content),
+    excerpt: raw?.excerpt || raw?.summary || contentArray[0]?.slice(0, 220) || 'No description available.',
+    authorName: raw?.authorName || raw?.author || 'RecruitKr Editorial',
+    coverImage: resolveCoverImage(raw),
+    contentHtml: bodyHtml,
     contentImages: Array.isArray(raw?.contentImages) ? raw.contentImages.map(normalizeImageAsset).filter(Boolean) : [],
     publishedAt: raw?.publishedAt || null,
     readingTime: raw?.readingTime || '5 min read',
     tags,
-    content,
+    content: contentArray,
     status: raw?.status ?? null,
     createdAt: raw?.createdAt || null,
     updatedAt: raw?.updatedAt || null,
@@ -261,26 +290,57 @@ const buildPublishedBlogQuery = () => ({
 export const listPublishedBlogPosts = asyncHandler(async (req, res) => {
   const publishedOnly = `${req.query?.published ?? ''}` === 'true';
   const query = publishedOnly ? buildPublishedBlogQuery() : {};
-  console.log('ROUTE HIT');
-  const posts = await BlogPost.find(query).sort({ publishedAt: -1, createdAt: -1 });
+  // .lean() returns plain objects (no Mongoose document hydration), which is
+  // markedly faster for a read-only list; serializeBlogPost handles plain docs.
+  const posts = await BlogPost.find(query).sort({ publishedAt: -1, createdAt: -1 }).lean();
   const normalizedPosts = posts.map(serializeBlogPost);
-  console.log('BLOG COUNT:', normalizedPosts.length);
-  console.info('[blog:listPublished]', {
-    publishedOnly,
-    count: normalizedPosts.length,
-    slugs: normalizedPosts.map((post) => post.slug),
-  });
+  console.info('[blog:listPublished]', { publishedOnly, count: normalizedPosts.length });
   res.json({ success: true, blogPosts: normalizedPosts, meta: { count: normalizedPosts.length } });
 });
 
 export const getPublishedBlogPostBySlug = asyncHandler(async (req, res) => {
+  const requestedSlug = req.params.slug;
   const publicBlogQuery = buildPublishedBlogQuery();
-  const post = await BlogPost.findOne({
-    slug: req.params.slug,
+  let post = await BlogPost.findOne({
+    slug: requestedSlug,
     ...publicBlogQuery,
-  });
+  }).lean();
+
+  // Self-heal legacy data: some posts were stored with an empty/mismatched slug,
+  // but the frontend links using a slug derived from the title. Resolve those by
+  // matching the title-derived slug, then persist a real slug (via a raw update,
+  // so a legacy document that fails full-schema validation still gets fixed) so
+  // future lookups hit the indexed slug path.
   if (!post) {
-    console.warn('[blog:getPublishedBySlug:notFound]', { slug: req.params.slug });
+    // Only project the light fields needed to find the match, so we don't pull
+    // every post's full contentHtml blob into memory just to scan slugs/titles.
+    const candidates = await BlogPost.find(publicBlogQuery).select('slug title status').lean();
+    const match = candidates.find(
+      (candidate) =>
+        toSlug(candidate.slug || '') === requestedSlug ||
+        toSlug(candidate.title || '') === requestedSlug,
+    );
+
+    if (match) {
+      if (match.slug !== requestedSlug) {
+        try {
+          const healedSlug = await ensureUniqueSlug(requestedSlug || match.title || `${match._id}`, match._id);
+          const update = { slug: healedSlug };
+          if (match.status === 'Published') update.status = 'published';
+          if (match.status === 'Draft') update.status = 'draft';
+          await BlogPost.collection.updateOne({ _id: match._id }, { $set: update });
+          console.info('[blog:getPublishedBySlug:selfHealed]', { id: `${match._id}`, slug: healedSlug });
+        } catch (error) {
+          console.warn('[blog:getPublishedBySlug:selfHealFailed]', { slug: requestedSlug, message: error?.message });
+        }
+      }
+      // Now fetch the single full document for serialization (by indexed _id).
+      post = await BlogPost.findById(match._id).lean();
+    }
+  }
+
+  if (!post) {
+    console.warn('[blog:getPublishedBySlug:notFound]', { slug: requestedSlug });
     throw new ApiError(StatusCodes.NOT_FOUND, 'Blog post not found');
   }
   const normalizedPost = serializeBlogPost(post);

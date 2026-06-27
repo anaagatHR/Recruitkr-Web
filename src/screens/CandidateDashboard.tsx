@@ -346,6 +346,7 @@ type CandidateApplicationsResponse = {
 type CandidateProfileResponse = {
   success: boolean;
   data: {
+    recruitkrId?: string;
     fullName?: string;
     dateOfBirth?: string;
     gender?: string;
@@ -1550,6 +1551,12 @@ const CandidateDashboard = () => {
                   <p className="mt-3 max-w-2xl text-sm text-white/80 md:text-base">
                     Keep your applications moving, stay ready for interviews, and make your profile recruiter-ready.
                   </p>
+                  {profile?.recruitkrId && (
+                    <span className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/90 backdrop-blur">
+                      <span className="text-white/60">Candidate ID</span>
+                      <span className="font-mono tracking-wider">{profile.recruitkrId}</span>
+                    </span>
+                  )}
                   <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:gap-3">
                     <button
                       type="button"

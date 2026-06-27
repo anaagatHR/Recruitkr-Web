@@ -38,7 +38,18 @@ const syncCandidateLegacyFields = ({ profile, user, resumeLocation = '' }) => {
 
 const ensureCandidateProfile = async ({ reqUserId, user, body = {} }) => {
   const existingProfile = await CandidateProfile.findOne({ userId: reqUserId });
-  if (existingProfile) return existingProfile;
+  if (existingProfile) {
+    // Backfill the unique RecruitKr id for profiles created before the field
+    // existed (the pre-save hook assigns it). Non-fatal if the save fails.
+    if (!existingProfile.recruitkrId) {
+      try {
+        await existingProfile.save();
+      } catch (error) {
+        console.warn('[candidate] could not backfill recruitkrId:', error.message);
+      }
+    }
+    return existingProfile;
+  }
 
   const preferences = body.preferences || {};
 

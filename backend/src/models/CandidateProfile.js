@@ -1,8 +1,14 @@
 import mongoose from 'mongoose';
 
+import { buildRecruitkrId } from '../utils/recruitkrId.js';
+
 const candidateProfileSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true, required: true },
+    // Human-readable unique candidate id, e.g. RKR-2026-8KJ3. Assigned on first
+    // save by the pre-save hook below. `sparse` keeps the unique index happy for
+    // any legacy docs that predate this field until they are backfilled.
+    recruitkrId: { type: String, unique: true, sparse: true, trim: true },
     fullName: { type: String, trim: true },
     dateOfBirth: { type: Date },
     gender: { type: String },
@@ -89,6 +95,28 @@ const candidateProfileSchema = new mongoose.Schema(
 );
 
 candidateProfileSchema.index({ fullName: 1 });
+
+// Assign a unique RecruitKr id the first time a profile is saved (covers new
+// registrations, Google sign-ups, and lazy backfill of older profiles). Retries
+// on the rare random collision before giving up.
+candidateProfileSchema.pre('save', async function assignRecruitkrId(next) {
+  if (this.recruitkrId) return next();
+  try {
+    const year = (this.createdAt ? new Date(this.createdAt) : new Date()).getFullYear();
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const candidateId = buildRecruitkrId(year);
+      // eslint-disable-next-line no-await-in-loop
+      const clash = await this.constructor.exists({ recruitkrId: candidateId });
+      if (!clash) {
+        this.recruitkrId = candidateId;
+        return next();
+      }
+    }
+    return next(new Error('Unable to allocate a unique RecruitKr id'));
+  } catch (error) {
+    return next(error);
+  }
+});
 
 export const CandidateProfile = mongoose.model('CandidateProfile', candidateProfileSchema);
 

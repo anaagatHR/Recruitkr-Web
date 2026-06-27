@@ -13,9 +13,11 @@ const BLOG_COUNT_STEP = 6;
 const SITE_URL = "https://www.recruitkr.com";
 
 const Blog = () => {
-  const cachedBlogs = getCachedBlogPosts();
-  const [blogs, setBlogs] = useState<BlogPost[]>(cachedBlogs);
-  const [loading, setLoading] = useState(cachedBlogs.length === 0);
+  // Seed empty to match the server render; the sessionStorage cache is read in
+  // an effect after mount so the first client render stays identical to SSR
+  // (reading the cache during render causes a hydration mismatch on <select>).
+  const [blogs, setBlogs] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -40,6 +42,12 @@ const Blog = () => {
   };
 
   useEffect(() => {
+    // Show cached posts instantly (client-only), then refresh from the API.
+    const cached = getCachedBlogPosts();
+    if (cached.length > 0) {
+      setBlogs(cached);
+      setLoading(false);
+    }
     void loadPosts();
   }, []);
 

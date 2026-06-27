@@ -76,12 +76,18 @@ const SocialLinks = ({ member }: { member: TeamMember }) => {
 };
 
 const TeamSection = () => {
-  const cachedTeamMembers = getCachedTeamMembers();
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(cachedTeamMembers);
-  const [loading, setLoading] = useState(cachedTeamMembers.length === 0);
+  // Seed empty to match SSR; the sessionStorage cache is read after mount so the
+  // first client render matches the server (avoids a hydration mismatch).
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(INITIAL_TEAM_COUNT);
 
   useEffect(() => {
+    const cachedTeamMembers = getCachedTeamMembers();
+    if (cachedTeamMembers.length > 0) {
+      setTeamMembers(cachedTeamMembers);
+      setLoading(false);
+    }
     const loadTeamMembers = async () => {
       try {
         if (cachedTeamMembers.length === 0) setLoading(true);

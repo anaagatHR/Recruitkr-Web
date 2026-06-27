@@ -7,9 +7,21 @@ import { fetchLegacyApplicationsForClient } from './job.controller.js';
 
 export const candidateDashboard = asyncHandler(async (req, res) => {
   const [applications, profile] = await Promise.all([
-    Application.find({ candidateId: req.user.id }).populate('jobId').sort({ createdAt: -1 }),
+    // Read-only: .lean() skips Mongoose document hydration for a faster load.
+    Application.find({ candidateId: req.user.id }).populate('jobId').sort({ createdAt: -1 }).lean(),
+    // Kept as a full document so the recruitkrId backfill below can .save().
     CandidateProfile.findOne({ userId: req.user.id }),
   ]);
+
+  // Backfill the unique RecruitKr id for profiles created before the field
+  // existed; the pre-save hook assigns it. Non-fatal if the save ever fails.
+  if (profile && !profile.recruitkrId) {
+    try {
+      await profile.save();
+    } catch (error) {
+      console.warn('[dashboard] could not backfill recruitkrId:', error.message);
+    }
+  }
 
   const interviewCalls = applications.filter((a) => a.status === 'interview').length;
   const offers = applications.filter((a) => a.status === 'offer' || a.status === 'hired').length;
@@ -34,8 +46,10 @@ export const clientDashboard = asyncHandler(async (req, res) => {
     JobRequirement.find({
       clientId: req.user.id,
       sourceCollection: { $exists: false },
-    }).sort({ createdAt: -1 }),
-    Application.find({ clientId: req.user.id }).populate('jobId').sort({ createdAt: -1 }),
+    })
+      .sort({ createdAt: -1 })
+      .lean(),
+    Application.find({ clientId: req.user.id }).populate('jobId').sort({ createdAt: -1 }).lean(),
     fetchLegacyApplicationsForClient(req.user.id),
   ]);
   const allApplications = [...applications, ...legacyApplications];
