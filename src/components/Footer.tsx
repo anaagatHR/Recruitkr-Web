@@ -34,6 +34,7 @@ const linkSections = [
       { label: "Success Stories", to: "/success-stories" },
       { label: "Blog", to: "/blog" },
       { label: "Contact", to: "/contact" },
+      { label: "Admin", to: "https://recruitkr-business-os.vercel.app/", external: true },
     ],
   },
   {
@@ -75,6 +76,22 @@ const mobileSectionTriggerClass =
   "rounded-2xl px-4 text-left text-sm font-semibold uppercase tracking-[0.16em] text-slate-700 no-underline hover:no-underline";
 const contactLinkClass =
   "flex min-w-0 items-start gap-3 rounded-xl px-3 py-2.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
+
+type FooterLinkItem = { label: string; to: string; external?: boolean };
+
+// Footer nav links are internal router links by default; items flagged
+// `external` (e.g. the Admin / Business OS link) render as a plain anchor that
+// opens in a new tab.
+const FooterNavLink = ({ item }: { item: FooterLinkItem }) =>
+  item.external ? (
+    <a href={item.to} target="_blank" rel="noreferrer" className={footerLinkClass}>
+      <span>{item.label}</span>
+    </a>
+  ) : (
+    <Link to={item.to} className={footerLinkClass}>
+      <span>{item.label}</span>
+    </Link>
+  );
 
 const Footer = () => {
   const isMobile = useIsMobile();
@@ -127,9 +144,7 @@ const Footer = () => {
                     <AccordionContent className="px-4 pb-4 pt-1">
                       <nav className="grid gap-2">
                         {section.links.map((item) => (
-                          <Link key={item.label} to={item.to} className={footerLinkClass}>
-                            <span>{item.label}</span>
-                          </Link>
+                          <FooterNavLink key={item.label} item={item} />
                         ))}
                       </nav>
                     </AccordionContent>
@@ -185,9 +200,7 @@ const Footer = () => {
                   <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">{section.title}</h4>
                   <nav className="grid gap-1">
                     {section.links.map((item) => (
-                      <Link key={item.label} to={item.to} className={footerLinkClass}>
-                        <span>{item.label}</span>
-                      </Link>
+                      <FooterNavLink key={item.label} item={item} />
                     ))}
                   </nav>
                 </div>
