@@ -16,7 +16,7 @@ const SITE_NAME = "RecruitKr";
 const TITLE = "RecruitKr | Find Jobs Across India";
 
 const DESCRIPTION =
-  "Find jobs that match your skills and experience. Explore opportunities across India, connect with employers, and apply with ease on RecruitKr.";
+  "Find jobs, internships, remote work, and connect directly with employers. RecruitKr helps job seekers and businesses with fast and easy recruitment.";
 
 export const viewport: Viewport = {
   themeColor: "#264a7f",
