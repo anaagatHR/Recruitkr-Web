@@ -4,13 +4,23 @@ import { fetchJobs } from "@/lib/jobs";
 import JobsScreen from "@/screens/JobsScreen";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Browse Jobs",
+  title: "Browse Jobs | Find Verified Jobs Across India | RecruitKr",
   description:
-    "Search and filter thousands of verified jobs across India by role, location, salary and work mode. Apply free on RecruitKr.",
+    "Browse verified job openings across India. Search jobs by role, location, salary, experience, and work mode. Apply online for free with RecruitKr.",
   path: "/jobs",
-  keywords: ["jobs in India", "latest jobs", "apply jobs online", "remote jobs", "fresher jobs"],
+  keywords: [
+    "jobs in India",
+    "latest jobs",
+    "job search",
+    "find jobs online",
+    "verified jobs",
+    "remote jobs",
+    "work from home jobs",
+    "fresher jobs",
+    "IT jobs",
+    "full time jobs"
+  ],
 });
-
 // Re-fetch the listing at most once a minute; pages render from cache in between.
 export const revalidate = 60;
 

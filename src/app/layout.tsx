@@ -8,11 +8,15 @@ import RecruitKrBot from "@/components/RecruitKrBot";
 import ThemeProvider from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/toaster";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
+
 const SITE_NAME = "RecruitKr";
-const TITLE = "RecruitKr | Find Jobs, Rate Companies & Get Hired Faster";
+
+const TITLE = "RecruitKr | Find Jobs Across India";
+
 const DESCRIPTION =
-  "Browse thousands of verified jobs across India, see real company ratings, and apply in seconds. RecruitKr connects candidates with startups, MSMEs and enterprises - recruitment, payroll and staffing under one roof.";
+  "Find jobs that match your skills and experience. Explore opportunities across India, connect with employers, and apply with ease on RecruitKr.";
 
 export const viewport: Viewport = {
   themeColor: "#264a7f",
@@ -22,28 +26,42 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+
   title: {
     default: TITLE,
     template: "%s | RecruitKr",
   },
+
   description: DESCRIPTION,
+
   applicationName: SITE_NAME,
-  authors: [{ name: SITE_NAME, url: SITE_URL }],
+
+  authors: [
+    {
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
+  ],
+
   generator: "Next.js",
+
   keywords: [
     "jobs in India",
-    "job portal",
     "find jobs",
-    "apply for jobs",
-    "company ratings",
-    "recruitment",
-    "staffing",
-    "payroll",
-    "hiring",
+    "job search",
     "careers",
+    "job portal",
+    "apply for jobs",
+    "remote jobs",
+    "fresher jobs",
+    "hiring",
     "RecruitKr",
   ],
-  alternates: { canonical: "/" },
+
+  alternates: {
+    canonical: "/",
+  },
+
   robots: {
     index: true,
     follow: true,
@@ -55,6 +73,7 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
+
   openGraph: {
     type: "website",
     locale: "en_IN",
@@ -62,8 +81,14 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     title: TITLE,
     description: DESCRIPTION,
-    images: [{ url: "/favicon.png", alt: SITE_NAME }],
+    images: [
+      {
+        url: "/favicon.png",
+        alt: SITE_NAME,
+      },
+    ],
   },
+
   twitter: {
     card: "summary_large_image",
     site: "@Recruitkr",
@@ -71,6 +96,7 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
     images: ["/favicon.png"],
   },
+
   icons: {
     icon: "/favicon.png",
     shortcut: "/favicon.ico",
@@ -100,23 +126,28 @@ const organizationJsonLd = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
+    <html lang="en">
+      <body>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd),
+          }}
         />
-      </head>
-      <body>
+
         <ThemeProvider>
           <AnalyticsTracker />
           <ApiKeepAlive />
+          <RecruitKrBot />
+          <JoinPrompt />
           {children}
           <MobileBottomNav />
-          <JoinPrompt />
-          <RecruitKrBot />
           <Toaster />
         </ThemeProvider>
       </body>

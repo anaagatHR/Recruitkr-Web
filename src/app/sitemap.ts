@@ -3,7 +3,8 @@ import { fetchJobs } from "@/lib/jobs";
 import { fetchBlogPosts } from "@/lib/blog";
 import { CITIES, citySlug } from "@/lib/locations";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
 
 const staticRoutes: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }> = [
   { path: "/", priority: 1.0, changeFrequency: "daily" },
@@ -20,8 +21,6 @@ const staticRoutes: Array<{ path: string; priority: number; changeFrequency: Met
   { path: "/faqs", priority: 0.5, changeFrequency: "monthly" },
   { path: "/blog", priority: 0.7, changeFrequency: "daily" },
   { path: "/contact", priority: 0.5, changeFrequency: "monthly" },
-  { path: "/signup", priority: 0.6, changeFrequency: "monthly" },
-  { path: "/login", priority: 0.4, changeFrequency: "monthly" },
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

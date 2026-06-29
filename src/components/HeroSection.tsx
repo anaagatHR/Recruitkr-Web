@@ -50,15 +50,15 @@ const HeroSection = () => {
           <div className="max-w-3xl text-center lg:text-left">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/90 shadow-lg backdrop-blur">
               <Sparkles size={16} className="text-[#e59f56]" />
-              Verified jobs · Chat directly with employers
+              Explore jobs with confidence
             </div>
 
             <h1 className="mt-6 text-4xl font-black leading-tight text-white sm:text-5xl lg:text-7xl">
-              Find a job and <span className="text-gradient-teal">talk to the employer</span>
+              RecruitKr – <span className="text-gradient-teal">Find  Your Dream Job ?</span>
             </h1>
 
             <p className="mt-5 text-lg leading-8 text-slate-200 sm:text-xl">
-              Apply in one tap, message recruiters directly, and track every update in real time — across verified companies hiring across India.
+             Connect directly with Recruiters, track live updates, get instant updates and scroll down to apply for verified jobs.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start">

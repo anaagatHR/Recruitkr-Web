@@ -80,11 +80,11 @@ export default function JobShowcase() {
           <div>
             <p className="mb-2 text-sm font-semibold uppercase tracking-[0.25em] text-primary">Opportunity categories</p>
             <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-              Explore the latest job paths
+              Find the Right Job Today
             </h2>
           </div>
-          <p className="max-w-xl text-sm text-muted-foreground">
-            Pick the role type that matches your goals and jump into the next step with confidence.
+          <p className="max-w-xl text-sm text-muted-foreground font-bold">
+            Choose your role and start your job search today.
           </p>
         </Reveal>
 
@@ -143,8 +143,8 @@ export default function JobShowcase() {
             <h3 className="text-2xl font-extrabold tracking-tight text-[#264a7f] sm:text-3xl">
               From Development to Deployment
             </h3>
-            <p className="mt-3 text-sm leading-7 text-muted-foreground">
-              A complete journey for hiring teams and job seekers — from discovering opportunities to managing growth with confidence.
+            <p className="mt-3 text-sm leading-7 text-muted-foreground font-bold">
+              Helping job seekers find jobs and employers hire the right people.
             </p>
           </div>
 
