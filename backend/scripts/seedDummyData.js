@@ -81,7 +81,7 @@ const seed = async () => {
       {
         $set: {
           userId: candidate._id,
-          fullName: 'Aarav Sharma',
+          fullName: 'kinshuk gurjar',
           dateOfBirth: new Date('1998-03-12'),
           gender: 'Male',
           address: 'Sector 62, Noida',
