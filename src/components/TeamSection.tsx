@@ -10,14 +10,14 @@ const TEAM_COUNT_STEP = 8;
 // Fallback sample team shown when the API has no data / fails to load, so the
 // section always renders something (a leader + the rest of the team).
 const DUMMY_TEAM: TeamMember[] = [
-  { _id: "dummy-boss", name: "Sachin Kumar", role: "CEO and Managing Director", summary: "Leads RecruitKr's vision across hiring, growth, and candidate success.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-core-1", name: "Krishna Devi", role: "Full time director", summary: "Drives end-to-end recruitment strategy and employer partnerships.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-core-2", name: "Ajay Sharma", role: "web developer", summary: "Keeps hiring workflows fast, clear, and dependable for everyone.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-work-1", name: "Neha Verma", role: "operation & deployment", summary: "Connects candidates with the right opportunities every day.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-work-2", name: "Mohd. Siddhiq", role: "marketing & lead generation", summary: "Supports candidates through interviews and onboarding.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-work-3", name: "Mohammad Saad Farooqui", role: "finance compriance", summary: "Helps employers find and hire the right people quickly.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-work-4", name: "Kinshuk Gujar", role: "research & analyze", summary: "Builds strong candidate pipelines across industries.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-work-5", name: "Paridhi", role: "business developer", summary: "Coordinates interviews and keeps candidates informed.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-boss", name: "Sachin Kumar", role: "CEO and Managing Director", summary: "Sets RecruitKr's vision and steers the company across hiring, growth, and long-term strategy.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-core-1", name: "Krishna Devi", role: "Full time director", summary: "Guides day-to-day direction and key decisions to keep the company moving forward.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-core-2", name: "Ajay Sharma", role: "web developer", summary: "Builds and maintains the RecruitKr platform, shipping fast and reliable features.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-work-1", name: "Neha Verma", role: "operation & deployment", summary: "Runs smooth operations and handles deployments so everything stays live and stable.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-work-2", name: "Mohd. Siddhiq", role: "marketing & lead generation", summary: "Drives marketing campaigns and generates quality leads to grow the business.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-work-3", name: "Mohammad Saad Farooqui", role: "finance compriance", summary: "Manages finances and keeps the company compliant with every regulation.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-work-4", name: "Kinshuk Gujar", role: "research & analyze", summary: "Researches the market and analyzes data to power smarter hiring decisions.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-work-5", name: "Paridhi", role: "business developer", summary: "Builds partnerships and opens new opportunities to expand RecruitKr's reach.", image: "", linkedin: "", email: "" },
 ];
 
 const getInitials = (name: string) =>
