@@ -10,13 +10,14 @@ const TEAM_COUNT_STEP = 8;
 // Fallback sample team shown when the API has no data / fails to load, so the
 // section always renders something (a leader + the rest of the team).
 const DUMMY_TEAM: TeamMember[] = [
-  { _id: "dummy-boss", name: "Aarav Sharma", role: "Founder & CEO", summary: "Leads RecruitKr's vision across hiring, growth, and candidate success.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-core-1", name: "Priya Nair", role: "Head of Recruitment", summary: "Drives end-to-end recruitment strategy and employer partnerships.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-core-2", name: "Rohan Mehta", role: "Operations Lead", summary: "Keeps hiring workflows fast, clear, and dependable for everyone.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-work-1", name: "Sneha Kapoor", role: "Talent Specialist", summary: "Connects candidates with the right opportunities every day.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-work-2", name: "Vikram Singh", role: "Candidate Success", summary: "Supports candidates through interviews and onboarding.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-work-3", name: "Ananya Rao", role: "Employer Support", summary: "Helps employers find and hire the right people quickly.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-work-4", name: "Karan Verma", role: "Sourcing Associate", summary: "Builds strong candidate pipelines across industries.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-boss", name: "Sachin Kumar", role: "CEO and Managing Director", summary: "Leads RecruitKr's vision across hiring, growth, and candidate success.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-core-1", name: "Krishna Devi", role: "Full time director", summary: "Drives end-to-end recruitment strategy and employer partnerships.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-core-2", name: "Ajay Sharma", role: "web developer", summary: "Keeps hiring workflows fast, clear, and dependable for everyone.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-work-1", name: "Neha Verma", role: "operation & deployment", summary: "Connects candidates with the right opportunities every day.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-work-2", name: "Mohd. Siddhiq", role: "marketing & lead generation", summary: "Supports candidates through interviews and onboarding.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-work-3", name: "Mohammad Saad Farooqui", role: "finance compriance", summary: "Helps employers find and hire the right people quickly.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-work-4", name: "Kinshuk Gujar", role: "research & analyze", summary: "Builds strong candidate pipelines across industries.", image: "", linkedin: "", email: "" },
+  { _id: "dummy-work-5", name: "Paridhi", role: "business developer", summary: "Coordinates interviews and keeps candidates informed.", image: "", linkedin: "", email: "" },
 ];
 
 const getInitials = (name: string) =>
@@ -75,6 +76,24 @@ const SocialLinks = ({ member }: { member: TeamMember }) => {
   );
 };
 
+const TeamCard = ({ member }: { member: TeamMember }) => (
+  <article className="group flex h-full w-full flex-col items-center rounded-2xl border border-slate-200/80 bg-white p-4 text-center shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all hover:-translate-y-1 hover:shadow-md sm:p-5">
+    <Avatar member={member} size="md" />
+    <h3 className="mt-3 line-clamp-2 text-sm font-bold leading-tight text-[hsl(var(--navy-deep))]">
+      {member.name}
+    </h3>
+    <p className="mt-1 line-clamp-2 text-[10px] font-semibold uppercase leading-tight tracking-[0.1em] text-teal-700 sm:text-[11px]">
+      {member.role || "RecruitKr Team"}
+    </p>
+    <p className="mt-2 text-xs leading-5 text-slate-600 sm:line-clamp-3">
+      {member.summary || "Helping candidates and employers move forward with confidence."}
+    </p>
+    <div className="mt-auto pt-3">
+      <SocialLinks member={member} />
+    </div>
+  </article>
+);
+
 const TeamSection = () => {
   // Seed empty to match SSR; the sessionStorage cache is read after mount so the
   // first client render matches the server (avoids a hydration mismatch).
@@ -106,17 +125,16 @@ const TeamSection = () => {
     void loadTeamMembers();
   }, []);
 
-  const displayed = teamMembers.slice(0, visibleCount);
-  const hasMore = visibleCount < teamMembers.length;
-
-  // Surface the leader (founder/CEO) as a featured card; the rest go in a grid.
+  // Surface leaders (founder/CEO etc.) first so they land in the top row.
   const BOSS_KEYWORDS = /(founder|co-?founder|ceo|chief executive|managing director|owner|president)/i;
-  const bossIndex = (() => {
-    const idx = displayed.findIndex((m) => BOSS_KEYWORDS.test(m.role || ""));
-    return idx >= 0 ? idx : displayed.length > 0 ? 0 : -1;
-  })();
-  const boss = bossIndex >= 0 ? displayed[bossIndex] : undefined;
-  const rest = displayed.filter((_, i) => i !== bossIndex);
+  const ordered = [...teamMembers].sort((a, b) => {
+    const aBoss = BOSS_KEYWORDS.test(a.role || "") ? 0 : 1;
+    const bBoss = BOSS_KEYWORDS.test(b.role || "") ? 0 : 1;
+    return aBoss - bBoss;
+  });
+
+  const displayed = ordered.slice(0, visibleCount);
+  const hasMore = visibleCount < teamMembers.length;
 
   return (
     <section className="relative overflow-hidden bg-[linear-gradient(180deg,#f6f9ff_0%,#eef4fb_44%,#ffffff_100%)] py-16 sm:py-20 lg:py-24">
@@ -154,51 +172,42 @@ const TeamSection = () => {
           </div>
         )}
 
-        {/* Featured leader */}
-        {!loading && boss && (
-          <div className="mx-auto mt-12 max-w-lg">
-            <article className="relative overflow-hidden rounded-3xl border border-[#264a7f]/15 bg-white p-6 text-center shadow-[0_8px_30px_rgba(38,74,127,0.08)] sm:p-8">
-              <span className="absolute right-4 top-4 rounded-full bg-[#69a44f]/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#4d7a38]">
-                Leadership
-              </span>
-              <div className="flex flex-col items-center">
-                <Avatar member={boss} size="lg" />
-                <h3 className="mt-4 text-lg font-extrabold text-[hsl(var(--navy-deep))]">{boss.name}</h3>
-                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-teal-700">
-                  {boss.role || "RecruitKr Team"}
-                </p>
-                <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-600">
-                  {boss.summary || "Leading RecruitKr's mission to make hiring faster and more human."}
-                </p>
-                <SocialLinks member={boss} />
-              </div>
-            </article>
-          </div>
-        )}
+        {/* Team — tree form: top row (2 cards), connector lines, then 6 cards below */}
+        {!loading && displayed.length > 0 && (
+          <div className="mx-auto mt-12 max-w-6xl">
+            {/* Top row: first 2 members, centered */}
+            <div className="mx-auto grid max-w-2xl grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
+              {displayed.slice(0, 2).map((member) => (
+                <TeamCard key={member._id} member={member} />
+              ))}
+            </div>
 
-        {/* Team grid — 2 cols on phone, scaling up */}
-        {!loading && rest.length > 0 && (
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:mt-8 sm:grid-cols-3 lg:grid-cols-4">
-            {rest.map((member) => (
-              <article
-                key={member._id}
-                className="group flex h-full flex-col items-center rounded-2xl border border-slate-200/80 bg-white p-4 text-center shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all hover:-translate-y-1 hover:shadow-md sm:p-5"
-              >
-                <Avatar member={member} size="md" />
-                <h3 className="mt-3 line-clamp-2 text-sm font-bold leading-tight text-[hsl(var(--navy-deep))]">
-                  {member.name}
-                </h3>
-                <p className="mt-1 line-clamp-2 text-[10px] font-semibold uppercase leading-tight tracking-[0.1em] text-teal-700 sm:text-[11px]">
-                  {member.role || "RecruitKr Team"}
-                </p>
-                <p className="mt-2 hidden text-xs leading-5 text-slate-600 sm:line-clamp-3 lg:block">
-                  {member.summary || "Helping candidates and employers move forward with confidence."}
-                </p>
-                <div className="mt-auto pt-3">
-                  <SocialLinks member={member} />
-                </div>
-              </article>
-            ))}
+            {/* Tree connector — vertical drop + horizontal bar (desktop only) */}
+            {displayed.length > 2 && (
+              <div aria-hidden className="relative hidden h-10 lg:block">
+                {/* drop from the top cards */}
+                <span className="absolute left-1/2 top-0 h-5 w-px -translate-x-1/2 bg-[#264a7f]/25" />
+                {/* horizontal bar spanning the bottom row */}
+                <span className="absolute left-[8.333%] right-[8.333%] top-5 h-px bg-[#264a7f]/25" />
+                {/* small drops down to each of the 6 cards */}
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <span
+                    key={`tree-drop-${i}`}
+                    className="absolute top-5 h-5 w-px bg-[#264a7f]/25"
+                    style={{ left: `${8.333 + i * 16.666}%` }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Bottom row: remaining members — 6 cards in one line */}
+            {displayed.length > 2 && (
+              <div className="mt-5 grid grid-cols-2 gap-5 sm:grid-cols-3 sm:gap-6 lg:mt-0 lg:grid-cols-6">
+                {displayed.slice(2).map((member) => (
+                  <TeamCard key={member._id} member={member} />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
