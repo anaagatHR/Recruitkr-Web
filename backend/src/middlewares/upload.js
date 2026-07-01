@@ -90,6 +90,29 @@ export const messageFileUpload = createMemoryUpload({
   invalidFileMessage: 'Only images, PDFs, or voice notes can be sent in chat',
 });
 
+// Intern task submissions: documents, images, and common archives.
+const allowedInternTaskMimeTypes = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/zip',
+  'application/x-zip-compressed',
+  'text/plain',
+]);
+
+export const internTaskUpload = createMemoryUpload({
+  allowedMimeTypes: allowedInternTaskMimeTypes,
+  maxFileSizeBytes: 15 * 1024 * 1024,
+  invalidFileMessage: 'Upload a PDF, image, Office document, text file, or ZIP',
+});
+
 const allowedVideoMimeTypes = new Set([
   'video/mp4',
   'video/webm',

@@ -9,10 +9,15 @@ import { apiPost } from "@/lib/api";
 import { getSession, setSession } from "@/lib/auth";
 import { tryAutoLogin } from "@/lib/autoLogin";
 
-// Brand palette (navy / green / amber).
+// Brand palette (navy / green).
 const NAVY = "#264a7f";
 const GREEN = "#69a44f";
-const AMBER = "#e59f56";
+
+// Where each role lands after signing in.
+const dashboardPathForRole = (role: "candidate" | "client" | "admin") => {
+  if (role === "client") return "/dashboard/client";
+  return "/dashboard/candidate";
+};
 
 
 const Login = () => {
@@ -51,8 +56,7 @@ const Login = () => {
 
     const params = new URLSearchParams(location.search);
     const redirect = params.get("redirect");
-    const dest =
-      redirect || (session.user.role === "client" ? "/dashboard/client" : "/dashboard/candidate");
+    const dest = redirect || dashboardPathForRole(session.user.role);
     navigate(dest, { replace: true });
   }, [location.search, navigate]);
 
@@ -124,11 +128,7 @@ useEffect(() => {
         throw new Error("Unable to complete Google sign-in");
       }
 
-      const destination =
-        redirect ||
-        (session.user.role === "client"
-          ? "/dashboard/client"
-          : "/dashboard/candidate");
+      const destination = redirect || dashboardPathForRole(session.user.role);
 
       // router.replace lands on the clean destination URL (no oauth query
       // params) and keeps Next's history state in sync. Do NOT also call
@@ -191,7 +191,7 @@ useEffect(() => {
       const redirect = new URLSearchParams(location.search).get("redirect");
       // replace (not push) so /login leaves the history stack — pressing Back
       // from the dashboard won't return to the login page.
-      navigate(redirect || (userType === "candidate" ? "/dashboard/candidate" : "/dashboard/client"), {
+      navigate(redirect || dashboardPathForRole(userType), {
         replace: true,
       });
     } catch (err) {
