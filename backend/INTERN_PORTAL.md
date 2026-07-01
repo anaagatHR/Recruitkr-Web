@@ -1,72 +1,92 @@
 # Intern Portal — backend notes
 
-The intern portal lets an intern (onboarded from the admin panel / business-os by
-a Department Head) log in on the public website, see their assigned tasks, upload
-their completed work, and chat 1:1 with their Department Head.
+A **candidate** applies for an internship from their own dashboard (no separate
+account or password). In the "Intern" tab they choose a department, and the
+request goes to that department's fixed head. Once the head approves it, the
+candidate's tasks and 1:1 chat with the head unlock in the same tab.
 
 All data lives in the SAME MongoDB the admin panel uses.
 
-## What was added
+## Flow
 
-- `User.role` enum now includes `'intern'` (models/User.js). Login already works
-  for any role, so no auth-controller change was needed beyond the role label.
-- **Models** (backend/src/models):
-  - `InternProfile` — one per intern user; basic details + Department Head link.
-  - `InternTask` — a task assigned to an intern; interns push files into
-    `submissions[]`.
-  - `InternMessage` — messages in the intern↔head chat (keyed by `internId`).
-- **API** (mounted at `/api/v1/interns`, role-guarded to `intern`):
-  - `GET  /interns/me` — the intern's card / basic details.
-  - `GET  /interns/tasks` — tasks assigned to the intern.
-  - `POST /interns/tasks/:id/submit` — multipart `file` (+ optional `note`);
-    uploads to ImageKit and marks the task `submitted`.
-  - `GET  /interns/messages` — the chat thread with the head.
-  - `POST /interns/messages` — send a message to the head.
-- Frontend: `/dashboard/intern` page, `/login?role=intern` mode, and a
-  **"Intern Login"** link in the footer (Explore section).
+```
+Candidate logs in (normal email + password)
+  → opens the "Intern" tab
+  → picks a Department (each has a fixed head)
+  → sends a request                → InternProfile.status = 'pending'
+Department Head approves (admin panel) → status = 'active' (+ dates, stipend)
+  → candidate sees tasks + chat; uploads work; chats with the head
+```
 
-## How the admin panel connects (IMPORTANT)
+## Models (backend/src/models)
 
-The Department Head, from the admin panel, must write to this same DB:
+- `Department` — `name`, `description`, `headId` + `headName` (fixed head),
+  `isActive`. Candidates choose from the active ones.
+- `InternProfile` — one per candidate `userId`. `status`
+  (`pending|active|rejected|completed|paused|terminated`), `departmentId`,
+  `department`, `departmentHeadId`/`departmentHeadName`, and head-managed
+  `designation`, `startDate`, `endDate`, `stipend`.
+- `InternTask` — a task assigned to an intern (`internId` = candidate userId);
+  interns push files into `submissions[]`.
+- `InternMessage` — messages in the intern↔head chat (keyed by `internId`).
 
-1. **Create the intern login** — a `users` document:
-   ```js
-   { role: 'intern', email, passwordHash /* argon2/bcrypt, same util as backend */,
-     passwordChangedAt: new Date() }
-   ```
-   Give the intern that email + password. They sign in at `/login?role=intern`.
+No new `User` role is used — interns are just candidates.
 
-2. **Create the intern profile** — an `internprofiles` document with
-   `userId` = the new user's `_id`, plus `fullName`, `department`, `college`,
-   `startDate`, `endDate`, and the head's `departmentHeadId` + `departmentHeadName`.
-   (If missing, the portal lazily creates a stub so login still works.)
+## API (mounted at `/api/v1/interns`, guarded to the `candidate` role)
 
-3. **Assign tasks** — insert `interntasks` documents with `internId` = the intern
-   user's `_id`, a `title`, optional `description`/`dueDate`/`priority`, and
-   `assignedById` / `assignedByName` = the head. Set `status: 'assigned'`.
+- `GET  /interns/me` — internship status + details (`status: 'none'` if none yet).
+- `GET  /interns/departments` — active departments to choose from.
+- `POST /interns/request` — `{ departmentId, note? }` → creates a `pending` request.
+- `GET  /interns/tasks` — assigned tasks (active interns only; 403 otherwise).
+- `POST /interns/tasks/:id/submit` — multipart `file` (+ optional `note`);
+  uploads to ImageKit and marks the task `submitted`.
+- `GET  /interns/messages` — the chat thread (active only).
+- `POST /interns/messages` — send a message to the head (active only).
 
-4. **Read submissions / chat** — the head reviews `interntasks[].submissions`
-   and can reply by inserting `internmessages` documents with
-   `senderRole: 'head'`.
+## What the Department Head does from the admin panel
 
-### If the admin panel already stores interns/tasks under different names
+The head works against this same DB:
 
-The controllers read strictly through the fields defined in the model files above.
-If the admin panel's existing collection or field names differ, align them in ONE
-place — the three `Intern*` model files (and, if the collection name differs, add
-an explicit `mongoose.model('InternTask', schema, '<actualCollectionName>')`
-third argument). No controller/route changes needed.
+1. **Approve a request** — set the candidate's `internprofiles` document
+   `status: 'active'`, and fill `designation`, `startDate`, `endDate`, `stipend`,
+   `decidedAt`. (To decline: `status: 'rejected'`.)
+2. **Assign tasks** — insert `interntasks` with `internId` = the candidate's
+   user `_id`, a `title`, optional `description`/`dueDate`/`priority`,
+   `assignedById`/`assignedByName` = the head, `status: 'assigned'`.
+3. **Review submissions / chat** — read `interntasks[].submissions`; reply by
+   inserting `internmessages` with `senderRole: 'head'`.
+4. **Manage** — pause (`status: 'paused'`), complete (`status: 'completed'`), etc.
+
+## Departments must exist in the DB (else the chooser is empty)
+
+The Intern tab shows departments from the `departments` collection. Add them via
+the admin panel, or run the seed:
+
+```
+# local test DB
+node scripts/seedDepartments.js
+
+# live / Atlas DB (edit real head emails/names in the script FIRST)
+node scripts/seedDepartments.js --force
+```
+
+Without `--force` the seed refuses to touch a non-local DB, so production is
+never seeded by accident. If no departments exist, the tab shows a friendly
+"no departments open" message rather than breaking.
+
+## If the admin panel stores things under different names
+
+Controllers read strictly through the model fields above. If the admin panel's
+collection/field names differ, align them in ONE place — the `Department`,
+`Intern*` model files (add a third `mongoose.model(name, schema, '<collection>')`
+arg if the collection name differs). No controller/route changes needed.
 
 ## Running locally
 
-The backend needs a reachable MongoDB. Set `MONGODB_URI` in `backend/.env` to the
-DB the admin panel uses, then:
-
 ```
 cd backend && npm install && npm run dev   # http://localhost:5000
-```
-
-Frontend (repo root):
-```
-npm run dev   # http://localhost:3000  (proxies /api/v1 -> backend)
+# repo root:
+npm run dev                                # http://localhost:3000
+node backend/scripts/seedDepartments.js    # seed departments
+node backend/scripts/seedInternTest.js     # a candidate with an ACTIVE internship
 ```
