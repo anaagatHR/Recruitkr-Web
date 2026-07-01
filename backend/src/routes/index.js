@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { downloadResumeById } from '../controllers/resume.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.js';
 
+import adminInternRoutes from './adminIntern.routes.js';
 import assistantRoutes from './assistant.routes.js';
 import authRoutes from './auth.routes.js';
 import blogRoutes from './blog.routes.js';
@@ -42,6 +43,7 @@ router.use('/videos', videoRoutes);
 router.use('/resumes', resumeRoutes);
 router.use('/dashboards', dashboardRoutes);
 router.use('/interns', internRoutes);
+router.use('/admin/interns', adminInternRoutes);
 router.use('/contact', contactRoutes);
 router.use('/conversations', messageRoutes);
 router.use('/uploads', uploadRoutes);
