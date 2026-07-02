@@ -245,6 +245,9 @@ const resolveJobOwnerId = (job, sourceCollection) => {
     job.ownerId,
     job.createdBy,
     job.postedBy,
+    // The Business OS CRM writes snake_case owner fields into `jobs`.
+    job.created_by,
+    job.posted_by,
   ].find((value) => mongoose.isValidObjectId(String(value || '').trim()));
 
   return ownerCandidate ? String(ownerCandidate).trim() : '';
@@ -580,14 +583,18 @@ export const createJob = asyncHandler(async (req, res) => {
  * result so it is not re-run on every request.
  */
 export const loadActiveNormalizedJobs = async () => {
+  // Safety caps: these three reads happen together and feed the public jobs
+  // cache. Without limits a large legacy collection would be pulled fully into
+  // RAM in one Promise.all — a straight OOM path on a 512MB instance.
+  const JOBS_LOAD_CAP = 2000;
   const [jobRequirements, jobsCollectionDocs, openingsCollectionDocs] = await Promise.all([
     JobRequirement.find({
       status: 'active',
       clientId: { $exists: true, $ne: null },
       sourceCollection: { $exists: false },
-    }).sort({ createdAt: -1 }).lean(),
-    JobRequirement.db.collection('jobs').find({}).sort({ createdAt: -1 }).toArray(),
-    JobRequirement.db.collection('openings').find({}).sort({ createdAt: -1 }).toArray(),
+    }).sort({ createdAt: -1 }).limit(JOBS_LOAD_CAP).lean(),
+    JobRequirement.db.collection('jobs').find({}).sort({ createdAt: -1 }).limit(JOBS_LOAD_CAP).toArray(),
+    JobRequirement.db.collection('openings').find({}).sort({ createdAt: -1 }).limit(JOBS_LOAD_CAP).toArray(),
   ]);
 
   const externalJobs = [
@@ -942,6 +949,7 @@ export const listCandidateApplications = asyncHandler(async (req, res) => {
   const applications = await Application.find({ candidateId: req.user.id })
     .populate('jobId')
     .sort({ createdAt: -1 })
+    .limit(300)
     .lean();
   res.json({ success: true, data: applications.map(normalizeApplicationResponse) });
 });
@@ -955,6 +963,7 @@ export const listClientApplications = asyncHandler(async (req, res) => {
         select: 'email mobile',
       })
       .sort({ createdAt: -1 })
+      .limit(500)
       .lean(),
     req.user.role === 'client' ? fetchLegacyApplicationsForClient(req.user.id) : Promise.resolve([]),
   ]);
