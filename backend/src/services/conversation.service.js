@@ -1,7 +1,7 @@
 import { Application } from '../models/Application.js';
 import { Conversation } from '../models/Conversation.js';
 import { Message } from '../models/Message.js';
-import { publishLiveUpdate } from './liveUpdate.service.js';
+import { publishLiveUpdate, indexConversationPartners } from './liveUpdate.service.js';
 
 /**
  * Build the denormalised candidate snapshot stored on the conversation and
@@ -78,6 +78,9 @@ export const ensureConversationForApplication = async ({ application, snapshot, 
   }
 
   if (!conversation) return null;
+
+  // Keep the in-memory presence adjacency current in O(1) for online partners.
+  indexConversationPartners(candidateId, clientId);
 
   if (!conversation.systemSeeded) {
     const candidateName = snapshot?.fullName || conversation.candidateName || 'A candidate';

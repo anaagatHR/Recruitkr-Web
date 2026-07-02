@@ -9,7 +9,7 @@ import { Message } from '../models/Message.js';
 import { User } from '../models/User.js';
 import { buildCandidateSnapshot } from '../services/conversation.service.js';
 import { uploadBufferToImageKit } from '../services/imagekit.js';
-import { isUserOnline, publishLiveUpdate } from '../services/liveUpdate.service.js';
+import { isUserOnline, publishLiveUpdate, indexConversationPartners } from '../services/liveUpdate.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -226,6 +226,8 @@ export const createConversation = asyncHandler(async (req, res) => {
     candidateName: application.fullName || '',
   });
 
+  indexConversationPartners(candidateId, clientId);
+
   res.status(StatusCodes.CREATED).json({
     success: true,
     data: serializeConversation(conversation, req.user),
@@ -297,6 +299,8 @@ export const createDirectConversation = asyncHandler(async (req, res) => {
     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Could not start the conversation');
   }
 
+  indexConversationPartners(candidateId, clientId);
+
   res
     .status(isNew ? StatusCodes.CREATED : StatusCodes.OK)
     .json({ success: true, data: serializeConversation(conversation, req.user) });
@@ -305,10 +309,17 @@ export const createDirectConversation = asyncHandler(async (req, res) => {
 export const getMessages = asyncHandler(async (req, res) => {
   const conv = await loadMemberConversation(req.params.id, req.user);
 
-  const messages = await Message.find({ conversationId: conv._id })
-    .sort({ createdAt: 1 })
-    .lean()
-    .exec();
+  // Load only the most recent messages (newest-first + limit), then restore
+  // chronological order for the client. An unbounded find() on a long thread
+  // can pull thousands of docs into RAM — fatal on a 512MB instance.
+  const MESSAGE_PAGE_SIZE = 500;
+  const messages = (
+    await Message.find({ conversationId: conv._id })
+      .sort({ createdAt: -1 })
+      .limit(MESSAGE_PAGE_SIZE)
+      .lean()
+      .exec()
+  ).reverse();
 
   // Opening the thread clears this user's unread counter and marks inbound read.
   const unreadField = req.user.role === 'candidate' ? 'unreadForCandidate' : 'unreadForClient';

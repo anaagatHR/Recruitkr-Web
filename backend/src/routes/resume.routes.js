@@ -11,7 +11,9 @@ import { requireAuth, requireRole } from '../middlewares/auth.js';
 
 const router = Router();
 
-router.post('/parse', parseResume);
+// Auth required: parsing fetches a remote file and (optionally) calls OpenAI —
+// an open endpoint would let anyone use this server as a fetch proxy / burn quota.
+router.post('/parse', requireAuth, parseResume);
 router.get('/mine', requireAuth, requireRole('candidate'), getMyResume);
 router.get('/client', requireAuth, requireRole('client', 'admin'), listClientResumes);
 router.get('/download/:id', requireAuth, requireRole('candidate', 'client', 'admin'), downloadResumeById);

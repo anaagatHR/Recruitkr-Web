@@ -1,18 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Search, MapPin, SlidersHorizontal } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Search, MapPin, SlidersHorizontal, Loader2 } from "lucide-react";
 import { useLocation } from "@/compat/router";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import JobCard from "@/components/job/JobCard";
 import FomoTicker from "@/components/job/FomoTicker";
-import { fetchJobs, type Job } from "@/lib/jobs";
+import { fetchJobsPage, type Job } from "@/lib/jobs";
 
 const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship", "Remote"];
 const WORK_MODES = ["On-site", "Hybrid", "Remote"];
+const PAGE_SIZE = 12;
 
-export default function JobsScreen({ initialJobs = [] }: { initialJobs?: Job[] }) {
+export default function JobsScreen({
+  initialJobs = [],
+  initialHasMore = true,
+}: {
+  initialJobs?: Job[];
+  initialHasMore?: boolean;
+}) {
   const routeLocation = useLocation();
   const initialSearch = new URLSearchParams(routeLocation.search).get("search") ?? "";
   const [jobs, setJobs] = useState<Job[]>(initialJobs);
@@ -23,25 +30,72 @@ export default function JobsScreen({ initialJobs = [] }: { initialJobs?: Job[] }
   const [activeModes, setActiveModes] = useState<string[]>([]);
   const [sort, setSort] = useState<"recent" | "salary">("recent");
 
+  // Infinite scroll: pages load one at a time as the sentinel div nears the
+  // viewport, instead of fetching the whole list up front. Refs mirror the
+  // pieces of state the IntersectionObserver callback needs, so the observer
+  // never acts on a stale closure.
+  const [hasMore, setHasMore] = useState(initialJobs.length > 0 ? initialHasMore : true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const pageRef = useRef(1);
+  const hasMoreRef = useRef(initialJobs.length > 0 ? initialHasMore : true);
+  const fetchingRef = useRef(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     setQuery(new URLSearchParams(routeLocation.search).get("search") ?? "");
   }, [routeLocation.search]);
 
   useEffect(() => {
-    // Server already provided jobs — render them instantly, no client refetch.
+    // Server already provided page 1 — render it instantly, no client refetch.
     if (initialJobs.length > 0) return;
     let active = true;
-    fetchJobs().then(({ jobs }) => {
-      if (active) {
-        setJobs(jobs);
-        setLoading(false);
-      }
+    fetchJobsPage(1, PAGE_SIZE).then(({ jobs, hasMore, live }) => {
+      if (!active) return;
+      setJobs(jobs);
+      setLoading(false);
+      const more = live && hasMore;
+      setHasMore(more);
+      hasMoreRef.current = more;
     });
     return () => {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadMore = useCallback(async () => {
+    if (fetchingRef.current || !hasMoreRef.current) return;
+    fetchingRef.current = true;
+    setLoadingMore(true);
+    try {
+      const next = pageRef.current + 1;
+      const { jobs: more, hasMore: moreLeft } = await fetchJobsPage(next, PAGE_SIZE);
+      pageRef.current = next;
+      setJobs((prev) => {
+        const seen = new Set(prev.map((job) => job.id));
+        return [...prev, ...more.filter((job) => !seen.has(job.id))];
+      });
+      setHasMore(moreLeft);
+      hasMoreRef.current = moreLeft;
+    } finally {
+      fetchingRef.current = false;
+      setLoadingMore(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || loading || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) void loadMore();
+      },
+      // Start fetching well before the user reaches the bottom.
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore, loading, hasMore]);
 
   const toggle = (list: string[], setList: (v: string[]) => void, value: string) =>
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -139,7 +193,9 @@ export default function JobsScreen({ initialJobs = [] }: { initialJobs?: Job[] }
           <div>
             <div className="mb-4 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                {loading ? "Loading jobs..." : `${filtered.length} job${filtered.length === 1 ? "" : "s"} found`}
+                {loading
+                  ? "Loading jobs..."
+                  : `${filtered.length}${hasMore ? "+" : ""} job${filtered.length === 1 ? "" : "s"} found`}
               </p>
               <select
                 value={sort}
@@ -157,7 +213,7 @@ export default function JobsScreen({ initialJobs = [] }: { initialJobs?: Job[] }
                   <div key={i} className="h-56 animate-pulse rounded-2xl border border-border bg-muted/50" />
                 ))}
               </div>
-            ) : filtered.length === 0 ? (
+            ) : filtered.length === 0 && !hasMore ? (
               <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">
                 No jobs match your filters. Try widening your search.
               </div>
@@ -167,6 +223,23 @@ export default function JobsScreen({ initialJobs = [] }: { initialJobs?: Job[] }
                   <JobCard key={job.id} job={job} />
                 ))}
               </div>
+            )}
+
+            {/* Infinite-scroll sentinel: when this row nears the viewport the
+                next page is fetched and appended. */}
+            {!loading && hasMore && (
+              <div ref={sentinelRef} className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                {loadingMore && (
+                  <>
+                    <Loader2 size={16} className="animate-spin" /> Loading more jobs…
+                  </>
+                )}
+              </div>
+            )}
+            {!loading && !hasMore && filtered.length > 0 && (
+              <p className="py-8 text-center text-xs text-muted-foreground">
+                You&apos;ve seen all {filtered.length} job{filtered.length === 1 ? "" : "s"}.
+              </p>
             )}
           </div>
         </div>

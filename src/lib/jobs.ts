@@ -197,6 +197,39 @@ const normalizeJobs = (rawJobs: unknown[] | null): Job[] =>
 const normalizeCompanies = (rawCompanies: unknown[] | null): Company[] =>
   (rawCompanies ?? []).map(normalizeApiCompany).filter((company): company is Company => Boolean(company));
 
+export type JobsPage = { jobs: Job[]; total: number; hasMore: boolean; live: boolean };
+
+/**
+ * Paged fetch for infinite scrolling. The backend `/jobs` endpoint paginates via
+ * `page`/`limit` and reports `meta.totalPages`, so each scroll step only loads
+ * one small page instead of the whole list.
+ */
+export async function fetchJobsPage(page = 1, limit = 12): Promise<JobsPage> {
+  try {
+    const res = await apiGet<JobsResponse & { meta?: { page?: number; total?: number; totalPages?: number } }>(
+      `/jobs?page=${page}&limit=${limit}`,
+      { retries: 0 },
+    );
+    const jobs = normalizeJobs(unwrap(res, "jobs"));
+    const meta = res && typeof res === "object" ? res.meta : undefined;
+    if (jobs.length || page > 1) {
+      const currentPage = Number(meta?.page) || page;
+      const totalPages = Number(meta?.totalPages) || currentPage;
+      return {
+        jobs,
+        total: Number(meta?.total) || jobs.length,
+        hasMore: currentPage < totalPages,
+        live: true,
+      };
+    }
+  } catch {
+    /* fall through to seed */
+  }
+  return page === 1
+    ? { jobs: seedJobs, total: seedJobs.length, hasMore: false, live: false }
+    : { jobs: [], total: 0, hasMore: false, live: true };
+}
+
 export async function fetchJobs(): Promise<{ jobs: Job[]; live: boolean }> {
   try {
     const res = await apiGet<JobsResponse>("/jobs?limit=50", { retries: 0 });

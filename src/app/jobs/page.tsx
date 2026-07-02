@@ -1,6 +1,6 @@
 ﻿import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
-import { fetchJobs } from "@/lib/jobs";
+import { fetchJobsPage } from "@/lib/jobs";
 import JobsScreen from "@/screens/JobsScreen";
 
 export const metadata: Metadata = buildMetadata({
@@ -25,6 +25,8 @@ export const metadata: Metadata = buildMetadata({
 export const revalidate = 60;
 
 export default async function Page() {
-  const { jobs } = await fetchJobs();
-  return <JobsScreen initialJobs={jobs} />;
+  // Only the first page is server-rendered; the rest stream in via infinite
+  // scroll on the client, so the initial payload stays small.
+  const { jobs, hasMore, live } = await fetchJobsPage(1, 12);
+  return <JobsScreen initialJobs={jobs} initialHasMore={live && hasMore} />;
 }

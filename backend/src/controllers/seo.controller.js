@@ -45,6 +45,7 @@ const buildSitemapXml = async () => {
   const publishedBlogs = await BlogPost.find(buildPublishedBlogQuery())
     .select('slug updatedAt publishedAt createdAt')
     .sort({ publishedAt: -1, updatedAt: -1, createdAt: -1 })
+    .limit(5000) // memory safety cap; well under the 50k-URL sitemap spec limit
     .lean();
 
   const uniqueUrls = new Map();

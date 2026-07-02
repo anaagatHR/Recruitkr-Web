@@ -2,13 +2,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import mammoth from 'mammoth';
-import pdfParse from 'pdf-parse';
 import PDFDocument from 'pdfkit';
-import puppeteer from 'puppeteer';
 
 import { env } from '../config/env.js';
 import { generateResumeHTML as generateProfileResumeHTML } from '../utils/resumeBuilder.js';
+import { createQueue } from '../utils/taskQueue.js';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -658,29 +656,37 @@ Rules:
 - do not include extra keys`;
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: env.OPENAI_MODEL,
-        temperature: 0,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: 'You are a strict JSON extractor.' },
-          { role: 'user', content: `${prompt}\n\nResume Text:\n${text.slice(0, 12000)}` },
-        ],
-      }),
+    // Queued: if the AI lane is saturated, this rejects immediately and the
+    // caller falls back to the heuristic parser — graceful degradation instead
+    // of a pile-up.
+    return await aiParseQueue.run(async () => {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        // Hard timeout: a hung upstream call must not pile up parse requests
+        // (each holds a resume buffer in RAM while waiting).
+        signal: AbortSignal.timeout(20_000),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: env.OPENAI_MODEL,
+          temperature: 0,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: 'You are a strict JSON extractor.' },
+            { role: 'user', content: `${prompt}\n\nResume Text:\n${text.slice(0, 12000)}` },
+          ],
+        }),
+      });
+
+      if (!res.ok) return null;
+      const json = await res.json();
+      const content = json?.choices?.[0]?.message?.content;
+      if (!content) return null;
+
+      return coerceHints(JSON.parse(content));
     });
-
-    if (!res.ok) return null;
-    const json = await res.json();
-    const content = json?.choices?.[0]?.message?.content;
-    if (!content) return null;
-
-    return coerceHints(JSON.parse(content));
   } catch {
     return null;
   }
@@ -706,6 +712,9 @@ export const parseResumeToCandidateHints = async (text) => {
 
 export const extractResumeText = async ({ mimeType, buffer }) => {
   if (mimeType === 'application/pdf') {
+    // Lazy import: pdf-parse drags in pdf.js (tens of MB of heap). Only pay
+    // that cost on the first actual resume upload, not at boot.
+    const { default: pdfParse } = await import('pdf-parse');
     const parsed = await pdfParse(buffer);
     const out = normalizeLines(parsed.text);
     if (out.length < 40) {
@@ -720,6 +729,8 @@ export const extractResumeText = async ({ mimeType, buffer }) => {
     mimeType ===
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   ) {
+    // Lazy import for the same reason as pdf-parse above.
+    const { default: mammoth } = await import('mammoth');
     const parsed = await mammoth.extractRawText({ buffer });
     const out = normalizeLines(parsed.value);
     if (out.length < 40) {
@@ -933,7 +944,19 @@ const generateBasicResumePdfBuffer = (profile = {}) =>
     doc.end();
   });
 
-const getPuppeteerLaunchOptions = () => {
+// Puppeteer is loaded lazily so the module (and its large dependency tree)
+// never occupies RAM on hosts that use the default pdfkit engine. On a 512MB
+// Render instance this keeps boot memory low; the import only happens if
+// RESUME_PDF_ENGINE=puppeteer is explicitly set.
+let puppeteerModulePromise = null;
+const getPuppeteer = () => {
+  if (!puppeteerModulePromise) {
+    puppeteerModulePromise = import('puppeteer').then((m) => m.default);
+  }
+  return puppeteerModulePromise;
+};
+
+const getPuppeteerLaunchOptions = (puppeteer) => {
   const isLinux = process.platform === 'linux';
   const isRootUser = typeof process.getuid === 'function' && process.getuid() === 0;
   const shouldDisableSandbox =
@@ -970,53 +993,131 @@ const getPuppeteerLaunchOptions = () => {
   return { configuredUserDataDir, resolvedUserDataDir, launchOptions };
 };
 
-export const generatePDF = async (html) => {
-  const { configuredUserDataDir, resolvedUserDataDir, launchOptions } = getPuppeteerLaunchOptions();
+// --- Shared Chromium + PDF queue ---------------------------------------------
+// Launching a fresh Chromium per PDF (~150-300MB RAM plus a multi-second cold
+// start) will OOM and stall a small instance the moment a few resumes are
+// generated at once — which is exactly what took the site down under load.
+// Instead we keep ONE browser alive and serve each request from a short-lived
+// page, and run renders through a bounded queue so peak memory stays capped no
+// matter how many users hit the endpoint together. Tunable via
+// PDF_MAX_CONCURRENCY (default 2).
+const pdfQueue = createQueue({
+  name: 'pdf-render',
+  concurrency: Math.max(1, Number(process.env.PDF_MAX_CONCURRENCY) || 2),
+  maxQueue: Math.max(1, Number(process.env.PDF_MAX_QUEUE) || 15),
+  busyMessage: 'Resume generation is busy right now. Please try again in a moment.',
+});
 
-  let browser;
+// AI resume parsing holds the resume text + OpenAI response in memory while it
+// waits on the network; a bounded queue stops a parse burst from stacking up.
+const aiParseQueue = createQueue({
+  name: 'ai-parse',
+  concurrency: Math.max(1, Number(process.env.AI_PARSE_CONCURRENCY) || 2),
+  maxQueue: Math.max(1, Number(process.env.AI_PARSE_MAX_QUEUE) || 10),
+});
 
-  try {
-    browser = await puppeteer.launch(launchOptions);
-    const page = await browser.newPage();
-    page.setDefaultNavigationTimeout(30000);
-    page.setDefaultTimeout(30000);
-    await page.emulateMediaType('screen');
+let browserPromise = null;
 
-    await page.setContent(html, { waitUntil: 'domcontentloaded' });
-    await page
-      .waitForNetworkIdle({
-        idleTime: 800,
-        timeout: 5000,
-      })
-      .catch(() => null);
-    await delay(600);
-
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-    });
-
-    return Buffer.from(pdfBuffer);
-  } catch (error) {
-    console.error('Resume template PDF generation failed:', error?.message || error);
-    throw new Error('Unable to generate the resume PDF right now. Please try again.');
-  } finally {
-    if (browser) {
-      await browser.close();
+const getSharedBrowser = async () => {
+  if (browserPromise) {
+    const existing = await browserPromise.catch(() => null);
+    if (existing && existing.connected !== false) {
+      return existing;
     }
-    if (!configuredUserDataDir && resolvedUserDataDir) {
-      fs.rmSync(resolvedUserDataDir, { recursive: true, force: true });
-    }
+    browserPromise = null; // dead/crashed browser — fall through and relaunch
   }
+
+  const puppeteer = await getPuppeteer();
+  const { configuredUserDataDir, resolvedUserDataDir, launchOptions } = getPuppeteerLaunchOptions(puppeteer);
+  browserPromise = puppeteer.launch(launchOptions);
+  const browser = await browserPromise;
+
+  // If Chromium dies (crash/OOM), drop the cached handle so the next call
+  // relaunches a clean instance, and clean up the throwaway profile dir.
+  browser.on('disconnected', () => {
+    browserPromise = null;
+    if (!configuredUserDataDir && resolvedUserDataDir) {
+      try {
+        fs.rmSync(resolvedUserDataDir, { recursive: true, force: true });
+      } catch {
+        // best-effort cleanup; a leftover temp dir is harmless
+      }
+    }
+  });
+
+  return browser;
 };
 
+export const generatePDF = (html) =>
+  pdfQueue.run(async () => {
+    let page;
+    try {
+      const browser = await getSharedBrowser();
+      page = await browser.newPage();
+      page.setDefaultNavigationTimeout(30000);
+      page.setDefaultTimeout(30000);
+      await page.emulateMediaType('screen');
+
+      await page.setContent(html, { waitUntil: 'domcontentloaded' });
+      await page
+        .waitForNetworkIdle({
+          idleTime: 800,
+          timeout: 5000,
+        })
+        .catch(() => null);
+      await delay(600);
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+      });
+
+      return Buffer.from(pdfBuffer);
+    } catch (error) {
+      console.error('Resume template PDF generation failed:', error?.message || error);
+      throw new Error('Unable to generate the resume PDF right now. Please try again.');
+    } finally {
+      // Close only the page; the browser stays warm for the next request.
+      if (page) {
+        await page.close().catch(() => {});
+      }
+    }
+  });
+
+// PDF engine selection. The Chromium/Puppeteer path renders the richer HTML
+// template but needs ~300-500MB RAM and will OOM-kill a small (512MB) Render
+// instance — which is what took the site down. The pure-JS pdfkit path needs no
+// browser at all, so it's the safe default and never launches Chromium. Set
+// RESUME_PDF_ENGINE=puppeteer to opt back into the HTML renderer once the host
+// has real headroom (>= ~2GB).
+const RESUME_PDF_ENGINE = String(process.env.RESUME_PDF_ENGINE || 'pdfkit').toLowerCase();
+const usePuppeteerEngine = () => RESUME_PDF_ENGINE === 'puppeteer';
+
 export const generateStructuredResumePdfBuffer = async (resumeData = {}) => {
-  const html = generateResumeHTML(resumeData);
-  return generatePDF(html);
+  if (usePuppeteerEngine()) {
+    return generatePDF(generateResumeHTML(resumeData));
+  }
+
+  // pdfkit path: run the same normalizer the HTML builder uses so the same
+  // fields land in the PDF (name, summary, skills, education, experience).
+  const normalized = buildGeneratedResumeData({ resumeData });
+  return generateBasicResumePdfBuffer({
+    fullName: normalized.name,
+    summary: normalized.summary,
+    skills: normalized.skills,
+    educationEntries: normalized.education,
+    experienceEntries: normalized.experience,
+    experienceStatus: normalized.experience.length ? 'experienced' : 'fresher',
+  });
 };
 
 export const generateResumePdfBuffer = async (profile) => {
-  const enhancedProfile = profile;
-  const html = generateProfileResumeHTML(enhancedProfile);
-  return generatePDF(html);
+  if (usePuppeteerEngine()) {
+    return generatePDF(generateProfileResumeHTML(profile));
+  }
+
+  // pdfkit path: the candidate-profile shape already carries every field the
+  // basic renderer reads (contact, qualification, preferences, experience
+  // details, skills, projects, certifications, referral).
+  return generateBasicResumePdfBuffer(profile || {});
 };

@@ -182,7 +182,8 @@ const upsertCandidateResume = async ({ profile, user, body }) => {
 };
 
 export const getMe = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id).select('_id email role mobile createdAt');
+  // Read-only: .lean() returns a plain object and skips Mongoose hydration.
+  const user = await User.findById(req.user.id).select('_id email role mobile createdAt').lean();
   if (!user) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
   }
@@ -190,7 +191,8 @@ export const getMe = asyncHandler(async (req, res) => {
 });
 
 export const getCandidateProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id).select('email mobile');
+  // Read-only here: user is only read for email/mobile, never saved.
+  const user = await User.findById(req.user.id).select('email mobile').lean();
   if (!user) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
   }
@@ -201,7 +203,8 @@ export const getCandidateProfile = asyncHandler(async (req, res) => {
 export const updateCandidateProfile = asyncHandler(async (req, res) => {
   const body = req.body;
 
-  const user = await User.findById(req.user.id).select('email mobile');
+  // Read-only here: user is only read for email/mobile, never saved.
+  const user = await User.findById(req.user.id).select('email mobile').lean();
   if (!user) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
   }
@@ -277,7 +280,8 @@ export const updateCandidateProfile = asyncHandler(async (req, res) => {
 });
 
 export const getClientProfile = asyncHandler(async (req, res) => {
-  const profile = await ClientProfile.findOne({ userId: req.user.id });
+  // Read-only: .lean() skips document hydration for a faster profile load.
+  const profile = await ClientProfile.findOne({ userId: req.user.id }).lean();
   if (!profile) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Client profile not found');
   }

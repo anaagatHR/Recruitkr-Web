@@ -20,6 +20,21 @@ export const errorHandler = (error, _req, res, _next) => {
     });
   }
 
+  // body-parser errors: malformed JSON and oversized payloads should read as
+  // clear client errors, not leak parser internals ("Unexpected token ...").
+  if (error?.type === 'entity.parse.failed') {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      message: 'Invalid request body',
+    });
+  }
+  if (error?.type === 'entity.too.large') {
+    return res.status(StatusCodes.PAYLOAD_TOO_LARGE).json({
+      success: false,
+      message: 'Request body is too large',
+    });
+  }
+
   if (error?.name === 'MulterError') {
     const statusCode =
       error.code === 'LIMIT_FILE_SIZE'

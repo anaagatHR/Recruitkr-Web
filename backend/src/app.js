@@ -10,6 +10,7 @@ import morgan from 'morgan';
 import { env } from './config/env.js';
 import { getDynamicSitemap } from './controllers/seo.controller.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
+import { allQueueStats } from './utils/taskQueue.js';
 import { globalLimiter } from './middlewares/rateLimiter.js';
 import authRoutes from './routes/auth.routes.js';
 import blogRoutes from './routes/blog.routes.js';
@@ -93,8 +94,14 @@ app.use(
     },
   }),
 );
-app.use(express.json({ limit: '8mb' }));
-app.use(express.urlencoded({ extended: false, limit: '8mb' }));
+// Blog editor payloads (full post HTML) can legitimately be large, so those
+// routes keep the 8mb ceiling. Everything else gets 2mb: on a 512MB instance
+// a burst of concurrent 8mb bodies is a real OOM vector. body-parser skips
+// requests that an earlier parser already consumed, so the blog-scoped parser
+// below takes precedence for its paths.
+app.use(['/api/v1/blogs', '/api/blogposts'], express.json({ limit: '8mb' }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: false, limit: '2mb' }));
 app.use(cookieParser());
 app.use((req, _res, next) => {
   if (req.body) mongoSanitize.sanitize(req.body);
@@ -108,6 +115,19 @@ if (env.NODE_ENV === 'production') {
 }
 app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
+
+// Lightweight liveness probe for Render health checks / uptime monitors.
+// No DB round-trip: it must stay cheap enough to hit every few seconds.
+// `queues` exposes live pressure on every bounded work lane (pdf, uploads,
+// email, AI parse) so overload is visible before it becomes an outage.
+app.get('/health', (_req, res) => {
+  res.json({
+    ok: true,
+    uptime: Math.round(process.uptime()),
+    memoryMb: Math.round(process.memoryUsage.rss() / (1024 * 1024)),
+    queues: allQueueStats(),
+  });
+});
 
 app.get('/sitemap.xml', getDynamicSitemap);
 app.get('/api/sitemap.xml', getDynamicSitemap);

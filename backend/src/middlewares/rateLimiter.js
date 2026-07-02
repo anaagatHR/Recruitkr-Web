@@ -12,9 +12,13 @@ const buildLimiter = ({ max, windowMs, message, skipSuccessfulRequests = false }
     message: { success: false, message },
   });
 
+// Only failed requests count toward the global cap, so normal high-volume
+// browsing by legit users is never throttled — only error/abuse bursts (e.g. a
+// client retry-looping on an expired token) eat the budget.
 export const globalLimiter = buildLimiter({
   max: env.RATE_LIMIT_MAX,
   windowMs: env.RATE_LIMIT_WINDOW_MS,
+  skipSuccessfulRequests: true,
   message: 'Too many requests. Please retry later.',
 });
 

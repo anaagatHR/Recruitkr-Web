@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.js",
-    "start": "node src/server.js",
+    "start": "node --max-old-space-size=400 src/server.js",
     "seed:dummy": "node scripts/seedDummyData.js",
     "migrate:imagekit": "node scripts/migrateToImageKitProduction.js",
     "solr:reindex": "node scripts/reindexSolr.js",

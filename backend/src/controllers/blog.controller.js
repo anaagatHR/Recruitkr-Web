@@ -292,7 +292,7 @@ export const listPublishedBlogPosts = asyncHandler(async (req, res) => {
   const query = publishedOnly ? buildPublishedBlogQuery() : {};
   // .lean() returns plain objects (no Mongoose document hydration), which is
   // markedly faster for a read-only list; serializeBlogPost handles plain docs.
-  const posts = await BlogPost.find(query).sort({ publishedAt: -1, createdAt: -1 }).lean();
+  const posts = await BlogPost.find(query).sort({ publishedAt: -1, createdAt: -1 }).limit(200).lean();
   const normalizedPosts = posts.map(serializeBlogPost);
   console.info('[blog:listPublished]', { publishedOnly, count: normalizedPosts.length });
   res.json({ success: true, blogPosts: normalizedPosts, meta: { count: normalizedPosts.length } });
@@ -393,7 +393,9 @@ export const getBlogImage = asyncHandler(async (req, res) => {
 });
 
 export const listAdminBlogPosts = asyncHandler(async (_req, res) => {
-  const posts = await BlogPost.find().sort({ updatedAt: -1, createdAt: -1 });
+  // .lean() skips Mongoose document hydration (serializeBlogPost handles plain
+  // objects) and the cap keeps memory bounded regardless of collection size.
+  const posts = await BlogPost.find().sort({ updatedAt: -1, createdAt: -1 }).limit(300).lean();
   res.json({ success: true, blogPosts: posts.map(serializeBlogPost), meta: { count: posts.length } });
 });
 

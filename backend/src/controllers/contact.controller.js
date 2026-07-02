@@ -15,8 +15,11 @@ export const createContactMessage = asyncHandler(async (req, res) => {
 });
 
 export const listContactMessages = asyncHandler(async (_req, res) => {
+  // Cap the admin inbox to the most recent messages so this can never load an
+  // unbounded collection into memory on the small Render instance.
   const messages = await ContactMessage.find()
     .sort({ createdAt: -1, _id: -1 })
+    .limit(500)
     .lean();
 
   res.json({

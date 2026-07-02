@@ -8,8 +8,6 @@ import { Resume } from '../models/Resume.js';
 import { User } from '../models/User.js';
 import {
   extractResumeText,
-  generatePDF,
-  generateResumeHTML,
   generateResumePdfBuffer,
   generateStructuredResumePdfBuffer,
   parseResumeToCandidateHints,
@@ -49,15 +47,70 @@ const detectRemoteResumeMimeType = (url = '', contentType = '') => {
   return '';
 };
 
+// SSRF guard: the resume URL comes from the client, so it must never let the
+// server fetch internal/private addresses (cloud metadata, localhost services).
+const MAX_REMOTE_RESUME_BYTES = 10 * 1024 * 1024;
+
+const assertSafeRemoteUrl = (rawUrl) => {
+  let url;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid resume URL');
+  }
+
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Resume URL must be http(s)');
+  }
+
+  const host = url.hostname.toLowerCase();
+  const isPrivateIpv4 = (() => {
+    if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return false;
+    const [a, b] = host.split('.').map(Number);
+    return (
+      a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)
+    );
+  })();
+
+  if (
+    host === 'localhost' ||
+    host.endsWith('.localhost') ||
+    host.endsWith('.local') ||
+    host.endsWith('.internal') ||
+    host.includes('[') || // IPv6 literal
+    isPrivateIpv4
+  ) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Resume URL host is not allowed');
+  }
+
+  return url;
+};
+
 export const parseResume = asyncHandler(async (req, res) => {
   const resumeUrl = String(req.body?.resumeUrl || '').trim();
   if (!resumeUrl) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Resume URL is required');
   }
+  assertSafeRemoteUrl(resumeUrl);
 
-  const remoteResponse = await fetch(resumeUrl);
+  let remoteResponse;
+  try {
+    remoteResponse = await fetch(resumeUrl, {
+      // No redirects: a safe-looking URL must not bounce to an internal target.
+      redirect: 'error',
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Unable to download resume from the uploaded URL');
+  }
   if (!remoteResponse.ok) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Unable to download resume from the uploaded URL');
+  }
+
+  const declaredLength = Number(remoteResponse.headers.get('content-length'));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_REMOTE_RESUME_BYTES) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Resume file is too large to parse');
   }
 
   const mimeType = detectRemoteResumeMimeType(
@@ -69,6 +122,9 @@ export const parseResume = asyncHandler(async (req, res) => {
   }
 
   const arrayBuffer = await remoteResponse.arrayBuffer();
+  if (arrayBuffer.byteLength > MAX_REMOTE_RESUME_BYTES) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Resume file is too large to parse');
+  }
   const text = await extractResumeText({
     mimeType,
     buffer: Buffer.from(arrayBuffer),
@@ -244,9 +300,7 @@ export const downloadResumeById = asyncHandler(async (req, res) => {
           mobile: candidateUser.mobile,
           certifications: uploadedCertifications,
         })
-      : resume.resumeData?.name
-        ? await generateStructuredResumePdfBuffer(resume.resumeData)
-        : await generatePDF(generateResumeHTML(resume.resumeData || {}));
+      : await generateStructuredResumePdfBuffer(resume.resumeData || {});
 
   res.set({
     'Content-Type': 'application/pdf',

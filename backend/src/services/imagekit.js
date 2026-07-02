@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 
 import { imagekit } from '../config/imagekit.js';
+import { createQueue } from '../utils/taskQueue.js';
 
 const DEFAULT_UPLOAD_FOLDER = '/recruitkr';
 
@@ -51,22 +52,42 @@ export const buildUniqueUploadName = (originalName = 'file') => {
   return extension ? `${baseName}-${uniqueSuffix}.${extension}` : `${baseName}-${uniqueSuffix}`;
 };
 
+// --- Large-upload queue -------------------------------------------------------
+// The ImageKit SDK base64-encodes buffers before sending, so a 50MB video peaks
+// at ~120MB of RAM (buffer + base64 copy). On a 512MB instance two of those in
+// flight at once is an OOM. Files above the threshold are serialized (one at a
+// time) through a bounded queue; small files (photos, resumes) pass through
+// untouched. Tunable via LARGE_UPLOAD_* env vars.
+const LARGE_UPLOAD_THRESHOLD = Number(process.env.LARGE_UPLOAD_THRESHOLD_BYTES) || 5 * 1024 * 1024;
+
+const largeUploadQueue = createQueue({
+  name: 'large-upload',
+  concurrency: 1,
+  maxQueue: Number(process.env.LARGE_UPLOAD_MAX_QUEUE) || 4,
+  busyMessage: 'Server is busy processing uploads. Please try again in a moment.',
+});
+
 export const uploadBufferToImageKit = async ({
   buffer,
   originalName,
   folder = DEFAULT_UPLOAD_FOLDER,
 }) => {
   const fileName = buildUniqueUploadName(originalName);
-  const response = await withRetry(
-    () =>
-      imagekit.upload({
-        file: buffer,
-        fileName,
-        folder: normalizeFolder(folder),
-        useUniqueFileName: false,
-      }),
-    'upload',
-  );
+  const isLarge = Buffer.isBuffer(buffer) && buffer.length > LARGE_UPLOAD_THRESHOLD;
+
+  const doUpload = () =>
+    withRetry(
+      () =>
+        imagekit.upload({
+          file: buffer,
+          fileName,
+          folder: normalizeFolder(folder),
+          useUniqueFileName: false,
+        }),
+      'upload',
+    );
+
+  const response = isLarge ? await largeUploadQueue.run(doUpload) : await doUpload();
 
   return {
     url: response.url,

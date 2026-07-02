@@ -3,4 +3,4 @@
  * thin compatibility layer so controllers/services keep importing the same
  * `publishLiveUpdate` / `isUserOnline` names without changes.
  */
-export { publishLiveUpdate, isUserOnline, emitToUser } from '../socket.js';
+export { publishLiveUpdate, isUserOnline, emitToUser, indexConversationPartners } from '../socket.js';
