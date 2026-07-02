@@ -1,5 +1,5 @@
 "use client";
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { BriefcaseBusiness, Linkedin, Mail, Sparkles } from "lucide-react";
 
 import { fetchTeamMembers, getCachedTeamMembers, type TeamMember } from "@/lib/team";
@@ -30,15 +30,65 @@ const getInitials = (name: string) =>
 
 const Avatar = ({ member, size }: { member: TeamMember; size: "lg" | "md" }) => {
   const dims = size === "lg" ? "h-24 w-24 text-2xl" : "h-16 w-16 text-base sm:h-[72px] sm:w-[72px]";
+  // Media priority: video (hover/tap to play) → photo → initials. A broken
+  // image URL falls back to initials instead of the browser's broken-img icon.
+  const [imageFailed, setImageFailed] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const hasVideo = Boolean(member.video) && !videoFailed;
+  const hasImage = Boolean(member.image) && !imageFailed;
+
+  const playVideo = () => {
+    // Play with sound (never mute). Browsers may block un-gestured autoplay on
+    // hover — the catch keeps that silent; a tap/click always counts as a
+    // gesture and will play.
+    void videoRef.current?.play().catch(() => {});
+  };
+  const stopVideo = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.pause();
+    video.currentTime = 0;
+  };
+  const toggleVideo = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) playVideo();
+    else stopVideo();
+  };
+
   return (
     <div
       className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full font-extrabold uppercase ${dims} ${
-        member.image ? "bg-slate-100" : "bg-[linear-gradient(135deg,#264a7f_0%,#69a44f_100%)] text-white"
+        hasVideo || hasImage ? "bg-slate-100" : "bg-[linear-gradient(135deg,#264a7f_0%,#69a44f_100%)] text-white"
       }`}
     >
-      {member.image ? (
+      {hasVideo ? (
+        <video
+          ref={videoRef}
+          src={member.video}
+          poster={hasImage ? member.image : undefined}
+          preload="metadata"
+          loop
+          playsInline
+          onMouseEnter={playVideo}
+          onMouseLeave={stopVideo}
+          onClick={toggleVideo}
+          onError={() => setVideoFailed(true)}
+          className="h-full w-full cursor-pointer object-cover"
+          aria-label={`${member.name} intro video`}
+        />
+      ) : hasImage ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={member.image} alt={member.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+        <img
+          src={member.image}
+          alt={member.name}
+          loading="lazy"
+          decoding="async"
+          onError={() => setImageFailed(true)}
+          className="h-full w-full object-cover"
+        />
       ) : (
         getInitials(member.name) || "TM"
       )}

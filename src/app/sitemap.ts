@@ -9,8 +9,6 @@ const SITE_URL =
 const staticRoutes: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }> = [
   { path: "/", priority: 1.0, changeFrequency: "daily" },
   { path: "/jobs", priority: 0.95, changeFrequency: "hourly" },
-  { path: "/services", priority: 0.8, changeFrequency: "weekly" },
-  { path: "/sectors", priority: 0.7, changeFrequency: "weekly" },
   { path: "/process", priority: 0.6, changeFrequency: "monthly" },
   { path: "/why-us", priority: 0.6, changeFrequency: "monthly" },
   { path: "/about", priority: 0.6, changeFrequency: "monthly" },

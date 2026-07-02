@@ -32,6 +32,23 @@ const teamSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    // Optional intro video. Multiple aliases so records written by the CRM
+    // panel (whichever field name it uses) still surface on the website.
+    profileVideo: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    videoUrl: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    introVideo: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     linkedInUrl: {
       type: String,
       default: '',

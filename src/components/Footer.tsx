@@ -51,19 +51,11 @@ const linkSections = [
   {
     title: "Services",
     links: [
-      { label: "Recruitment", to: "/services" },
-      { label: "Payroll", to: "/services" },
-      { label: "Staffing", to: "/services" },
-      { label: "Gig Placement", to: "/services" },
-      { label: "HR Solutions", to: "/services" },
-      { label: "Career Counselling", to: "/services" },
       { label: "Assessment", to: "/assessment" },
       { label: "Training", to: "/training" },
     ],
   },
 ];
-
-const sectors = ["IT", "Healthcare", "Banking", "Retail", "Manufacturing", "Logistics"];
 
 const contactEmails = ["Careers@recruitkr.com", "Connect@recruitkr.com"];
 const contactPhones = [
@@ -151,19 +143,6 @@ const Footer = () => {
                   </AccordionItem>
                 ))}
 
-                <AccordionItem value="sectors" className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 px-0">
-                  <AccordionTrigger className={mobileSectionTriggerClass}>Sectors</AccordionTrigger>
-                  <AccordionContent className="px-4 pb-4 pt-1">
-                    <nav className="grid gap-2">
-                      {sectors.map((sector) => (
-                        <a key={sector} href="/sectors" className={footerLinkClass}>
-                          <span>{sector}</span>
-                        </a>
-                      ))}
-                    </nav>
-                  </AccordionContent>
-                </AccordionItem>
-
                 <AccordionItem value="contact" className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 px-0">
                   <AccordionTrigger className={mobileSectionTriggerClass}>Contact</AccordionTrigger>
                   <AccordionContent className="px-4 pb-4 pt-1">
@@ -194,7 +173,7 @@ const Footer = () => {
               </Accordion>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
               {linkSections.map((section) => (
                 <div key={section.title}>
                   <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">{section.title}</h4>
@@ -205,17 +184,6 @@ const Footer = () => {
                   </nav>
                 </div>
               ))}
-
-              <div>
-                <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">Sectors</h4>
-                <nav className="grid gap-1">
-                  {sectors.map((sector) => (
-                    <a key={sector} href="/sectors" className={footerLinkClass}>
-                      <span>{sector}</span>
-                    </a>
-                  ))}
-                </nav>
-              </div>
 
               <div>
                 <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">Contact</h4>

@@ -6,6 +6,8 @@ export type TeamMember = {
   role: string;
   summary: string;
   image: string;
+  /** Optional intro video; when present the card plays it instead of the photo. */
+  video?: string;
   linkedin: string;
   email: string;
 };
@@ -19,6 +21,7 @@ type TeamMemberResponse = {
   role: string;
   summary: string;
   image: string;
+  video?: string;
   linkedin: string;
   email: string;
 };

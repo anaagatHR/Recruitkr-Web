@@ -6,12 +6,10 @@ const SITEMAP_CACHE_TTL_MS = 15 * 60 * 1000;
 const staticPages = [
   { path: '/', changefreq: 'weekly', priority: '1.0' },
   { path: '/about', changefreq: 'monthly', priority: '0.8' },
-  { path: '/services', changefreq: 'monthly', priority: '0.8' },
   { path: '/contact', changefreq: 'monthly', priority: '0.7' },
   { path: '/blog', changefreq: 'weekly', priority: '0.8' },
   { path: '/faqs', changefreq: 'monthly', priority: '0.6' },
   { path: '/process', changefreq: 'monthly', priority: '0.7' },
-  { path: '/sectors', changefreq: 'monthly', priority: '0.7' },
   { path: '/why-us', changefreq: 'monthly', priority: '0.7' },
 ];
 

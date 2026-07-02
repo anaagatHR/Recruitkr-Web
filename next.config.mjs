@@ -21,6 +21,15 @@ const nextConfig = {
       { protocol: "https", hostname: "www.recruitkr.com" },
     ],
   },
+  async redirects() {
+    // The Services and Sectors pages were removed. Permanent redirects keep
+    // previously indexed / bookmarked URLs from 404ing.
+    return [
+      { source: "/services", destination: "/", permanent: true },
+      { source: "/services/:id", destination: "/", permanent: true },
+      { source: "/sectors", destination: "/", permanent: true },
+    ];
+  },
   async rewrites() {
     // Allow same-origin /api/v1 calls to be proxied to the Express backend in dev.
     // Default to 127.0.0.1 (not "localhost"): on Windows "localhost" resolves to
