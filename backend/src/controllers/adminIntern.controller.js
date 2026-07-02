@@ -45,30 +45,42 @@ export const adminUpsertDepartment = asyncHandler(async (req, res) => {
     : '';
 
   if (!name) throw new ApiError(StatusCodes.BAD_REQUEST, 'Department name is required');
-  if (!headEmail) throw new ApiError(StatusCodes.BAD_REQUEST, 'Head email is required');
 
-  // Reuse an existing user as the head, or create a new admin user.
-  let head = await User.findOne({ email: headEmail }).select('_id role').exec();
+  const existing = await Department.findOne({ name }).exec();
+
+  // Resolve the head. If no email is given and the department already exists,
+  // keep its current head (this makes "edit description / reactivate" work
+  // without re-entering the head). A brand-new department needs a head email.
+  let headId = existing?.headId || null;
+  let resolvedHeadName = headName || existing?.headName || '';
   let createdHead = false;
-  if (!head) {
-    if (!tempPassword) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        'No user with that head email exists. Send headPassword (min 8 chars) to create the head account.',
-      );
+
+  if (headEmail) {
+    let head = await User.findOne({ email: headEmail }).select('_id').exec();
+    if (!head) {
+      if (!tempPassword) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'No user with that head email exists. Send headPassword (min 8 chars) to create the head account.',
+        );
+      }
+      head = await User.create({
+        role: 'admin',
+        email: headEmail,
+        passwordHash: await hashPassword(tempPassword),
+        passwordChangedAt: new Date(),
+      });
+      createdHead = true;
     }
-    head = await User.create({
-      role: 'admin',
-      email: headEmail,
-      passwordHash: await hashPassword(tempPassword),
-      passwordChangedAt: new Date(),
-    });
-    createdHead = true;
+    headId = head._id;
+    resolvedHeadName = headName || headEmail;
+  } else if (!existing) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Head email is required for a new department');
   }
 
   const dept = await Department.findOneAndUpdate(
     { name },
-    { name, description, headId: head._id, headName: headName || headEmail, isActive },
+    { name, description, headId, headName: resolvedHeadName, isActive },
     { upsert: true, new: true },
   );
 

@@ -16,6 +16,7 @@ const GREEN = "#69a44f";
 // Where each role lands after signing in.
 const dashboardPathForRole = (role: "candidate" | "client" | "admin") => {
   if (role === "client") return "/dashboard/client";
+  if (role === "admin") return "/dashboard/admin/departments";
   return "/dashboard/candidate";
 };
 
@@ -23,7 +24,7 @@ const dashboardPathForRole = (role: "candidate" | "client" | "admin") => {
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [userType, setUserType] = useState<"candidate" | "client">("candidate");
+  const [userType, setUserType] = useState<"candidate" | "client" | "admin">("candidate");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,7 +37,7 @@ const Login = () => {
 
   useEffect(() => {
     const role = new URLSearchParams(location.search).get("role");
-    if (role === "client" || role === "candidate") {
+    if (role === "client" || role === "candidate" || role === "admin") {
       setUserType(role);
     }
   }, [location.search]);
@@ -262,25 +263,32 @@ useEffect(() => {
               <p className="mt-2 text-muted-foreground text-sm">ANAAGAT HUMANPOWER PRIVATE LIMITED</p>
             </div>
 
-            <div className="flex rounded-xl overflow-hidden border border-border mb-8">
-              <button
-                type="button"
-                className={`flex-1 py-3 text-sm font-semibold transition-all ${userType === "candidate" ? "btn-gradient" : "text-muted-foreground"}`}
-                onClick={() => setUserType("candidate")}
-              >
-                Candidate
-              </button>
-              <button
-                type="button"
-                className={`flex-1 py-3 text-sm font-semibold transition-all ${userType === "client" ? "btn-gradient" : "text-muted-foreground"}`}
-                onClick={() => setUserType("client")}
-              >
-                Employer
-              </button>
-            </div>
+            {userType === "admin" ? (
+              <div className="mb-8 rounded-xl border border-border bg-muted/40 px-4 py-3 text-center">
+                <p className="text-sm font-semibold text-foreground">Admin sign in</p>
+                <p className="mt-1 text-xs text-muted-foreground">Manage departments and interns.</p>
+              </div>
+            ) : (
+              <div className="flex rounded-xl overflow-hidden border border-border mb-8">
+                <button
+                  type="button"
+                  className={`flex-1 py-3 text-sm font-semibold transition-all ${userType === "candidate" ? "btn-gradient" : "text-muted-foreground"}`}
+                  onClick={() => setUserType("candidate")}
+                >
+                  Candidate
+                </button>
+                <button
+                  type="button"
+                  className={`flex-1 py-3 text-sm font-semibold transition-all ${userType === "client" ? "btn-gradient" : "text-muted-foreground"}`}
+                  onClick={() => setUserType("client")}
+                >
+                  Employer
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {googleLoginEnabled && (
+              {googleLoginEnabled && userType !== "admin" && (
                 <button
                   type="button"
                   onClick={() => {
@@ -378,7 +386,9 @@ useEffect(() => {
                 disabled={loading}
                 className="btn-gradient w-full rounded-xl py-3.5 text-sm font-bold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-60"
               >
-                {loading ? "Logging in..." : `Login as ${userType === "candidate" ? "Candidate" : "Employer"}`}
+                {loading
+                  ? "Logging in..."
+                  : `Login as ${userType === "candidate" ? "Candidate" : userType === "admin" ? "Admin" : "Employer"}`}
               </button>
             </form>
 
