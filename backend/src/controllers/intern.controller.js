@@ -1,6 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import mongoose from 'mongoose';
 
+import { CandidateProfile } from '../models/CandidateProfile.js';
 import { Department } from '../models/Department.js';
 import { InternMessage } from '../models/InternMessage.js';
 import { InternProfile } from '../models/InternProfile.js';
@@ -84,16 +85,25 @@ const requireActiveInternship = async (userId) => {
 
 /** GET /interns/me — the candidate's internship status + details. */
 export const getMe = asyncHandler(async (req, res) => {
-  const [profile, user] = await Promise.all([
+  const [profile, user, candidate] = await Promise.all([
     InternProfile.findOne({ userId: req.user.id }).exec(),
     User.findById(req.user.id).select('email').lean().exec(),
+    CandidateProfile.findOne({ userId: req.user.id }).select('recruitkrId').lean().exec(),
   ]);
-  res.json({ success: true, data: serializeProfile(profile, user) });
+  res.json({
+    success: true,
+    data: {
+      ...serializeProfile(profile, user),
+      recruitkrId: candidate?.recruitkrId || '',
+    },
+  });
 });
 
 /** GET /interns/departments — active departments a candidate can request. */
 export const listDepartments = asyncHandler(async (_req, res) => {
-  const departments = await Department.find({ isActive: true })
+  // The `departments` collection is shared with the CRM, which seeds docs
+  // without `isActive` — treat a missing flag as active, like the admin panel.
+  const departments = await Department.find({ isActive: { $ne: false } })
     .select('name description headName')
     .sort({ name: 1 })
     .lean()
@@ -123,7 +133,7 @@ export const requestInternship = asyncHandler(async (req, res) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Please choose a valid department');
   }
 
-  const department = await Department.findOne({ _id: departmentId, isActive: true }).exec();
+  const department = await Department.findOne({ _id: departmentId, isActive: { $ne: false } }).exec();
   if (!department) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Department not found');
   }

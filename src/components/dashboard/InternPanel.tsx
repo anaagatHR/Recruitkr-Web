@@ -25,6 +25,7 @@ type InternStatus = "none" | "pending" | "active" | "rejected" | "completed" | "
 type InternProfile = {
   status: InternStatus;
   email: string;
+  recruitkrId?: string;
   id?: string;
   department?: string;
   departmentId?: string | null;
@@ -451,6 +452,7 @@ const InternPanel = () => {
           </div>
         </div>
         <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3 sm:p-6">
+          <DetailItem icon={<GraduationCap size={16} />} label="RecruitKr ID" value={profile?.recruitkrId} />
           <DetailItem icon={<UserCircle2 size={16} />} label="Email" value={profile?.email} />
           <DetailItem icon={<FileText size={16} />} label="Department" value={profile?.department} />
           <DetailItem icon={<UserCircle2 size={16} />} label="Department Head" value={profile?.departmentHead?.name} />
