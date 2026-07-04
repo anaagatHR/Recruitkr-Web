@@ -11,6 +11,8 @@ next-env.d.ts
 dist
 backend/_render_pdf_screenshot.mjs
 backend/_tmp_*
+# local-only DB inspector — contains a connection string, never commit
+backend/scripts/inspectLiveDb.mjs
 srv.out.log
 srv.err.log
 *.log
