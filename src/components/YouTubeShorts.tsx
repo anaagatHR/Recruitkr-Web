@@ -270,7 +270,7 @@ export default function YouTubeShorts({
         <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF0000] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white shadow-sm">
           <Youtube size={14} /> {eyebrow}
         </span>
-        <h2 className="mt-5 font-heading text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
+        <h2 className="text-gradient-teal mt-5 font-heading text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-4xl">
           {title}
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">{subtitle}</p>
