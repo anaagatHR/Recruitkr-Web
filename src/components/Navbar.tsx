@@ -12,7 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { memo, useCallback, useState } from "react";
-import logoImage from "@/assets/logo.jpeg";
+import logoImage from "@/assets/logo-tagline.png";
 import { Link, NavLink } from "@/compat/router";
 
 const navItems: { label: string; path: string; icon: LucideIcon }[] = [
@@ -25,8 +25,8 @@ const navItems: { label: string; path: string; icon: LucideIcon }[] = [
 ];
 
 const navLinkClass = (isActive: boolean) =>
-  `relative text-sm font-medium transition-colors hover:text-primary ${isActive ? "text-primary" : "text-muted-foreground"
-  } after:absolute after:left-0 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-primary after:transition-all after:duration-300 ${isActive ? "after:w-full" : "after:w-0 hover:after:w-full"
+  `relative text-[0.9rem] font-medium tracking-tight transition-colors hover:text-primary ${isActive ? "text-primary" : "text-foreground/70"
+  } after:absolute after:left-0 after:-bottom-1.5 after:h-[2px] after:rounded-full after:bg-gradient-to-r after:from-[#264a7f] after:to-[#69a44f] after:transition-all after:duration-300 ${isActive ? "after:w-full" : "after:w-0 hover:after:w-full"
   }`;
 
 const Navbar = memo(function Navbar() {
@@ -35,22 +35,24 @@ const Navbar = memo(function Navbar() {
   const closeMenu = useCallback(() => setOpen(false), []);
 
   return (
-    <nav className="fixed left-0 right-0 top-0 z-50 border-b border-[#264a7f]/80 bg-white shadow-sm">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:h-20 sm:px-6 lg:px-8">
+    <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/40 bg-white/95 shadow-soft-sm backdrop-blur-xl supports-[backdrop-filter]:bg-white/90 dark:border-white/10 dark:bg-[#0d1a30]/90">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:h-20 sm:px-6 lg:px-8">
 
-        {/* Logo */}
+        {/* Full logo with the "Your Hiring Partner" tagline baked in, on a
+            genuinely transparent background (white removed) — no white box,
+            works on any navbar colour, light or dark. */}
         <Link to="/" aria-label="RecruitKr home" className="flex shrink-0 items-center">
           <img
             src={logoImage.src}
-            alt="RecruitKr"
+            alt="RecruitKr — Your Hiring Partner"
             loading="eager"
             fetchPriority="high"
-            className="h-12 w-auto object-contain sm:h-16"
+            className="h-16 w-auto object-contain sm:h-[4.5rem]"
           />
         </Link>
 
         {/* Nav Links (desktop) */}
-        <div className="hidden items-center gap-8 text-[#264a7f] lg:flex xl:gap-7">
+        <div className="hidden items-center gap-7 text-[#264a7f] lg:flex xl:gap-8 dark:text-foreground">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -70,9 +72,7 @@ const Navbar = memo(function Navbar() {
           {/* Profile (right side, after Team) */}
           <NavLink
             to="/login"
-            className={({ isActive }) =>
-              `inline-flex items-center gap-1.5 whitespace-nowrap ${navLinkClass(isActive)}`
-            }
+            className="sheen glow-navy group ml-1 inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-gradient-to-r from-[#264a7f] to-[#69a44f] px-5 py-2.5 text-[0.9rem] font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5"
           >
             <User size={16} />
             Profile
@@ -114,7 +114,7 @@ const Navbar = memo(function Navbar() {
           />
           <div
             id="mobile-nav-menu"
-            className="animate-pop-in relative z-50 max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-border bg-white px-3 py-2 shadow-lg lg:hidden"
+            className="animate-pop-in relative z-50 max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-border/60 bg-white/90 px-3 py-3 shadow-soft-lg backdrop-blur-xl dark:bg-[#0d1a30]/90 lg:hidden"
           >
             {[...navItems, { label: "Profile", path: "/login", icon: User }].map((item) => {
               const Icon = item.icon;

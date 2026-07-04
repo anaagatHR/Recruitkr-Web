@@ -41,7 +41,11 @@ const HeroSection = () => {
         <source src="/assets/hero.mp4" type="video/mp4" />
       </video>
 
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(105,164,79,0.24),transparent_35%),linear-gradient(115deg,rgba(0,0,0,0.92),rgba(0,0,0,0.65))]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(105,164,79,0.24),transparent_35%),linear-gradient(115deg,rgba(0,0,0,0.92),rgba(0,0,0,0.6))]" />
+      {/* Cinematic aurora — a slow drifting brand-colour glow field over the video. */}
+      <div aria-hidden className="aurora pointer-events-none absolute inset-0 opacity-40 mix-blend-screen" />
+      {/* Fine grid texture for engineered depth. */}
+      <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 opacity-[0.15] [mask-image:radial-gradient(70%_70%_at_50%_40%,#000,transparent)]" />
       <div className="absolute left-[-8%] top-[-8%] h-40 w-40 rounded-full bg-[#69a44f]/30 blur-3xl animate-blob" />
       <div className="absolute bottom-[-8%] right-[-4%] h-56 w-56 rounded-full bg-[#e59f56]/25 blur-3xl animate-blob-delayed" />
 
@@ -53,7 +57,7 @@ const HeroSection = () => {
               Explore jobs with confidence
             </div>
 
-            <h1 className="mt-6 text-4xl font-black leading-tight text-white sm:text-5xl lg:text-7xl">
+            <h1 className="mt-6 font-heading text-4xl font-extrabold leading-[1.08] tracking-tight text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.4)] sm:text-5xl lg:text-7xl">
               RecruitKr – <span className="text-gradient-teal">Find  Your Dream Job ?</span>
             </h1>
 
@@ -65,14 +69,14 @@ const HeroSection = () => {
               <button
                 type="button"
                 onClick={goSearch}
-                className="inline-flex items-center gap-2 rounded-full bg-[#69a44f] px-6 py-3 text-sm font-semibold text-white shadow-lg transition duration-300 hover:-translate-y-1 hover:bg-[#5a8d3d]"
+                className="sheen glow-green group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#69a44f] to-[#5a8d3d] px-7 py-3.5 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-1"
               >
-                Explore jobs <ArrowRight size={16} />
+                Explore jobs <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" />
               </button>
               <button
                 type="button"
                 onClick={() => navigate("/contact")}
-                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white/90 backdrop-blur transition duration-300 hover:-translate-y-1 hover:bg-white/20"
+                className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white/90 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-white/50 hover:bg-white/20"
               >
                 Talk to us
               </button>
@@ -87,7 +91,9 @@ const HeroSection = () => {
             </div>
           </div>
 
-          <div className="mx-auto w-full max-w-xl">
+          <div className="relative mx-auto w-full max-w-xl">
+            {/* Conic spotlight glow rotating slowly behind the search card. */}
+            <div aria-hidden className="spotlight pointer-events-none absolute -inset-8 -z-10 rounded-full opacity-60 blur-2xl" />
             <div className="glass-panel relative overflow-hidden rounded-[32px] border border-white/20 bg-white/10 p-5 shadow-2xl backdrop-blur-xl sm:p-7">
               <div className="absolute inset-0 bg-gradient-to-br from-white/15 via-transparent to-transparent" />
               <div className="relative">
@@ -110,7 +116,7 @@ const HeroSection = () => {
                   <button
                     type="button"
                     onClick={goSearch}
-                    className="mt-3 w-full rounded-xl bg-gradient-to-r from-[#264a7f] via-[#2f5b98] to-[#69a44f] px-4 py-3 text-sm font-semibold text-white transition duration-300 hover:-translate-y-0.5"
+                    className="sheen mt-3 w-full rounded-xl bg-gradient-to-r from-[#264a7f] via-[#2f5b98] to-[#69a44f] px-4 py-3 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5"
                   >
                     Search opportunities
                   </button>

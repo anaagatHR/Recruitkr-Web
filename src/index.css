@@ -29,11 +29,19 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214 22% 88%;
-    --input: 214 22% 88%;
-    --ring: 216 54% 32%;
+    --border: 214 28% 90%;
+    --input: 214 28% 90%;
+    --ring: 216 54% 40%;
 
-    --radius: 0.5rem;
+    --radius: 0.85rem;
+
+    /* Premium layered elevation — brand-navy-tinted shadows, not muddy black.
+       Depth comes from stacking a tight contact shadow under a soft ambient. */
+    --shadow-sm: 0 1px 2px hsl(216 40% 20% / 0.06), 0 2px 8px -2px hsl(216 40% 20% / 0.08);
+    --shadow-md: 0 2px 6px hsl(216 40% 20% / 0.06), 0 12px 28px -8px hsl(216 44% 24% / 0.16);
+    --shadow-lg: 0 4px 12px hsl(216 40% 20% / 0.06), 0 24px 56px -14px hsl(216 44% 24% / 0.24);
+    --shadow-glow-navy: 0 12px 40px -10px hsl(216 60% 34% / 0.45);
+    --shadow-glow-green: 0 12px 40px -10px hsl(102 45% 42% / 0.5);
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 216 34% 16%;
@@ -86,6 +94,12 @@
   --border: 216 18% 26%;
   --input: 216 18% 26%;
   --ring: 212 60% 62%;
+
+  --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.4), 0 2px 8px -2px hsl(0 0% 0% / 0.4);
+  --shadow-md: 0 2px 6px hsl(0 0% 0% / 0.35), 0 12px 28px -8px hsl(0 0% 0% / 0.5);
+  --shadow-lg: 0 4px 12px hsl(0 0% 0% / 0.35), 0 24px 56px -14px hsl(0 0% 0% / 0.6);
+  --shadow-glow-navy: 0 12px 40px -10px hsl(212 70% 50% / 0.5);
+  --shadow-glow-green: 0 12px 40px -10px hsl(102 45% 45% / 0.55);
 
   --navy: 212 60% 62%;
   --navy-deep: 216 54% 32%;
@@ -169,16 +183,23 @@
 
   body {
     @apply bg-background text-foreground font-body antialiased;
-    text-rendering: optimizeSpeed;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Keep the site's existing behaviour: h1/h2 render in the brand gradient.
+     Only the FACE (Sora) and tracking change — no visual/content regressions. */
   h1, h2 {
     @apply font-heading bg-clip-text text-transparent;
     background-image: var(--brand-gradient);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
   }
 
   h3, h4, h5, h6 {
     @apply font-heading text-foreground;
+    letter-spacing: -0.015em;
   }
 }
 
@@ -307,6 +328,145 @@
 }
 
 @layer utilities {
+  /* ================================================================
+     PREMIUM DESIGN ARSENAL — presentational utilities only.
+     Add these classes to elements to elevate the look without touching
+     any content, copy, or component logic.
+     ================================================================ */
+
+  /* Layered brand-tinted elevation. */
+  .shadow-soft-sm { box-shadow: var(--shadow-sm); }
+  .shadow-soft-md { box-shadow: var(--shadow-md); }
+  .shadow-soft-lg { box-shadow: var(--shadow-lg); }
+  .glow-navy { box-shadow: var(--shadow-glow-navy); }
+  .glow-green { box-shadow: var(--shadow-glow-green); }
+
+  /* Animated aurora mesh — a slowly drifting multi-color glow field.
+     Drop behind hero/section content (absolute, -z-10) for a cinematic base. */
+  .aurora {
+    background:
+      radial-gradient(40% 55% at 15% 20%, hsl(216 60% 40% / 0.55), transparent 60%),
+      radial-gradient(45% 50% at 85% 15%, hsl(102 45% 45% / 0.45), transparent 60%),
+      radial-gradient(50% 60% at 70% 85%, hsl(30 76% 60% / 0.40), transparent 60%),
+      radial-gradient(45% 55% at 25% 90%, hsl(216 70% 45% / 0.45), transparent 60%);
+    background-size: 200% 200%;
+    animation: aurora-drift 22s ease-in-out infinite;
+    filter: blur(8px);
+  }
+  @keyframes aurora-drift {
+    0%, 100% { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%; }
+    50%      { background-position: 30% 20%, 70% 30%, 60% 70%, 40% 80%; }
+  }
+
+  /* Fine grid / dot texture overlay — adds engineered depth to flat sections. */
+  .bg-grid {
+    background-image:
+      linear-gradient(hsl(216 40% 30% / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(216 40% 30% / 0.05) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+  .bg-dots {
+    background-image: radial-gradient(hsl(216 40% 30% / 0.12) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  /* Frosted glass surface. */
+  .glass {
+    background: hsl(0 0% 100% / 0.7);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    border: 1px solid hsl(0 0% 100% / 0.5);
+  }
+  .dark .glass {
+    background: hsl(216 30% 14% / 0.6);
+    border: 1px solid hsl(0 0% 100% / 0.08);
+  }
+  .glass-dark {
+    background: hsl(216 44% 12% / 0.55);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    border: 1px solid hsl(0 0% 100% / 0.12);
+  }
+
+  /* Animated gradient-border card. The border itself shimmers with the brand
+     colours; the inner surface stays clean. Use on feature/CTA cards. */
+  .gradient-border {
+    position: relative;
+    background: hsl(var(--card));
+    border-radius: 1.25rem;
+  }
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1.5px;
+    border-radius: inherit;
+    background: linear-gradient(130deg, #264a7f, #69a44f, #e59f56, #264a7f);
+    background-size: 300% 300%;
+    animation: border-flow 8s linear infinite;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+  @keyframes border-flow {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 300% 50%; }
+  }
+
+  /* Sheen sweep — a soft light streak that glides across on hover.
+     Put on buttons / cards; needs `relative overflow-hidden` on the target. */
+  .sheen { position: relative; overflow: hidden; }
+  .sheen::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -75%;
+    height: 100%;
+    width: 50%;
+    transform: skewX(-20deg);
+    background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.35), transparent);
+    transition: left 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+  }
+  .sheen:hover::after { left: 130%; }
+
+  /* Premium hover lift with a bloom of shadow. */
+  .lift {
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
+  .lift:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Deep, rich brand backdrops for hero/footer bands. */
+  .bg-deep-navy {
+    background:
+      radial-gradient(60% 80% at 20% 0%, hsl(216 55% 24% / 1), transparent 60%),
+      radial-gradient(50% 70% at 90% 20%, hsl(216 60% 20% / 1), transparent 55%),
+      hsl(216 52% 11%);
+  }
+
+  /* Animated conic spotlight, e.g. behind a hero card. */
+  .spotlight {
+    background: conic-gradient(from 180deg at 50% 50%,
+      hsl(216 60% 40% / 0.0), hsl(102 45% 45% / 0.25),
+      hsl(30 76% 60% / 0.2), hsl(216 60% 40% / 0.0));
+    animation: spin-slow 18s linear infinite;
+  }
+  @keyframes spin-slow { to { transform: rotate(360deg); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .aurora, .spotlight { animation: none; }
+    .gradient-border::before { animation: none; }
+    .lift { transition: none; }
+    .lift:hover { transform: none; }
+    .sheen::after { transition: none; }
+  }
+
   .gradient-teal {
     background: var(--brand-gradient);
   }

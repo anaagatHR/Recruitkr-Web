@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Inter, Sora } from "next/font/google";
 import "@/index.css";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import ApiKeepAlive from "@/components/ApiKeepAlive";
@@ -7,6 +8,22 @@ import MobileBottomNav from "@/components/MobileBottomNav";
 import RecruitKrBot from "@/components/RecruitKrBot";
 import ThemeProvider from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/toaster";
+
+// Body / UI text — Inter: clean, neutral, legible at every size.
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-body",
+});
+
+// Display / headings — Sora: geometric, confident, a little dramatic.
+// Gives the whole site a distinct, modern voice (not the OS default font).
+const sora = Sora({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+  variable: "--font-display",
+});
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
@@ -132,7 +149,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${sora.variable}`}>
       <body>
         <script
           type="application/ld+json"
