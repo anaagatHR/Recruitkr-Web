@@ -43,6 +43,9 @@ const envSchema = z.object({
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   CONTACT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
   BCRYPT_OR_ARGON2_PEPPER: z.string().min(16),
+  // Shared secret the CRM sends when provisioning intern accounts. Optional —
+  // when unset the /internal/interns/provision endpoint refuses all requests.
+  INTERNAL_PROVISION_KEY: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
   OPENAI_API_KEY: z.preprocess(emptyToUndefined, z.string().min(20).optional()),
   OPENAI_MODEL: z.string().min(3).default('gpt-4o-mini'),
   IMAGEKIT_PUBLIC_KEY: z.string().min(10),
