@@ -13,8 +13,8 @@ import { requireAuth, requireRole } from '../middlewares/auth.js';
 
 const router = Router();
 
-// Department + intern management is for admins / department heads (admin role).
-router.use(requireAuth, requireRole('admin'));
+// Department + intern management is for admins, super admins, and department heads.
+router.use(requireAuth, requireRole('admin', 'super_admin', 'department_head'));
 
 // Departments.
 router.get('/departments', adminListDepartments);

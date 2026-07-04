@@ -163,6 +163,20 @@ export const requestInternship = asyncHandler(async (req, res) => {
   res.status(StatusCodes.CREATED).json({ success: true, data: serializeProfile(profile, user) });
 });
 
+export const applyForInternship = requestInternship;
+
+export const getInternshipStatus = asyncHandler(async (req, res) => {
+  const profile = await InternProfile.findOne({ userId: req.user.id })
+    .select('status')
+    .lean()
+    .exec();
+
+  res.json({
+    success: true,
+    data: { status: profile?.status || 'none' },
+  });
+});
+
 /** GET /interns/tasks — tasks assigned to this intern (active only). */
 export const listTasks = asyncHandler(async (req, res) => {
   await requireActiveInternship(req.user.id);

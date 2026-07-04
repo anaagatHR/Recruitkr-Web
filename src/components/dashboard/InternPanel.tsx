@@ -40,6 +40,15 @@ type InternProfile = {
 
 type Department = { id: string; name: string; description: string; headName: string };
 
+type InternshipApplicationStatus = "none" | "pending" | "approved" | "rejected";
+
+type InternshipStatusResponse = {
+  status: InternshipApplicationStatus;
+  department?: string;
+  departmentId?: string | null;
+  requestedAt?: string | null;
+};
+
 type InternTaskSubmission = { url: string; name: string; type: string; size: number; uploadedAt: string };
 
 type InternTask = {
@@ -107,8 +116,9 @@ const InternPanel = () => {
   const [profile, setProfile] = useState<InternProfile | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDept, setSelectedDept] = useState("");
-  const [requestNote, setRequestNote] = useState("");
   const [requesting, setRequesting] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState<InternshipApplicationStatus>("none");
+  const [applicationDepartment, setApplicationDepartment] = useState<string | null>(null);
   const [tasks, setTasks] = useState<InternTask[]>([]);
   const [messages, setMessages] = useState<InternMessage[]>([]);
   const [uploadingTaskId, setUploadingTaskId] = useState<string | null>(null);
@@ -120,6 +130,16 @@ const InternPanel = () => {
   const refreshProfile = useCallback(async () => {
     const res = await apiGet<{ success: boolean; data: InternProfile }>("/interns/me", true);
     setProfile(res.data);
+    return res.data;
+  }, []);
+
+  const refreshApplicationStatus = useCallback(async () => {
+    const res = await apiGet<{ success: boolean; data: InternshipStatusResponse }>(
+      "/api/internship/my-status",
+      true,
+    );
+    setApplicationStatus(res.data?.status || "none");
+    setApplicationDepartment(res.data?.department || null);
     return res.data;
   }, []);
 
@@ -139,9 +159,13 @@ const InternPanel = () => {
     try {
       const [me, deptsRes] = await Promise.all([
         refreshProfile(),
-        apiGet<{ success: boolean; data: Department[] }>("/interns/departments", true).catch(() => null),
+        apiGet<{ success: boolean; data: Department[] }>(
+          "/api/departments/open-for-internship",
+          true,
+        ).catch(() => null),
       ]);
       if (deptsRes) setDepartments(deptsRes.data || []);
+      const statusRes = await refreshApplicationStatus().catch(() => null);
       if (me.status === "active") {
         await Promise.all([refreshTasks(), refreshMessages()]);
       }
@@ -150,7 +174,7 @@ const InternPanel = () => {
     } finally {
       setLoading(false);
     }
-  }, [refreshMessages, refreshProfile, refreshTasks]);
+  }, [refreshMessages, refreshProfile, refreshTasks, refreshApplicationStatus]);
 
   useEffect(() => {
     void loadData();
@@ -184,12 +208,11 @@ const InternPanel = () => {
     setRequesting(true);
     setError("");
     try {
-      await apiPost("/interns/request", { departmentId: selectedDept, note: requestNote.trim() }, true);
-      setRequestNote("");
+      await apiPost("/api/internship/apply", { departmentId: selectedDept }, true);
       setSelectedDept("");
-      await refreshProfile();
+      await refreshApplicationStatus();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send request");
+      setError(err instanceof Error ? err.message : "Failed to submit application");
     } finally {
       setRequesting(false);
     }
@@ -243,19 +266,67 @@ const InternPanel = () => {
     <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
   );
 
+  const hasActiveApplication = applicationStatus === "pending" || applicationStatus === "approved" || applicationStatus === "rejected";
+
   // --- No internship yet (or previously rejected/finished): choose + request ---
   if (status === "none" || status === "rejected" || status === "completed" || status === "terminated") {
+    if (hasActiveApplication) {
+      const isPending = applicationStatus === "pending";
+      const isApproved = applicationStatus === "approved";
+      const isRejected = applicationStatus === "rejected";
+      return (
+        <div className="mx-auto max-w-2xl space-y-4">
+          {errorBanner}
+          <div
+            className={`rounded-2xl border p-8 text-center shadow-sm ${
+              isPending
+                ? "border-amber-200 bg-amber-50 text-amber-700"
+                : isApproved
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-red-200 bg-red-50 text-red-700"
+            }`}
+          >
+            <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-current/10 text-current">
+              {isPending ? <Clock4 size={26} /> : isApproved ? <CheckCircle2 size={26} /> : <XCircle size={26} />}
+            </span>
+            <h3 className="text-lg font-semibold text-slate-900">
+              {isPending
+                ? "Your application is under review"
+                : isApproved
+                ? "Your internship application has been approved!"
+                : "Your application was not approved"}
+            </h3>
+            <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
+              {isPending && (
+                <>
+                  We have received your request for <b>{applicationDepartment || "the selected department"}</b>. Our team will review it shortly.
+                </>
+              )}
+              {isApproved && (
+                <>
+                  Your application is approved. You now have access to the Intern Portal and can start working with your assigned department.
+                </>
+              )}
+              {isRejected && <>Your application has been reviewed and was not approved at this time.</>}
+            </p>
+            {isApproved && (
+              <a
+                href="/dashboard/candidate?tab=intern"
+                className="mt-5 inline-flex items-center justify-center rounded-xl bg-[#264a7f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1d3a66]"
+              >
+                Go to Intern Portal
+              </a>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto max-w-2xl space-y-4">
         {errorBanner}
 
-        {status === "rejected" && (
-          <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            <XCircle size={18} className="mt-0.5 shrink-0" />
-            <p>Your previous internship request was declined. You can choose a department and request again.</p>
-          </div>
-        )}
-        {(status === "completed" || status === "terminated") && (
+        {(status === "rejected" || status === "completed" || status === "terminated") && (
           <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
             <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
             <p>Your previous internship has ended. You can request a new one below.</p>
@@ -303,17 +374,6 @@ const InternPanel = () => {
                 })}
               </div>
 
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Message to the head (optional)</label>
-                <textarea
-                  value={requestNote}
-                  onChange={(e) => setRequestNote(e.target.value)}
-                  rows={3}
-                  placeholder="Why do you want to intern in this department?"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-[#264a7f] focus:outline-none focus:ring-1 focus:ring-[#264a7f]"
-                />
-              </div>
-
               <button
                 type="submit"
                 disabled={!selectedDept || requesting}
@@ -321,10 +381,10 @@ const InternPanel = () => {
               >
                 {requesting ? (
                   <>
-                    <Loader2 size={16} className="animate-spin" /> Sending request…
+                    <Loader2 size={16} className="animate-spin" /> Sending application…
                   </>
                 ) : (
-                  "Send internship request"
+                  "Apply"
                 )}
               </button>
             </form>

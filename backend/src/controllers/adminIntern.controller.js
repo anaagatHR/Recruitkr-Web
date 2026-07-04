@@ -121,12 +121,11 @@ const serializeInternRow = (profile, user) => ({
  * (admins see all). Optional ?status=pending to filter.
  */
 export const adminListInterns = asyncHandler(async (req, res) => {
-  const statusFilter = typeof req.query?.status === 'string' ? req.query.status : '';
-  const query = {};
-  if (statusFilter) query.status = statusFilter;
-  // A head only sees interns whose head is them; a plain admin sees all.
-  const myDepartments = await Department.find({ headId: req.user.id }).select('_id').lean();
-  if (myDepartments.length > 0) {
+  const statusFilter = typeof req.query?.status === 'string' ? req.query.status : 'pending';
+  const query = { status: statusFilter };
+
+  const role = typeof req.user.role === 'string' ? req.user.role : '';
+  if (role === 'department_head') {
     query.departmentHeadId = req.user.id;
   }
 
