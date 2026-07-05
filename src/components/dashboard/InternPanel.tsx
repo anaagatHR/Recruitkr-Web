@@ -136,7 +136,7 @@ const InternPanel = () => {
 
   const refreshApplicationStatus = useCallback(async () => {
     const res = await apiGet<{ success: boolean; data: InternshipStatusResponse }>(
-      "/api/internship/my-status",
+      "/internship/my-status",
       true,
     );
     setApplicationStatus(res.data?.status || "none");
@@ -161,7 +161,7 @@ const InternPanel = () => {
       const [me, deptsRes] = await Promise.all([
         refreshProfile(),
         apiGet<{ success: boolean; data: Department[] }>(
-          "/api/departments/open-for-internship",
+          "/departments/open-for-internship",
           true,
         ).catch(() => null),
       ]);
@@ -209,7 +209,7 @@ const InternPanel = () => {
     setRequesting(true);
     setError("");
     try {
-      await apiPost("/api/internship/apply", { departmentId: selectedDept }, true);
+      await apiPost("/internship/apply", { departmentId: selectedDept }, true);
       setSelectedDept("");
       await refreshApplicationStatus();
     } catch (err) {
