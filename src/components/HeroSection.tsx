@@ -3,6 +3,7 @@ import { ArrowRight, BriefcaseBusiness, Search, Sparkles, Users } from "lucide-r
 import { useNavigate } from "@/compat/router";
 import TypingText from "@/components/TypingText";
 import HeroProcessFlow from "@/components/HeroProcessFlow";
+import HeroAnimatedBackground from "@/components/HeroAnimatedBackground";
 import { useState } from "react";
 
 const heroPhrases = [
@@ -30,19 +31,10 @@ const HeroSection = () => {
 
   return (
     <section className="relative isolate overflow-hidden border-b border-white/10 bg-slate-950 py-24 sm:py-28 lg:min-h-[calc(100svh-4rem)] lg:py-32 lg:pb-40">
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        poster="/assets/hero-bg.jpg"
-        className="absolute inset-0 h-full w-full object-cover object-center"
-      >
-        <source src="/assets/hero.mp4" type="video/mp4" />
-      </video>
+      {/* Animated talent-network background (replaces the old hero video). */}
+      <HeroAnimatedBackground />
 
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(105,164,79,0.24),transparent_35%),linear-gradient(115deg,rgba(0,0,0,0.92),rgba(0,0,0,0.6))]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(105,164,79,0.24),transparent_35%),linear-gradient(115deg,rgba(0,0,0,0.82),rgba(0,0,0,0.45))]" />
       {/* Cinematic aurora — a slow drifting brand-colour glow field over the video. */}
       <div aria-hidden className="aurora pointer-events-none absolute inset-0 opacity-40 mix-blend-screen" />
       {/* Fine grid texture for engineered depth. */}
