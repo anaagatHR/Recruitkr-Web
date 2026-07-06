@@ -44,6 +44,10 @@ const nextConfig = {
     const crmAssetBase = (process.env.NEXT_PUBLIC_CRM_URL || "http://localhost:8080").replace(/\/$/, "");
     return [
       {
+        source: "/intern-login",
+        destination: "/login",
+      },
+      {
         source: "/api/v1/:path*",
         destination: `${root}/api/v1/:path*`,
       },

@@ -2,6 +2,7 @@
 import { ArrowRight, BriefcaseBusiness, Search, Sparkles, Users } from "lucide-react";
 import { useNavigate } from "@/compat/router";
 import TypingText from "@/components/TypingText";
+import HeroProcessFlow from "@/components/HeroProcessFlow";
 import { useState } from "react";
 
 const heroPhrases = [
@@ -28,7 +29,7 @@ const HeroSection = () => {
   };
 
   return (
-    <section className="relative isolate overflow-hidden border-b border-white/10 bg-slate-950 py-24 sm:py-28 lg:min-h-[calc(100svh-4rem)] lg:py-32">
+    <section className="relative isolate overflow-hidden border-b border-white/10 bg-slate-950 py-24 sm:py-28 lg:min-h-[calc(100svh-4rem)] lg:py-32 lg:pb-40">
       <video
         autoPlay
         muted
@@ -135,6 +136,9 @@ const HeroSection = () => {
           </div>
         </div>
       </div>
+
+      {/* Animated journey ribbon — shows how the whole site works end to end. */}
+      <HeroProcessFlow />
     </section>
   );
 };
