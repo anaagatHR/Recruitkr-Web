@@ -38,7 +38,7 @@ const HeroProcessFlow = () => {
       aria-hidden
       className="pointer-events-none absolute inset-x-0 bottom-4 z-[2] hidden px-6 lg:block"
     >
-      <div className="mx-auto flex max-w-4xl items-center justify-center rounded-full border border-white/10 bg-slate-950/25 px-5 py-3 backdrop-blur-md">
+      <div className="mx-auto flex max-w-4xl items-center justify-center rounded-full border border-slate-200 bg-white/80 px-5 py-3 shadow-sm backdrop-blur-md">
         {STEPS.map((step, index) => {
           const Icon = step.icon;
           const isActive = index === active;
@@ -56,10 +56,10 @@ const HeroProcessFlow = () => {
                   transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
                   className={`relative flex h-9 w-9 items-center justify-center rounded-full border ${
                     isActive
-                      ? "border-[#69a44f] bg-[#69a44f]/25 text-white shadow-[0_0_18px_rgba(105,164,79,0.6)]"
+                      ? "border-[#69a44f] bg-[#69a44f] text-white shadow-[0_0_18px_rgba(105,164,79,0.5)]"
                       : isDone
-                        ? "border-[#69a44f]/50 bg-[#69a44f]/15 text-white"
-                        : "border-white/20 bg-white/10 text-white/70"
+                        ? "border-[#69a44f]/60 bg-[#69a44f]/15 text-[#4d7a38]"
+                        : "border-slate-300 bg-white text-slate-400"
                   }`}
                 >
                   <Icon size={16} />
@@ -74,7 +74,7 @@ const HeroProcessFlow = () => {
                 </motion.div>
                 <span
                   className={`whitespace-nowrap text-[11px] font-medium transition-colors duration-300 ${
-                    isActive ? "text-white" : "text-white/60"
+                    isActive ? "text-slate-900" : "text-slate-500"
                   }`}
                 >
                   {step.label}
@@ -82,7 +82,7 @@ const HeroProcessFlow = () => {
               </div>
 
               {index < STEPS.length - 1 && (
-                <div className="relative mx-2 h-px flex-1 self-start bg-white/15" style={{ marginTop: "18px" }}>
+                <div className="relative mx-2 h-px flex-1 self-start bg-slate-200" style={{ marginTop: "18px" }}>
                   <motion.div
                     className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#69a44f] to-[#e59f56]"
                     initial={false}

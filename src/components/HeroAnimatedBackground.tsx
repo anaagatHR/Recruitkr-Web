@@ -1,41 +1,35 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
+import { Briefcase, UserRound } from "lucide-react";
 
-// Animated "talent network" that stands in for a hero video: nodes are
-// candidates/companies, the lines are matches, and glowing pulses travel along
-// them — a living picture of what RecruitKr does. Pure SVG + framer-motion, so
-// there is no heavy video file to download and nothing can 404.
+// Light, animated "hiring" scene that replaces the old hero video: people
+// (candidates + recruiters) float around job hubs and connect to them, with a
+// glowing pulse travelling along each link to show a match being made. Pure
+// SVG + framer-motion — no video file to 404 or download.
 
-type Node = { x: number; y: number; c: string; d: number };
+const NAVY = "#264a7f";
+const GREEN = "#69a44f";
+const AMBER = "#e59f56";
 
-// Percentage coordinates across the hero. Kept a little sparser through the
-// middle where the headline and search card sit.
-const NODES: Node[] = [
-  { x: 8, y: 20, c: "#69a44f", d: 0 },
-  { x: 19, y: 44, c: "#e59f56", d: 0.6 },
-  { x: 13, y: 70, c: "#8fb3e0", d: 1.2 },
-  { x: 29, y: 24, c: "#69a44f", d: 0.3 },
-  { x: 33, y: 80, c: "#e59f56", d: 0.9 },
-  { x: 48, y: 14, c: "#8fb3e0", d: 1.5 },
-  { x: 60, y: 22, c: "#69a44f", d: 0.4 },
-  { x: 63, y: 74, c: "#8fb3e0", d: 1.1 },
-  { x: 75, y: 40, c: "#e59f56", d: 0.7 },
-  { x: 82, y: 66, c: "#69a44f", d: 1.4 },
-  { x: 91, y: 26, c: "#8fb3e0", d: 0.2 },
-  { x: 88, y: 82, c: "#e59f56", d: 1.0 },
-  { x: 50, y: 88, c: "#69a44f", d: 0.5 },
+// Two job hubs (briefcase) placed low-left and upper-right, away from the
+// headline and search card.
+const HUBS = [
+  { x: 24, y: 72 },
+  { x: 74, y: 28 },
 ];
 
-// Pairs of node indices to connect with a faint line.
-const EDGES: Array<[number, number]> = [
-  [0, 1], [1, 2], [1, 3], [3, 5], [2, 4], [4, 12], [5, 6], [6, 8],
-  [7, 12], [7, 9], [8, 9], [8, 10], [9, 11], [10, 8], [3, 0], [6, 5],
-];
-
-// A subset of edges that carry a travelling "match" pulse.
-const PULSES: Array<[number, number]> = [
-  [0, 1], [3, 5], [5, 6], [8, 9], [7, 12], [10, 8],
+// People avatars. `hub` picks which job they connect to; `c` is the accent.
+const PEOPLE = [
+  { x: 9, y: 84, hub: 0, c: GREEN, d: 0.0 },
+  { x: 7, y: 52, hub: 0, c: AMBER, d: 0.8 },
+  { x: 21, y: 40, hub: 0, c: NAVY, d: 1.5 },
+  { x: 40, y: 86, hub: 0, c: AMBER, d: 0.4 },
+  { x: 59, y: 13, hub: 1, c: GREEN, d: 1.1 },
+  { x: 89, y: 19, hub: 1, c: NAVY, d: 0.3 },
+  { x: 93, y: 50, hub: 1, c: AMBER, d: 1.3 },
+  { x: 62, y: 40, hub: 1, c: GREEN, d: 0.6 },
+  { x: 85, y: 76, hub: 1, c: NAVY, d: 1.7 },
 ];
 
 const HeroAnimatedBackground = () => {
@@ -43,58 +37,105 @@ const HeroAnimatedBackground = () => {
 
   return (
     <div aria-hidden className="absolute inset-0 overflow-hidden">
-      {/* Deep brand gradient base (replaces the old poster image). */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,#123056,transparent_55%),radial-gradient(circle_at_80%_75%,#1c3a24,transparent_55%),linear-gradient(160deg,#060d1c,#0a1730)]" />
+      {/* Soft, bright brand gradient base. */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_25%,rgba(105,164,79,0.14),transparent_50%),radial-gradient(circle_at_82%_30%,rgba(38,74,127,0.14),transparent_50%),linear-gradient(160deg,#ffffff,#eef4fb_55%,#eef6ef)]" />
 
-      {/* Connective lines — percentage coords so they scale with the hero. */}
+      {/* Links from each person to their job hub. */}
       <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
-        {EDGES.map(([a, b], i) => (
-          <line
-            key={`edge-${i}`}
-            x1={`${NODES[a].x}%`}
-            y1={`${NODES[a].y}%`}
-            x2={`${NODES[b].x}%`}
-            y2={`${NODES[b].y}%`}
-            stroke="rgba(255,255,255,0.10)"
-            strokeWidth={1}
-          />
-        ))}
+        {PEOPLE.map((p, i) => {
+          const hub = HUBS[p.hub];
+          return (
+            <line
+              key={`link-${i}`}
+              x1={`${p.x}%`}
+              y1={`${p.y}%`}
+              x2={`${hub.x}%`}
+              y2={`${hub.y}%`}
+              stroke="rgba(38,74,127,0.16)"
+              strokeWidth={1}
+            />
+          );
+        })}
       </svg>
 
-      {/* Glowing nodes. */}
-      {NODES.map((node, i) => (
-        <motion.span
-          key={`node-${i}`}
-          className="absolute h-2.5 w-2.5 rounded-full"
+      {/* Job hubs. */}
+      {HUBS.map((hub, i) => (
+        <div
+          key={`hub-${i}`}
+          className="absolute flex h-11 w-11 items-center justify-center rounded-2xl text-white shadow-lg"
           style={{
-            left: `${node.x}%`,
-            top: `${node.y}%`,
-            marginLeft: -5,
-            marginTop: -5,
-            backgroundColor: node.c,
-            boxShadow: `0 0 14px ${node.c}`,
+            left: `${hub.x}%`,
+            top: `${hub.y}%`,
+            marginLeft: -22,
+            marginTop: -22,
+            background: `linear-gradient(135deg, ${NAVY}, ${GREEN})`,
+            boxShadow: "0 10px 26px rgba(38,74,127,0.28)",
           }}
-          animate={reduceMotion ? undefined : { opacity: [0.4, 1, 0.4], scale: [0.85, 1.25, 0.85] }}
-          transition={{ duration: 3.6, delay: node.d, repeat: Infinity, ease: "easeInOut" }}
-        />
+        >
+          <Briefcase size={20} />
+          {!reduceMotion && (
+            <motion.span
+              className="absolute inset-0 rounded-2xl border-2"
+              style={{ borderColor: GREEN }}
+              initial={{ opacity: 0.5, scale: 1 }}
+              animate={{ opacity: 0, scale: 1.6 }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: "easeOut", delay: i * 0.6 }}
+            />
+          )}
+        </div>
       ))}
 
-      {/* Travelling match pulses along a few edges. */}
+      {/* People avatars — gently floating. */}
+      {PEOPLE.map((p, i) => (
+        <motion.div
+          key={`person-${i}`}
+          className="absolute flex h-8 w-8 items-center justify-center rounded-full border-2 bg-white shadow-md"
+          style={{
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+            marginLeft: -16,
+            marginTop: -16,
+            borderColor: p.c,
+            color: p.c,
+          }}
+          animate={reduceMotion ? undefined : { y: [0, -6, 0], scale: [1, 1.06, 1] }}
+          transition={{ duration: 4.5, delay: p.d, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <UserRound size={16} />
+        </motion.div>
+      ))}
+
+      {/* Match pulses travelling person -> job hub. */}
       {!reduceMotion &&
-        PULSES.map(([a, b], i) => (
-          <motion.span
-            key={`pulse-${i}`}
-            className="absolute h-1.5 w-1.5 rounded-full bg-white"
-            style={{ marginLeft: -3, marginTop: -3, boxShadow: "0 0 10px rgba(255,255,255,0.9)" }}
-            initial={{ left: `${NODES[a].x}%`, top: `${NODES[a].y}%`, opacity: 0 }}
-            animate={{
-              left: [`${NODES[a].x}%`, `${NODES[b].x}%`],
-              top: [`${NODES[a].y}%`, `${NODES[b].y}%`],
-              opacity: [0, 1, 1, 0],
-            }}
-            transition={{ duration: 2.6, delay: i * 0.7, repeat: Infinity, repeatDelay: 1.4, ease: "easeInOut" }}
-          />
-        ))}
+        PEOPLE.map((p, i) => {
+          if (i % 2 !== 0) return null; // pulse on every other link, keeps it calm
+          const hub = HUBS[p.hub];
+          return (
+            <motion.span
+              key={`pulse-${i}`}
+              className="absolute h-2 w-2 rounded-full"
+              style={{
+                marginLeft: -4,
+                marginTop: -4,
+                backgroundColor: p.c,
+                boxShadow: `0 0 10px ${p.c}`,
+              }}
+              initial={{ left: `${p.x}%`, top: `${p.y}%`, opacity: 0 }}
+              animate={{
+                left: [`${p.x}%`, `${hub.x}%`],
+                top: [`${p.y}%`, `${hub.y}%`],
+                opacity: [0, 1, 1, 0],
+              }}
+              transition={{
+                duration: 2.4,
+                delay: i * 0.5,
+                repeat: Infinity,
+                repeatDelay: 1.6,
+                ease: "easeInOut",
+              }}
+            />
+          );
+        })}
     </div>
   );
 };
