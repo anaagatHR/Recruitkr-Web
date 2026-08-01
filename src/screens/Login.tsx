@@ -266,7 +266,7 @@ useEffect(() => {
             {userType === "admin" ? (
               <div className="mb-8 rounded-xl border border-border bg-muted/40 px-4 py-3 text-center">
                 <p className="text-sm font-semibold text-foreground">Admin sign in</p>
-                <p className="mt-1 text-xs text-muted-foreground">Manage departments and interns.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Manage the site and its users.</p>
               </div>
             ) : (
               <div className="flex rounded-xl overflow-hidden border border-border mb-8">

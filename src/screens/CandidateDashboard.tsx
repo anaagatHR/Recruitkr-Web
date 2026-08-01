@@ -8,7 +8,6 @@ import CandidateVideos from "@/components/CandidateVideos";
 import DashboardLayout, { type DashboardNavItem } from "@/components/DashboardLayout";
 import SearchBar from "@/components/search/SearchBar";
 import StatCard from "@/components/dashboard/StatCard";
-import InternPanel from "@/components/dashboard/InternPanel";
 import { fetchJobSuggestions } from "@/lib/search";
 import { API_BASE, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { clearSession, getSession } from "@/lib/auth";
@@ -454,7 +453,7 @@ type EditableProfileField =
 
 const CandidateDashboard = () => {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"overview" | "jobs" | "applications" | "messages" | "resume" | "profile" | "intern">("overview");
+  const [tab, setTab] = useState<"overview" | "jobs" | "applications" | "messages" | "resume" | "profile">("overview");
   // Back button (incl. phone) steps through tabs, leaving the page from Overview.
   useTabHistory(tab, setTab, "overview");
   const [chatApplicationId, setChatApplicationId] = useState<string | null>(null);
@@ -1408,7 +1407,6 @@ const CandidateDashboard = () => {
     { key: "messages", label: "My Chat", icon: MessageSquare },
     { key: "profile", label: "Profile", icon: UserCircle2 },
     { key: "resume", label: "My Card", icon: Pencil },
-    { key: "intern", label: "Intern", icon: GraduationCap },
   ];
 
   const profileSummaryCards = [
@@ -2959,7 +2957,6 @@ const CandidateDashboard = () => {
           </div>
         )}
 
-        {tab === "intern" && <InternPanel />}
     </DashboardLayout>
   );
 };

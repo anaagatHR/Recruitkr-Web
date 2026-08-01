@@ -44,7 +44,6 @@ const linkSections = [
       { label: "For Candidates", to: "/candidates" },
       { label: "For Employers", to: "/employers" },
       { label: "Partners", to: "/partners" },
-      { label: "Internship", to: "/internship" },
       { label: "FAQs", to: "/faqs" },
     ],
   },

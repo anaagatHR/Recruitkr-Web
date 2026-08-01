@@ -29,6 +29,11 @@ const nextConfig = {
     // sending them there would chain two redirects and land a visitor looking
     // for a services page on a list of vacancies.
     return [
+      // The intern portal was removed; /internship and the CRM's /intern-login
+      // entry point were indexed and bookmarked, so they redirect rather than
+      // 404. Internship *jobs* still exist — they're a type on the board.
+      { source: "/internship", destination: "/jobs?type=Internship", permanent: true },
+      { source: "/intern-login", destination: "/login", permanent: true },
       { source: "/services", destination: "/home", permanent: true },
       { source: "/services/:id", destination: "/home", permanent: true },
       { source: "/sectors", destination: "/home", permanent: true },
@@ -47,10 +52,6 @@ const nextConfig = {
     // in production so the live blog can load those images.
     const crmAssetBase = (process.env.NEXT_PUBLIC_CRM_URL || "http://localhost:8080").replace(/\/$/, "");
     return [
-      {
-        source: "/intern-login",
-        destination: "/login",
-      },
       {
         source: "/api/v1/:path*",
         destination: `${root}/api/v1/:path*`,

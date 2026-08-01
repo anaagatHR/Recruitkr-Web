@@ -43,7 +43,7 @@ const jobProfiles: RatingCard[] = [
   { title: "Corporate Jobs / Internship", subtitle: "Find office roles and paid internships", jobCount: "120+ jobs", icon: Building2, accent: NAVY, href: "/jobs?type=Full-time", image: "/assets/hero-team-1.jpg" },
   { title: "Work From Home", subtitle: "Remote roles for flexible schedules", jobCount: "80+ jobs", icon: Laptop, accent: GREEN, href: "/jobs?mode=Remote", image: "/assets/hero-team-2.jpg" },
   { title: "Freelance Opportunities", subtitle: "Project-based work for self-starters", jobCount: "60+ jobs", icon: Rocket, accent: AMBER, href: "/jobs?type=Contract", image: "/assets/hero-team-3.jpg" },
-  { title: "Internship", subtitle: "Paid internships to kick-start your career", jobCount: "40+ jobs", icon: GraduationCap, accent: NAVY, href: "/internship", image: "/assets/hero-team-4.jpg" },
+  { title: "Internship", subtitle: "Paid internships to kick-start your career", jobCount: "40+ jobs", icon: GraduationCap, accent: NAVY, href: "/jobs?type=Internship", image: "/assets/hero-team-4.jpg" },
   { title: "Gig / Part-time", subtitle: "Short-term and side-hustle roles", jobCount: "40+ jobs", icon: Clock, accent: GREEN, href: "/jobs?type=Part-time", image: "/assets/hero-bg.jpg" },
   { title: "Other", subtitle: "Explore more ways to work", jobCount: "40+ jobs", icon: Sparkles, accent: AMBER, href: "/jobs", image: "/assets/hero-team-2.jpg" },
 ];
