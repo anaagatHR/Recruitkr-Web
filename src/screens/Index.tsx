@@ -37,24 +37,23 @@ const Index = () => {
       {/* Who is hiring right now, grouped from the live job data — the logo
           marquee below is decoration, this is clickable: each tile filters the
           board to that employer. Renders nothing on an empty board. (white) */}
+      <JobShowcase />
+      <Placement />
+      <HomeWhyUs />
+      <HomeTestimonials />
       <TopCompanies />
       {/* Partner logos: the broader trust signal, after the employers who are
           actually hiring right now. (tinted band) */}
-      <PartnerCompanies />
       {/* What kind of work is on offer, for a visitor who didn't find their
           role in the strip above. (white) */}
-      <JobShowcase />
       {/* Why go through RecruitKr at all. Sits after the visitor has seen real
           jobs and real employers, so it reads as substantiation rather than a
           pitch made before anything was shown. (tinted band) */}
-      <HomeWhyUs />
       {/* Proof in numbers, moved up from the foot of the page: it backs the
           jobs above while the visitor is still deciding. (white) */}
-      <Placement />
       {/* Proof in people's own words. Replaces three stacked video rails —
           two of which were both headed "Success Stories" — with one tabbed
           section over the same videos. (tinted band) */}
-      <HomeTestimonials />
       {/* Written ratings alongside the video stories. Renders nothing until
           real reviews are added — see the note at the top of the file. (white
           when present) */}
@@ -65,10 +64,8 @@ const Index = () => {
       <HomeFaq />
       {/* The ask. (white, with a dark brand band inside) */}
       <HomeClosingCta />
-      {/* The openings themselves, last thing before the footer. A visitor who
-          read the whole page shouldn't run out of road at the footer — this
-          puts the newest roles under them, and hides itself on an empty
-          board. (tinted band) */}
+      {}
+      <PartnerCompanies />
       <FeaturedJobsSection variant="latest" />
       <Footer />
     </div>
