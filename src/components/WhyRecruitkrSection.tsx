@@ -114,29 +114,29 @@ const WhyRecruitkrSection = () => {
           </div>
 
           {/* Mission & Vision cards */}
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div className="rounded-2xl border border-border bg-card p-7 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
+            <div className="rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg sm:rounded-2xl sm:p-7">
               <div
-                className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl text-white"
+                className="mb-2.5 flex h-9 w-9 items-center justify-center rounded-lg text-white sm:mb-4 sm:h-12 sm:w-12 sm:rounded-xl"
                 style={{ backgroundColor: NAVY }}
               >
-                <Target size={22} />
+                <Target className="h-[18px] w-[18px] sm:h-[22px] sm:w-[22px]" />
               </div>
-              <h3 className="mb-2 text-lg font-bold text-foreground">Our Mission</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <h3 className="mb-1 text-[15px] font-bold text-foreground sm:mb-2 sm:text-lg">Our Mission</h3>
+              <p className="text-xs leading-[1.5] text-muted-foreground sm:text-sm sm:leading-relaxed">
                 To make hiring effortless and human — matching the right talent with the right
                 opportunity, every single time.
               </p>
             </div>
-            <div className="rounded-2xl border border-border bg-card p-7 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg sm:mt-8">
+            <div className="rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg sm:mt-8 sm:rounded-2xl sm:p-7">
               <div
-                className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl text-white"
+                className="mb-2.5 flex h-9 w-9 items-center justify-center rounded-lg text-white sm:mb-4 sm:h-12 sm:w-12 sm:rounded-xl"
                 style={{ backgroundColor: GREEN }}
               >
-                <Eye size={22} />
+                <Eye className="h-[18px] w-[18px] sm:h-[22px] sm:w-[22px]" />
               </div>
-              <h3 className="mb-2 text-lg font-bold text-foreground">Our Vision</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <h3 className="mb-1 text-[15px] font-bold text-foreground sm:mb-2 sm:text-lg">Our Vision</h3>
+              <p className="text-xs leading-[1.5] text-muted-foreground sm:text-sm sm:leading-relaxed">
                 To be India&apos;s most trusted HR partner — where every placement builds a lasting
                 career and a stronger company.
               </p>
@@ -153,11 +153,14 @@ const WhyRecruitkrSection = () => {
 </h2>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {/* One compact row per point on a phone — icon left, title and a
+              single line of copy right — so the six fit in about a screen
+              rather than six full-height cards. Stacked cards from `sm` up. */}
+          <div className="grid gap-2 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
             {usps.map((usp) => (
               <div
                 key={usp.title}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg"
+                className="group relative flex items-center gap-3 overflow-hidden rounded-xl border border-border bg-card p-2.5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg sm:block sm:rounded-2xl sm:p-6"
               >
                 <span
                   aria-hidden="true"
@@ -165,13 +168,19 @@ const WhyRecruitkrSection = () => {
                   style={{ backgroundColor: usp.color }}
                 />
                 <div
-                  className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl text-white transition-transform duration-300 group-hover:scale-110"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white transition-transform duration-300 group-hover:scale-110 sm:mb-4 sm:h-12 sm:w-12 sm:rounded-xl"
                   style={{ backgroundColor: usp.color }}
                 >
-                  <usp.icon size={22} />
+                  <usp.icon className="h-[18px] w-[18px] sm:h-[22px] sm:w-[22px]" />
                 </div>
-                <h3 className="mb-1.5 text-lg font-bold text-foreground">{usp.title}</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{usp.desc}</p>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-[13px] font-bold leading-tight text-foreground sm:mb-1.5 sm:text-lg">
+                    {usp.title}
+                  </h3>
+                  <p className="mt-0.5 line-clamp-1 text-[11px] leading-[1.45] text-muted-foreground sm:mt-0 sm:line-clamp-none sm:text-sm sm:leading-relaxed">
+                    {usp.desc}
+                  </p>
+                </div>
               </div>
             ))}
           </div>

@@ -241,6 +241,40 @@ export async function fetchJobs(): Promise<{ jobs: Job[]; live: boolean }> {
   return { jobs: seedJobs, live: false };
 }
 
+/**
+ * Every live job, paged until the backend says there are no more.
+ *
+ * `fetchJobs()` asks for one page of 50 and is right for a home-page strip, but
+ * the sitemap has to list *all* of them or the roles past the 50th never get
+ * crawled. `live` is false when the first page failed and the seed listings
+ * came back instead — callers that publish URLs must check it, because those
+ * eight jobs are fictional and their detail pages don't exist.
+ *
+ * PAGE_CAP is a runaway guard, not a business limit: raise it if the board ever
+ * grows past 5,000 live listings.
+ */
+export async function fetchAllJobs(): Promise<{ jobs: Job[]; live: boolean }> {
+  const PAGE_SIZE = 100;
+  const PAGE_CAP = 50;
+
+  const first = await fetchJobsPage(1, PAGE_SIZE);
+  if (!first.live) return { jobs: first.jobs, live: false };
+
+  const all = [...first.jobs];
+  let page = 1;
+  let hasMore = first.hasMore;
+
+  while (hasMore && page < PAGE_CAP) {
+    page += 1;
+    const next = await fetchJobsPage(page, PAGE_SIZE);
+    if (!next.jobs.length) break;
+    all.push(...next.jobs);
+    hasMore = next.hasMore;
+  }
+
+  return { jobs: all, live: true };
+}
+
 export async function fetchJob(id: string): Promise<Job | null> {
   try {
     const res = await apiGet<{ success?: boolean; data?: unknown }>(`/jobs/${id}`, { retries: 0 });

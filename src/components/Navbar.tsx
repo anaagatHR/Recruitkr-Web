@@ -41,7 +41,7 @@ const Navbar = memo(function Navbar() {
         {/* Full logo with the "Your Hiring Partner" tagline baked in, on a
             genuinely transparent background (white removed) — no white box,
             works on any navbar colour, light or dark. */}
-        <Link to="/" aria-label="RecruitKr home" className="flex shrink-0 items-center">
+        <Link to="/home" aria-label="RecruitKr home" className="flex shrink-0 items-center">
           <img
             src={logoImage.src}
             alt="RecruitKr — Your Hiring Partner"

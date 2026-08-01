@@ -5,7 +5,6 @@ import AnalyticsTracker from "@/components/AnalyticsTracker";
 import ApiKeepAlive from "@/components/ApiKeepAlive";
 import JoinPrompt from "@/components/JoinPrompt";
 import MobileBottomNav from "@/components/MobileBottomNav";
-import RecruitKrBot from "@/components/RecruitKrBot";
 import ThemeProvider from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -65,9 +64,9 @@ export const metadata: Metadata = {
   keywords: [
     "jobs in India",
     "find jobs",
-    "job search",
-    "careers",
-    "job portal",
+    "job in jaipur",
+    "jaipur jobs",
+    "job website",
     "apply for jobs",
     "remote jobs",
     "fresher jobs",
@@ -77,6 +76,15 @@ export const metadata: Metadata = {
 
   alternates: {
     canonical: "/",
+  },
+
+  // Google Search Console ownership. Emitted as
+  // <meta name="google-site-verification" content="..."> on every page, which
+  // is what Search Console's "HTML tag" method checks for. Keep it in the root
+  // layout: verification is re-checked periodically, and it must survive `/`
+  // redirecting to /jobs.
+  verification: {
+    google: "B6DtOoaqNWArLryQKEr7UgeymYrfjujQN6l261iyxnw",
   },
 
   robots: {
@@ -161,7 +169,6 @@ export default function RootLayout({
         <ThemeProvider>
           <AnalyticsTracker />
           <ApiKeepAlive />
-          <RecruitKrBot />
           <JoinPrompt />
           {children}
           <MobileBottomNav />

@@ -236,7 +236,7 @@ export default function SignupScreen({ role = "candidate" }: { role?: SignupRole
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">
+              <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-1 top-1/2 flex min-h-[40px] min-w-[52px] -translate-y-1/2 items-center justify-center rounded-lg text-xs font-medium text-muted-foreground">
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
@@ -251,12 +251,13 @@ export default function SignupScreen({ role = "candidate" }: { role?: SignupRole
           <div className="mt-5 space-y-1 text-center text-sm text-muted-foreground">
             <p>
               Already have an account?{" "}
-              <Link to="/login" className="font-semibold text-primary hover:underline">
+              {/* py-2 lifts these from ~17px-tall tap targets to 40px. */}
+              <Link to="/login" className="inline-flex min-h-[40px] items-center px-1 py-2 font-semibold text-primary hover:underline">
                 Log in
               </Link>
             </p>
             <p>
-              <Link to={c.altTo} className="font-medium text-secondary hover:underline">
+              <Link to={c.altTo} className="inline-flex min-h-[40px] items-center px-1 py-2 font-medium text-secondary hover:underline">
                 {c.altLabel}
               </Link>
             </p>

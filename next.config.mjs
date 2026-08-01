@@ -24,10 +24,14 @@ const nextConfig = {
   async redirects() {
     // The Services and Sectors pages were removed. Permanent redirects keep
     // previously indexed / bookmarked URLs from 404ing.
+    //
+    // They target /home rather than /: `/` now forwards to the job board, so
+    // sending them there would chain two redirects and land a visitor looking
+    // for a services page on a list of vacancies.
     return [
-      { source: "/services", destination: "/", permanent: true },
-      { source: "/services/:id", destination: "/", permanent: true },
-      { source: "/sectors", destination: "/", permanent: true },
+      { source: "/services", destination: "/home", permanent: true },
+      { source: "/services/:id", destination: "/home", permanent: true },
+      { source: "/sectors", destination: "/home", permanent: true },
     ];
   },
   async rewrites() {

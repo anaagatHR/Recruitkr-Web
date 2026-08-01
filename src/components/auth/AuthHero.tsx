@@ -35,7 +35,7 @@ export default function AuthHero({ className }: { className?: string }) {
       />
 
       {/* Brand */}
-      <Link to="/" className="relative z-10 flex items-center gap-3">
+      <Link to="/home" className="relative z-10 flex items-center gap-3">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-xl font-extrabold text-[#264a7f]">
           R
         </span>

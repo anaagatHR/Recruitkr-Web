@@ -4,7 +4,6 @@ import { downloadResumeById } from '../controllers/resume.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.js';
 
 import adminInternRoutes from './adminIntern.routes.js';
-import assistantRoutes from './assistant.routes.js';
 import authRoutes from './auth.routes.js';
 import blogRoutes from './blog.routes.js';
 import contactRoutes from './contact.routes.js';
@@ -37,7 +36,6 @@ router.get(
 );
 
 router.use('/auth', authRoutes);
-router.use('/assistant', assistantRoutes);
 router.use('/blogs', blogRoutes);
 router.use('/users', userRoutes);
 router.use('/jobs', jobsRoutes);

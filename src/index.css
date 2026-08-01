@@ -703,6 +703,38 @@
   animation-play-state: paused;
 }
 
+/* Opportunity-category scroller. The clipped viewport hides the doubled track;
+   the cards need vertical breathing room because they lift on hover. */
+.category-marquee {
+  overflow: hidden;
+  padding-block: 0.5rem;
+}
+
+.category-marquee-track {
+  animation: marquee 34s linear infinite;
+  will-change: transform;
+}
+
+/* Stop the drift whenever the user is reading, tapping, or tabbing a card. */
+.category-marquee:hover .category-marquee-track,
+.category-marquee:focus-within .category-marquee-track,
+.category-marquee:has(a:active) .category-marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-marquee {
+    overflow-x: auto;
+  }
+  .category-marquee-track {
+    animation: none;
+  }
+  /* Without the animation the second half is just duplicate content. */
+  .category-marquee-clone {
+    display: none;
+  }
+}
+
 .animate-sectors-ticker {
   animation: ticker 18s linear infinite;
 }

@@ -102,43 +102,45 @@ const SuccessStoriesSection = () => {
         </div>
 
         {/* Stories */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Phone: tighter padding, smaller avatar and the quote clamped to four
+            lines, so the stories fit a screen instead of one card each. */}
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
           {stories.map((story) => (
             <figure
               key={story.name}
-              className="group relative flex flex-col h-full overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+              className="group relative flex flex-col h-full overflow-hidden rounded-xl bg-white p-3.5 shadow-sm ring-1 ring-border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg sm:rounded-2xl sm:p-6"
             >
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-2.5 sm:gap-4">
                 <div
-                  className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white shrink-0"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold text-white shrink-0 sm:h-12 sm:w-12 sm:text-sm"
                   style={{ backgroundColor: story.color }}
                 >
                   {story.initials}
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate font-semibold text-foreground">{story.name}</div>
-                  <div className="truncate text-sm text-muted-foreground">{story.role}</div>
+                  <div className="truncate text-sm font-semibold text-foreground sm:text-base">{story.name}</div>
+                  <div className="truncate text-xs text-muted-foreground sm:text-sm">{story.role}</div>
                 </div>
-                <div className="ml-auto flex items-center gap-1 text-amber-400">
+                <div className="ml-auto flex items-center gap-0.5 text-amber-400 sm:gap-1">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} size={14} fill="currentColor" />
+                    <Star key={i} className="h-3 w-3 sm:h-3.5 sm:w-3.5" fill="currentColor" />
                   ))}
                 </div>
               </div>
 
-              <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-foreground/90">
-                <Quote size={20} className="inline-block mr-2 -mt-1 text-muted-foreground" />
+              <blockquote className="mt-2.5 line-clamp-4 flex-1 text-xs leading-[1.5] text-foreground/90 sm:mt-4 sm:line-clamp-none sm:text-sm sm:leading-relaxed">
+                <Quote size={16} className="-mt-1 mr-1.5 inline-block text-muted-foreground sm:mr-2 sm:h-5 sm:w-5" />
                 {story.quote}
               </blockquote>
 
-              <div className="mt-4 flex items-center justify-between">
+              <div className="mt-3 flex items-center justify-between sm:mt-4">
                 <span
                   className="inline-block rounded-full px-3 py-1 text-xs font-semibold"
                   style={{ backgroundColor: `${story.color}1a`, color: story.color }}
                 >
                   {story.tag}
                 </span>
-                <a href="#contact" className="text-sm font-medium text-primary hover:underline">
+                <a href="#contact" className="-my-2 inline-flex min-h-[40px] items-center py-2 text-sm font-medium text-primary hover:underline">
                   Read full story →
                 </a>
               </div>

@@ -76,18 +76,25 @@ function Placement() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-6 sm:py-20">
+    <section ref={sectionRef} className="py-14 sm:py-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mx-auto mb-10 max-w-2xl text-center sm:mb-14">
-          
-          <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">
-             Candidates Placed
+        {/* Same eyebrow → heading → subtitle header as the other sections, so
+            the page reads as one system rather than four different designs. */}
+        <div className="mx-auto mb-8 max-w-2xl text-center sm:mb-14">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#e59f56]/25 bg-[#e59f56]/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#c07c33]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#e59f56]" />
+            By the numbers
+          </span>
+          <h2 className="mt-4 font-heading text-2xl font-extrabold tracking-tight text-slate-900 sm:mt-5 sm:text-3xl lg:text-4xl">
+            Candidates Placed
           </h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-600 sm:text-base">
+            Real hires, real companies — the results behind the roles you see on the board.
+          </p>
           {/* Tri-color underline (navy → green → amber) */}
           <span
             aria-hidden="true"
-            className="mx-auto mt-4 block h-1 w-24 rounded-full bg-gradient-to-r from-[#264a7f] via-[#69a44f] to-[#e59f56]"
+            className="mx-auto mt-5 block h-1 w-24 rounded-full bg-gradient-to-r from-[#264a7f] via-[#69a44f] to-[#e59f56]"
           />
         </div>
 

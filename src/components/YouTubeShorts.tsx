@@ -23,6 +23,18 @@ type YouTubeShortsProps = {
   channelUrl?: string;
   /** Marquee duration in seconds (lower = faster). */
   speedSeconds?: number;
+  /**
+   * Render only the scrolling strip — no <section>, no header, no vertical
+   * padding. Used when a parent owns the heading (e.g. the tabbed testimonials
+   * block on the home page) so the two don't stack duplicate headers.
+   */
+  embedded?: boolean;
+  /**
+   * CSS colour the edge fades blend to. Defaults to the page background; pass
+   * the surrounding surface when the strip sits on a tinted band, or the fades
+   * show up as pale rectangles floating on top of it.
+   */
+  fadeColor?: string;
 };
 
 /**
@@ -211,7 +223,10 @@ export default function YouTubeShorts({
   subtitle = "Real stories and tips from candidates on our YouTube channel.",
   channelUrl,
   speedSeconds = 45,
+  embedded = false,
+  fadeColor,
 }: YouTubeShortsProps) {
+  const fade = fadeColor ?? "hsl(var(--background))";
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   const [hovered, setHovered] = useState(false);
   const [remote, setRemote] = useState<Short[] | null>(audience ? null : shorts ?? []);
@@ -258,35 +273,43 @@ export default function YouTubeShorts({
     return () => cancelAnimationFrame(raf);
   }, [speedSeconds, items?.length]);
 
+  // Embedded, the parent owns the heading, so an empty result has to say so —
+  // returning null there would leave the selected tab looking broken.
+  if (embedded && (items === null || items.length === 0)) {
+    return (
+      <p className="py-10 text-center text-sm text-muted-foreground">
+        {items === null ? "Loading videos…" : "No videos here yet — check back soon."}
+      </p>
+    );
+  }
+
   // Hide while loading from the DB, and when there are no Shorts.
   if (items === null || items.length === 0) return null;
 
   // Duplicate the list so the strip loops seamlessly.
   const loop = [...items, ...items];
 
-  return (
-    <section className="overflow-hidden py-14 sm:py-20">
-      <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF0000] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white shadow-sm">
-          <Youtube size={14} /> {eyebrow}
-        </span>
-        <h2 className="text-gradient-teal mt-5 font-heading text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-4xl">
-          {title}
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">{subtitle}</p>
-      </div>
-
+  const marquee = (
+    <>
       {/* Marquee — pauses on hover, touch (phones), or while playing */}
       <div
-        className="group relative mt-8 sm:mt-12"
+        className={`group relative ${embedded ? "" : "mt-8 sm:mt-12"}`}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onTouchStart={() => setHovered(true)}
         onTouchEnd={() => setHovered(false)}
       >
         {/* Edge fades */}
-        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-background to-transparent sm:w-16" />
-        <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-background to-transparent sm:w-16" />
+        <div
+          aria-hidden
+          style={{ backgroundImage: `linear-gradient(to right, ${fade}, transparent)` }}
+          className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 sm:w-16"
+        />
+        <div
+          aria-hidden
+          style={{ backgroundImage: `linear-gradient(to left, ${fade}, transparent)` }}
+          className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 sm:w-16"
+        />
 
         <div
           ref={trackRef}
@@ -319,6 +342,23 @@ export default function YouTubeShorts({
           </a>
         </div>
       )}
+    </>
+  );
+
+  if (embedded) return marquee;
+
+  return (
+    <section className="overflow-hidden py-14 sm:py-20">
+      <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF0000] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white shadow-sm">
+          <Youtube size={14} /> {eyebrow}
+        </span>
+        <h2 className="text-gradient-teal mt-5 font-heading text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-4xl">
+          {title}
+        </h2>
+        <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">{subtitle}</p>
+      </div>
+      {marquee}
     </section>
   );
 }

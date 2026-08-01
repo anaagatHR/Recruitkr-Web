@@ -257,7 +257,7 @@ useEffect(() => {
             className="mx-auto w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-xl"
           >
             <div className="text-center mb-8">
-              <Link to="/" className="font-heading text-3xl font-bold">
+              <Link to="/home" className="font-heading text-3xl font-bold">
                 Recruit<span style={{ color: "#264a7f" }}>kr</span>
               </Link>
               <p className="mt-2 text-muted-foreground text-sm">ANAAGAT HUMANPOWER PRIVATE LIMITED</p>
@@ -348,9 +348,11 @@ useEffect(() => {
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
                   <label className="text-sm font-medium text-foreground">Password</label>
+                  {/* -my-2 py-2 grows the touch area without moving the label:
+                      as a bare inline link this was a 43x16 tap target. */}
                   <Link
                     to="/forgot-password"
-                    className="text-xs font-medium text-muted-foreground hover:underline"
+                    className="-my-3 inline-flex min-h-[40px] items-center px-2 py-3 text-xs font-medium text-muted-foreground hover:underline"
                   >
                     Forgot?
                   </Link>
@@ -371,7 +373,7 @@ useEffect(() => {
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground"
+                    className="absolute right-1 top-1/2 flex min-h-[40px] min-w-[52px] -translate-y-1/2 items-center justify-center rounded-lg text-xs font-medium text-muted-foreground"
                   >
                     {showPassword ? "Hide" : "Show"}
                   </button>
@@ -395,11 +397,13 @@ useEffect(() => {
             <div className="mt-6 pt-6 border-t border-border text-center space-y-2">
               <p className="text-sm text-muted-foreground">Don&apos;t have an account?</p>
               <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
-                <Link to="/signup" className="text-sm font-medium hover:underline" style={{ color: "#264a7f" }}>
+                {/* py-2 takes these from 20px-tall tap targets to 40px — they
+                    sit at the very bottom of the form where mis-taps hurt most. */}
+                <Link to="/signup" className="inline-flex min-h-[40px] items-center px-2 py-2 text-sm font-medium hover:underline" style={{ color: "#264a7f" }}>
                   Create a free account
                 </Link>
                 <span className="hidden text-muted-foreground sm:inline">|</span>
-                <Link to="/signup/employer" className="text-sm font-medium hover:underline" style={{ color: "#69a44f" }}>
+                <Link to="/signup/employer" className="inline-flex min-h-[40px] items-center px-2 py-2 text-sm font-medium hover:underline" style={{ color: "#69a44f" }}>
                   Register as Employer
                 </Link>
               </div>

@@ -22,12 +22,19 @@ export default function JobsScreen({
 }) {
   const routeLocation = useLocation();
   const initialSearch = new URLSearchParams(routeLocation.search).get("search") ?? "";
+  // `?type=` / `?mode=` preset the filter chips, so the homepage category cards can
+  // deep-link straight into a filtered list. Unknown values are dropped.
+  const paramList = (search: string, key: string, allowed: readonly string[]) =>
+    (new URLSearchParams(search).get(key) ?? "")
+      .split(",")
+      .map((value) => allowed.find((option) => option.toLowerCase() === value.trim().toLowerCase()))
+      .filter((value): value is string => Boolean(value));
   const [jobs, setJobs] = useState<Job[]>(initialJobs);
   const [loading, setLoading] = useState(initialJobs.length === 0);
   const [query, setQuery] = useState(initialSearch);
   const [location, setLocation] = useState("");
-  const [activeTypes, setActiveTypes] = useState<string[]>([]);
-  const [activeModes, setActiveModes] = useState<string[]>([]);
+  const [activeTypes, setActiveTypes] = useState<string[]>(() => paramList(routeLocation.search, "type", JOB_TYPES));
+  const [activeModes, setActiveModes] = useState<string[]>(() => paramList(routeLocation.search, "mode", WORK_MODES));
   const [sort, setSort] = useState<"recent" | "salary">("recent");
 
   // Infinite scroll: pages load one at a time as the sentinel div nears the
@@ -43,6 +50,8 @@ export default function JobsScreen({
 
   useEffect(() => {
     setQuery(new URLSearchParams(routeLocation.search).get("search") ?? "");
+    setActiveTypes(paramList(routeLocation.search, "type", JOB_TYPES));
+    setActiveModes(paramList(routeLocation.search, "mode", WORK_MODES));
   }, [routeLocation.search]);
 
   useEffect(() => {
@@ -121,8 +130,10 @@ export default function JobsScreen({
     return result;
   }, [jobs, query, location, activeTypes, activeModes, sort]);
 
+  // min-h-[40px] keeps every filter chip a comfortable thumb target on a phone;
+  // at py-1.5 they measured 34px, under the ~44px touch guideline.
   const chip = (active: boolean) =>
-    `rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+    `inline-flex min-h-[40px] items-center rounded-full border px-4 py-2 text-sm font-medium transition ${
       active ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/40"
     }`;
 
@@ -135,7 +146,9 @@ export default function JobsScreen({
         <div className="container mx-auto px-4">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h1 className="font-heading text-2xl font-bold sm:text-3xl">Find your next job</h1>
-            <FomoTicker />
+            {/* Counted from the results actually on screen, so the line stays
+                true as the visitor filters. */}
+            <FomoTicker jobs={filtered} />
           </div>
           <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 sm:flex-row">
             <div className="flex flex-1 items-center gap-2 rounded-xl border border-border bg-background px-3">

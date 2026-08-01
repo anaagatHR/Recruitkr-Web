@@ -155,7 +155,9 @@ const Blog = () => {
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder="Search by title"
-                  className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                  // text-base on phones stops iOS Safari zooming the page on focus;
+                  // min-h keeps the field itself a full-size tap target.
+                  className="w-full min-h-[40px] bg-transparent text-base outline-none placeholder:text-muted-foreground sm:text-sm"
                 />
               </label>
 

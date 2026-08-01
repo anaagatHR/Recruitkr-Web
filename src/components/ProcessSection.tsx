@@ -30,7 +30,9 @@ const ProcessSection = () => {
                     <div className="absolute left-full top-1/2 h-0.5 w-full -translate-y-1/2 bg-gradient-to-r from-primary/60 to-transparent" />
                   )}
                 </div>
-                <h3 className="text-[10px] font-bold leading-tight sm:text-xs md:text-sm">
+                {/* 11px floor — these step labels were the smallest text on the
+                    process page and the hardest to read on a phone. */}
+                <h3 className="text-[11px] font-bold leading-tight sm:text-xs md:text-sm">
                   {step.title}
                 </h3>
               </div>

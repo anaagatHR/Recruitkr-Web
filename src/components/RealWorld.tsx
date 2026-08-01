@@ -44,11 +44,14 @@ function RealWorld() {
           />
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Phone: tighter padding, a smaller quote mark and the testimonial
+            clamped to four lines, so three stories fit a screen instead of one
+            each. Full card from `sm` up. */}
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
           {stories.map((story) => (
             <article
               key={story.name}
-              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-7 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
+              className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl sm:rounded-2xl sm:p-7"
             >
               {/* Top accent bar that grows on hover */}
               <span
@@ -66,20 +69,19 @@ function RealWorld() {
 
               {/* Quote mark */}
               <Quote
-                className="mb-4 transition-transform duration-300 group-hover:scale-110"
-                size={34}
+                className="mb-2 h-6 w-6 transition-transform duration-300 group-hover:scale-110 sm:mb-4 sm:h-[34px] sm:w-[34px]"
                 style={{ color: story.color }}
                 fill="currentColor"
                 strokeWidth={0}
               />
 
-              <p className="relative text-[15px] leading-relaxed text-slate-700">
+              <p className="relative line-clamp-4 text-[12.5px] leading-[1.5] text-slate-700 sm:line-clamp-none sm:text-[15px] sm:leading-relaxed">
                 {story.quote}
               </p>
 
-              <div className="mt-6 flex items-center gap-3">
+              <div className="mt-3 flex items-center gap-2.5 sm:mt-6 sm:gap-3">
                 <div
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-bold text-white shadow-md transition-transform duration-300 group-hover:scale-110"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow-md transition-transform duration-300 group-hover:scale-110 sm:h-12 sm:w-12 sm:text-base"
                   style={{ backgroundColor: story.color }}
                 >
                   {story.name.charAt(0)}

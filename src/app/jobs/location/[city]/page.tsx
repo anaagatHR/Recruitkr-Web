@@ -100,7 +100,7 @@ export default async function Page({ params }: { params: { city: string } }) {
             <Link
               key={c}
               to={`/jobs-in-${citySlug(c)}`}
-              className="rounded-full border border-border px-3 py-1 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-primary"
+              className="inline-flex min-h-[40px] items-center rounded-full border border-border px-4 py-2 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-primary"
             >
               Jobs in {c}
             </Link>

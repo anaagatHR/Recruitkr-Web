@@ -6,38 +6,70 @@ import Footer from "@/components/Footer";
 import Placement from "@/components/placement";
 import PartnerCompanies from  "@/components/company";
 import JobShowcase from "@/components/JobShowcase";
-import YouTubeShorts from "@/components/YouTubeShorts";
+import FeaturedJobsSection from "@/components/FeaturedJobsSection";
+import TopCompanies from "@/components/TopCompanies";
+import HomeWhyUs from "@/components/HomeWhyUs";
+import HomeTestimonials from "@/components/HomeTestimonials";
+import HomeReviews from "@/components/HomeReviews";
+import HomeFaq from "@/components/HomeFaq";
+import HomeClosingCta from "@/components/HomeClosingCta";
 
+/**
+ * Home page order, and why:
+ *   hero → which employers → who hires here → what kind of work → why us →
+ *   the numbers → the voices → the ratings → the questions → act → jobs
+ *
+ * The page opens on who is hiring and closes on the openings themselves, so a
+ * visitor who read the whole thing lands back on real jobs rather than on the
+ * footer.
+ *
+ * Surfaces alternate white / slate-50 the whole way down, which keeps every
+ * neighbouring pair of sections distinct without extra dividers. Two sections
+ * can render nothing (TopCompanies with an empty board, HomeReviews until it
+ * has real reviews), so the pairs around them use a border rather than relying
+ * on the tint alternating — see the comments below.
+ */
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       <Navbar />
       <HeroSection />
-      <JobShowcase />
-      {/* 1 — Success stories: candidates who GOT the job (videos tagged "both") */}
-      <YouTubeShorts
-        audience="both"
-        eyebrow="Success Stories"
-        title="Candidates who got the job"
-        subtitle="Real people who landed their role through RecruitKr."
-      />
-      {/* 2 — Success stories: more candidates who got the job (tagged "candidate") */}
-      <YouTubeShorts
-        audience="candidate"
-        eyebrow="Success Stories"
-        title="candidates who got hired"
-        subtitle="Real stories from people who landed their job through RecruitKr."
-      />
-      {/* 3 — Employer ratings */}
-      <YouTubeShorts
-        audience="employer"
-        eyebrow="Employer Ratings"
-        title="Client testimonials"
-        subtitle="Hear what companies think of hiring with RecruitKr."
-      />
-      <Placement />
-      
+      {/* Who is hiring right now, grouped from the live job data — the logo
+          marquee below is decoration, this is clickable: each tile filters the
+          board to that employer. Renders nothing on an empty board. (white) */}
+      <TopCompanies />
+      {/* Partner logos: the broader trust signal, after the employers who are
+          actually hiring right now. (tinted band) */}
       <PartnerCompanies />
+      {/* What kind of work is on offer, for a visitor who didn't find their
+          role in the strip above. (white) */}
+      <JobShowcase />
+      {/* Why go through RecruitKr at all. Sits after the visitor has seen real
+          jobs and real employers, so it reads as substantiation rather than a
+          pitch made before anything was shown. (tinted band) */}
+      <HomeWhyUs />
+      {/* Proof in numbers, moved up from the foot of the page: it backs the
+          jobs above while the visitor is still deciding. (white) */}
+      <Placement />
+      {/* Proof in people's own words. Replaces three stacked video rails —
+          two of which were both headed "Success Stories" — with one tabbed
+          section over the same videos. (tinted band) */}
+      <HomeTestimonials />
+      {/* Written ratings alongside the video stories. Renders nothing until
+          real reviews are added — see the note at the top of the file. (white
+          when present) */}
+      <HomeReviews />
+      {/* Objection handling right before the ask: fees, guarantees, coverage.
+          Carries its own top border because the section before it is white
+          whenever HomeReviews is showing. (white) */}
+      <HomeFaq />
+      {/* The ask. (white, with a dark brand band inside) */}
+      <HomeClosingCta />
+      {/* The openings themselves, last thing before the footer. A visitor who
+          read the whole page shouldn't run out of road at the footer — this
+          puts the newest roles under them, and hides itself on an empty
+          board. (tinted band) */}
+      <FeaturedJobsSection variant="latest" />
       <Footer />
     </div>
   );

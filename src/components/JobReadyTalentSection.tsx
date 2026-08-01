@@ -110,27 +110,32 @@ export default function JobReadyTalentSection() {
         {/* Timeline */}
         <RevealGroup
           stagger={0.07}
-          className="relative mt-10 grid gap-5 sm:mt-14 sm:grid-cols-2 lg:grid-cols-4"
+          className="relative mt-6 grid gap-2 sm:mt-14 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4"
         >
           {STEPS.map((step, i) => (
+            // Row on a phone, stacked card from `sm` up.
             <RevealItem
               key={step.title}
-              className="group relative flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all duration-300 hover:-translate-y-1 hover:border-[#264a7f]/30 hover:shadow-[0_12px_30px_-12px_rgba(38,74,127,0.35)] sm:p-6"
+              className="group relative flex h-full items-center gap-3 rounded-xl border border-border bg-card p-2.5 shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all duration-300 hover:-translate-y-1 hover:border-[#264a7f]/30 hover:shadow-[0_12px_30px_-12px_rgba(38,74,127,0.35)] sm:flex-col sm:items-stretch sm:rounded-2xl sm:p-6"
             >
-              {/* Step number */}
-              <span className="absolute right-4 top-4 text-[2.5rem] font-extrabold leading-none text-foreground/5 transition-colors group-hover:text-[#264a7f]/10">
+              {/* Step number — the row layout has no room for it. */}
+              <span className="absolute right-4 top-4 hidden text-[2.5rem] font-extrabold leading-none text-foreground/5 transition-colors group-hover:text-[#264a7f]/10 sm:block">
                 {String(i + 1).padStart(2, "0")}
               </span>
 
               {/* Icon */}
-              <span className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#264a7f] to-[#69a44f] text-white shadow-sm transition-transform duration-300 group-hover:scale-110">
-                <step.icon size={22} />
+              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#264a7f] to-[#69a44f] text-white shadow-sm transition-transform duration-300 group-hover:scale-110 sm:h-12 sm:w-12 sm:rounded-xl">
+                <step.icon className="h-[18px] w-[18px] sm:h-[22px] sm:w-[22px]" />
               </span>
 
-              <h3 className="mt-4 text-base font-bold text-foreground">{step.title}</h3>
-              <p className="mt-1.5 flex-1 text-sm leading-relaxed text-muted-foreground">
-                {step.description}
-              </p>
+              <span className="min-w-0 flex-1 sm:contents">
+                <h3 className="text-[13px] font-bold leading-tight text-foreground sm:mt-4 sm:text-base">
+                  {step.title}
+                </h3>
+                <p className="mt-0.5 line-clamp-1 text-[11px] leading-[1.45] text-muted-foreground sm:mt-1.5 sm:line-clamp-none sm:flex-1 sm:text-sm sm:leading-relaxed">
+                  {step.description}
+                </p>
+              </span>
 
               {/* Connector arrow — desktop only, between cards in a row */}
               {(i + 1) % 4 !== 0 && i !== STEPS.length - 1 && (

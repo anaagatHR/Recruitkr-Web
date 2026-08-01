@@ -36,13 +36,13 @@ const pillars = [
 
 const GoalSection = () => {
   return (
-    <section id="goal" className="py-24">
+    <section id="goal" className="py-12 sm:py-24">
       <div className="container mx-auto px-4">
-        <div className="mx-auto mb-16 max-w-3xl text-center">
+        <div className="mx-auto mb-8 max-w-3xl text-center sm:mb-16">
           <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-primary">
             Our Goal
           </p>
-          <h2 className="text-4xl font-extrabold tracking-tight md:text-5xl">
+          <h2 className="text-2xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">
             Building The Workforce Of Tomorrow
           </h2>
           <p className="mt-5 text-lg text-muted-foreground">
@@ -53,18 +53,24 @@ const GoalSection = () => {
           </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Tighter rows on a phone (smaller icon, one line of copy) so the set
+            fits a screen; full padding and full copy from `sm` up. */}
+        <div className="grid gap-2 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
           {pillars.map((pillar) => (
             <div
               key={pillar.title}
-              className="card-hover flex items-start gap-4 rounded-xl border border-border bg-card p-6"
+              className="card-hover flex items-center gap-3 rounded-xl border border-border bg-card p-2.5 sm:items-start sm:gap-4 sm:p-6"
             >
-              <div className="shrink-0 rounded-lg bg-primary/10 p-3 text-primary">
-                <pillar.icon size={24} />
+              <div className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary sm:p-3">
+                <pillar.icon className="h-[18px] w-[18px] sm:h-6 sm:w-6" />
               </div>
-              <div>
-                <h3 className="mb-1 text-lg font-bold text-foreground">{pillar.title}</h3>
-                <p className="text-sm text-muted-foreground">{pillar.desc}</p>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-[13px] font-bold leading-tight text-foreground sm:mb-1 sm:text-lg">
+                  {pillar.title}
+                </h3>
+                <p className="mt-0.5 line-clamp-1 text-[11px] leading-[1.45] text-muted-foreground sm:mt-0 sm:line-clamp-none sm:text-sm">
+                  {pillar.desc}
+                </p>
               </div>
             </div>
           ))}

@@ -23,6 +23,11 @@ type ApplicationStatus =
   | "rejected";
 
 const LIVE_REFRESH_MS = 5000;
+// Photo behind the overview hero. This used to point at "/hero-bg.jpg", which
+// is not where the file lives — every dashboard load fired a request that 404'd
+// and logged an error, and the onError handler quietly hid the result, so the
+// hero had been running on its gradient alone. Set to "" to turn the photo off.
+const HERO_BG_SRC = "/assets/hero-bg.jpg";
 
 const BRAND_PRIMARY = "#264a7f";
 const BRAND_SECONDARY = "#69a44f";
@@ -1604,17 +1609,20 @@ const ClientDashboard = () => {
         {tab === "overview" && (
           <>
             <div className={`${brandCardClass} relative overflow-hidden bg-[#16305a] p-5 sm:p-6 md:p-8`}>
-              {/* Hero background image — drop your file at public/hero-bg.jpg (or change src). */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/hero-bg.jpg"
-                alt=""
-                aria-hidden
-                className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
+              {/* Optional hero photo — see HERO_BG_SRC. The gradient below is a
+                  complete design on its own, so nothing is missing without it. */}
+              {HERO_BG_SRC ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={HERO_BG_SRC}
+                  alt=""
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : null}
               {/* Animated drift gradient tint — RecruitKr design hero */}
               <div aria-hidden className="hero-drift pointer-events-none absolute inset-0" />
               {/* Diagonal texture */}
