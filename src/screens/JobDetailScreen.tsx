@@ -22,17 +22,30 @@ import { getSession } from "@/lib/auth";
 import { apiPost } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
-export default function JobDetailScreen() {
+export default function JobDetailScreen({ initialJob = null }: { initialJob?: Job | null }) {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [job, setJob] = useState<Job | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Seeded from the server render so the job is in the first paint (and in the
+  // HTML crawlers read) instead of appearing after a client fetch.
+  const [job, setJob] = useState<Job | null>(initialJob);
+  const [loading, setLoading] = useState(!initialJob);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
 
+  const initialJobId = initialJob?.id;
+
   useEffect(() => {
+    // The server already resolved this exact job — refetching would only
+    // re-render identical data. A client-side hop to a different job leaves the
+    // ids mismatched, so that still fetches.
+    if (initialJobId && initialJobId === params.id) {
+      setLoading(false);
+      return;
+    }
+
     let active = true;
+    setLoading(true);
     fetchJob(params.id).then((j) => {
       if (active) {
         setJob(j);
@@ -42,7 +55,7 @@ export default function JobDetailScreen() {
     return () => {
       active = false;
     };
-  }, [params.id]);
+  }, [params.id, initialJobId]);
 
   const handleApply = async () => {
     const session = getSession();

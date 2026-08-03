@@ -15,13 +15,40 @@ export function generateStaticParams() {
   return CITIES.map((c) => ({ city: citySlug(c) }));
 }
 
+/** Keep the opening count fresh without rebuilding the site. */
+export const revalidate = 600;
+
 export async function generateMetadata({ params }: { params: { city: string } }): Promise<Metadata> {
   const city = cityFromSlug(params.city);
+  const { jobs, live } = await fetchJobs();
+  const count = live ? matchCity(jobs, city).length : null;
+
+  /**
+   * A city page with no openings is a doorway page: same layout, same copy,
+   * nothing a searcher wants. Eleven of them (every city except Jaipur, which
+   * is the only place jobs are currently posted) is enough thin content to drag
+   * the whole domain down, so they are kept out of the index until they have
+   * something to show.
+   *
+   * `live` guards against a backend outage — `fetchJobs` answers with seed data
+   * when the API is unreachable, and noindexing a real city page because of a
+   * transient failure is far more costly than briefly indexing an empty one.
+   */
+  const noindex = count === 0;
+
+  // Every competitor ranking for "jobs in <city>" leads with the count
+  // ("7,312+ Vacancies"). It is the clearest relevance and freshness signal
+  // available in a title, and it is real data rather than a guess.
+  const title = count ? `Jobs in ${city} — ${count} Verified Opening${count === 1 ? "" : "s"}` : `Jobs in ${city}`;
+
   return buildMetadata({
-    title: `Jobs in ${city}`,
-    description: `Find the latest verified job openings in ${city}. Browse roles across IT, healthcare, finance, sales, retail and more — with real company ratings. Apply free on RecruitKr.`,
+    title,
+    description: count
+      ? `${count} verified job opening${count === 1 ? "" : "s"} in ${city} across IT, healthcare, finance, sales and retail. Browse salaries and apply free on RecruitKr.`
+      : `Find the latest verified job openings in ${city}. Browse roles across IT, healthcare, finance, sales, retail and more. Apply free on RecruitKr.`,
     path: `/jobs-in-${params.city}`,
     keywords: [`jobs in ${city}`, `${city} jobs`, `vacancies in ${city}`, `careers in ${city}`, `hiring in ${city}`, `${city} job openings`],
+    noindex,
   });
 }
 

@@ -250,49 +250,113 @@ export async function fetchJobs(): Promise<{ jobs: Job[]; live: boolean }> {
  * came back instead — callers that publish URLs must check it, because those
  * eight jobs are fictional and their detail pages don't exist.
  *
+ * PAGE_SIZE must not exceed the backend's cap. `listJobsQuerySchema` declares
+ * `limit: …max(50)` (backend/src/schemas/job.schema.js), so asking for 100
+ * fails validation with a 400 — which this module treats as "API unreachable"
+ * and answers with seed data. That silently emptied the sitemap of every job
+ * URL, because the sitemap skips job routes whenever `live` is false.
+ *
  * PAGE_CAP is a runaway guard, not a business limit: raise it if the board ever
  * grows past 5,000 live listings.
  */
 export async function fetchAllJobs(): Promise<{ jobs: Job[]; live: boolean }> {
-  const PAGE_SIZE = 100;
-  const PAGE_CAP = 50;
+  const PAGE_SIZE = 50;
+  const PAGE_CAP = 100;
+  const CONCURRENCY = 5;
 
   const first = await fetchJobsPage(1, PAGE_SIZE);
   if (!first.live) return { jobs: first.jobs, live: false };
+  if (!first.hasMore) return { jobs: first.jobs, live: true };
 
   const all = [...first.jobs];
-  let page = 1;
-  let hasMore = first.hasMore;
 
-  while (hasMore && page < PAGE_CAP) {
-    page += 1;
-    const next = await fetchJobsPage(page, PAGE_SIZE);
-    if (!next.jobs.length) break;
-    all.push(...next.jobs);
-    hasMore = next.hasMore;
+  /**
+   * The API reports `meta.total`, so the page count is known after one request
+   * and the rest can be fetched concurrently. This matters at scale: a board of
+   * 2,000 listings is 40 pages, and fetching those one at a time is 40 serial
+   * round-trips — around ten seconds, against a serverless time budget the
+   * sitemap route shares. In batches of five it is closer to one.
+   *
+   * `total` is only trusted when it exceeds the first page; a backend that
+   * omits `meta.total` reports it as the page length, which would silently
+   * truncate the sitemap to 50 jobs. In that case we walk pages instead.
+   */
+  const knownTotal = first.total > first.jobs.length ? first.total : 0;
+
+  if (knownTotal) {
+    const lastPage = Math.min(Math.ceil(knownTotal / PAGE_SIZE), PAGE_CAP);
+    const pages: number[] = [];
+    for (let page = 2; page <= lastPage; page += 1) pages.push(page);
+
+    for (let i = 0; i < pages.length; i += CONCURRENCY) {
+      const batch = await Promise.all(
+        pages.slice(i, i + CONCURRENCY).map((page) => fetchJobsPage(page, PAGE_SIZE)),
+      );
+      batch.forEach((result) => all.push(...result.jobs));
+    }
+  } else {
+    let page = 1;
+    // Annotated: the `if (!first.hasMore) return` above narrows this to the
+    // literal `true`, which then rejects the reassignment below.
+    let hasMore: boolean = first.hasMore;
+
+    while (hasMore && page < PAGE_CAP) {
+      page += 1;
+      const next = await fetchJobsPage(page, PAGE_SIZE);
+      if (!next.jobs.length) break;
+      all.push(...next.jobs);
+      hasMore = next.hasMore;
+    }
   }
 
-  return { jobs: all, live: true };
+  // New postings arriving mid-crawl shift the ordering, which can hand us the
+  // same job on two pages. Duplicate <url> entries in a sitemap are untidy at
+  // best, so collapse by id.
+  const byId = new Map(all.map((job) => [job.id, job]));
+  return { jobs: [...byId.values()], live: true };
 }
 
-export async function fetchJob(id: string): Promise<Job | null> {
+/**
+ * `job` is the listing when we found one. `live` says whether the backend
+ * actually answered.
+ *
+ * The distinction matters only to the server-rendered job page, which has to
+ * choose between a 404 and a retry. "The API said this job does not exist"
+ * (`live: true`, `job: null`) deserves a 404 — soft 404s, where a missing job
+ * returns 200 with an empty shell, burn crawl budget and get the whole
+ * directory demoted. "The API was unreachable" (`live: false`) must NOT 404:
+ * serving 404s for real jobs during a backend outage is how an indexed board
+ * disappears from Google.
+ */
+export type JobResult = { job: Job | null; live: boolean };
+
+export async function fetchJobResult(id: string): Promise<JobResult> {
   try {
     const res = await apiGet<{ success?: boolean; data?: unknown }>(`/jobs/${id}`, { retries: 0 });
     const job = normalizeApiJob(res?.data);
-    if (job) return job;
-  } catch {
-    /* no public GET /jobs/:id — fall through */
+    if (job) return { job, live: true };
+    /* 200 with an unusable body — fall through to the list scan */
+  } catch (error) {
+    const status = (error as { status?: number })?.status;
+    // Only the backend explicitly saying "gone" is proof the job doesn't exist.
+    // Timeouts, 5xx and proxy misconfiguration prove nothing.
+    if (status === 404 || status === 410) return { job: null, live: true };
   }
 
   try {
-    const { jobs } = await fetchJobs();
+    const { jobs, live } = await fetchJobs();
     const match = jobs.find((job) => job.id === id);
-    if (match) return match;
+    if (match) return { job: match, live };
+    if (live) return { job: null, live: true };
   } catch {
     /* fall through */
   }
 
-  return seedJobs.find((job) => job.id === id) ?? null;
+  return { job: seedJobs.find((job) => job.id === id) ?? null, live: false };
+}
+
+export async function fetchJob(id: string): Promise<Job | null> {
+  return (await fetchJobResult(id)).job;
 }
 
 export async function fetchCompanies(): Promise<{ companies: Company[]; live: boolean }> {

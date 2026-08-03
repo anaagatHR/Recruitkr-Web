@@ -28,8 +28,12 @@ export function buildMetadata({
     description,
     keywords,
     alternates: { canonical: path },
+    // `follow` stays true even when noindexed: these pages (an empty city
+    // landing page, a job page rendered during a backend outage) still carry
+    // links to real jobs. `nofollow` would keep Google's crawler from
+    // following them, stranding the pages behind them.
     robots: noindex
-      ? { index: false, follow: false }
+      ? { index: false, follow: true }
       : { index: true, follow: true },
     openGraph: {
       type,

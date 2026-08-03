@@ -15,12 +15,19 @@ const EMPLOYMENT_TYPE: Record<Job["type"], string> = {
 /** Salary is stored in LPA (lakhs per annum); convert to absolute INR per year. */
 const toAnnualInr = (lpa?: number) => (lpa != null && lpa > 0 ? Math.round(lpa * 100000) : undefined);
 
-/** Google recommends validThrough; we don't store an expiry, so derive one. */
+/**
+ * Google recommends validThrough; we don't store an expiry, so derive one.
+ *
+ * A date that has already passed is worse than no date at all: Google treats
+ * the posting as expired and removes it from job search, so every listing older
+ * than the window would silently drop out even though it is still open on the
+ * board. validThrough is optional, so we omit it once the derived date lapses.
+ */
 const expiryDate = (iso: string, days = 45) => {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return undefined;
   d.setDate(d.getDate() + days);
-  return d.toISOString();
+  return d.getTime() > Date.now() ? d.toISOString() : undefined;
 };
 
 /**

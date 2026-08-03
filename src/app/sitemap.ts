@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
-import { fetchAllJobs } from "@/lib/jobs";
+import { fetchAllJobs, type Job } from "@/lib/jobs";
 import { fetchBlogPosts } from "@/lib/blog";
-import { CITIES, citySlug } from "@/lib/locations";
+import { CITIES, citySlug, matchCity } from "@/lib/locations";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
@@ -16,6 +16,14 @@ const SITE_URL =
  * costs at most 24 job-list fetches a day.
  */
 export const revalidate = 3600;
+
+/**
+ * Building the sitemap means paging the whole job board plus the blog, so it is
+ * far slower than a normal page render. Vercel's default function timeout (10s)
+ * is within reach once the board holds a few thousand listings, and a timeout
+ * here serves Google a broken sitemap rather than a short one.
+ */
+export const maxDuration = 60;
 
 const staticRoutes: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }> = [
   // `/` is deliberately absent: it 307s to /jobs, and listing a redirecting
@@ -56,24 +64,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: route.priority,
   }));
 
-  // "Jobs in <city>" SEO landing pages.
-  const cityRoutes: MetadataRoute.Sitemap = CITIES.map((city) => ({
-    url: `${SITE_URL}/jobs-in-${citySlug(city)}`,
-    lastModified: now,
-    changeFrequency: "daily",
-    priority: 0.8,
-  }));
-
   // Individual job pages — so Google can crawl and index each JobPosting.
   // Every live listing, paged, not just the first 50: a job that never makes
   // the sitemap is a job Google may never find.
   let jobRoutes: MetadataRoute.Sitemap = [];
+  let liveJobs: Job[] | null = null;
   try {
     const { jobs, live } = await fetchAllJobs();
     // `live: false` means the API was unreachable and these are the fictional
     // seed listings. Publishing /jobs/j1…j8 would hand Google eight URLs that
     // 404 in production — worse than shipping no job URLs at all.
     if (live) {
+      liveJobs = jobs;
       jobRoutes = jobs.map((job) => ({
         url: `${SITE_URL}/jobs/${job.id}`,
         lastModified: safeDate(job.postedAt) ?? now,
@@ -84,6 +86,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch {
     /* no jobs available at build time — static + city routes still ship */
   }
+
+  /**
+   * "Jobs in <city>" SEO landing pages — but only the ones that actually have
+   * openings. Jobs are currently posted in Jaipur only, so the other eleven
+   * cities render an identical empty shell; submitting them asks Google to
+   * index eleven doorway pages, which costs more in site-wide quality signals
+   * than the pages could ever return. They stay out of the sitemap (and carry
+   * `noindex`) until a job exists there.
+   *
+   * When the job list is unavailable we fall back to publishing every city, so
+   * a backend outage cannot quietly empty this section of the sitemap.
+   */
+  const cityRoutes: MetadataRoute.Sitemap = CITIES.filter(
+    (city) => !liveJobs || matchCity(liveJobs, city).length > 0,
+  ).map((city) => ({
+    url: `${SITE_URL}/jobs-in-${citySlug(city)}`,
+    lastModified: now,
+    changeFrequency: "daily",
+    priority: 0.8,
+  }));
 
   // Individual blog posts — so each article gets crawled and indexed.
   let blogRoutes: MetadataRoute.Sitemap = [];
