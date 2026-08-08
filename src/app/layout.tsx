@@ -29,11 +29,9 @@ const SITE_URL =
 
 const SITE_NAME = "RecruitKr";
 
-const TITLE = "RecruitKr | Find Jobs Across India";
-
+const TITLE =  "Find Jobs in India | Fresher, Remote & Private Jobs | RecruitKr";
 const DESCRIPTION =
-  "Find jobs, internships, remote work, and connect directly with employers. RecruitKr helps job seekers and businesses with fast and easy recruitment.";
-
+  "Find verified jobs across India including fresher jobs, private jobs, remote jobs, internships and work from home opportunities. Apply directly with trusted employers on RecruitKr.";
 export const viewport: Viewport = {
   themeColor: "#264a7f",
   width: "device-width",
@@ -62,17 +60,21 @@ export const metadata: Metadata = {
   generator: "Next.js",
 
   keywords: [
-    "jobs in India",
-    "find jobs",
-    "job in jaipur",
-    "jaipur jobs",
-    "job website",
-    "apply for jobs",
-    "remote jobs",
-    "fresher jobs",
-    "hiring",
-    "RecruitKr",
-  ],
+  "jobs in india",
+  "latest jobs",
+  "private jobs",
+  "government jobs",
+  "fresher jobs",
+  "internships",
+  "remote jobs",
+  "work from home jobs",
+  "part time jobs",
+  "full time jobs",
+  "job portal india",
+  "recruitment",
+  "career opportunities",
+  "RecruitKr",
+],
 
   alternates: {
     canonical: "/",
@@ -84,8 +86,9 @@ export const metadata: Metadata = {
   // layout: verification is re-checked periodically, and it must survive `/`
   // redirecting to /jobs.
   verification: {
-    google: "B6DtOoaqNWArLryQKEr7UgeymYrfjujQN6l261iyxnw",
-  },
+    google:  "5m8uJ9_amWtMM_haIq7hZqy0I0w309RJo19IbwgcDr0",
+},
+  
 
   robots: {
     index: true,
