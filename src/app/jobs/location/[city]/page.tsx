@@ -105,8 +105,9 @@ export default async function Page({ params }: { params: { city: string } }) {
       <section className="container mx-auto px-4 py-10">
         {cityJobs.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* h2: directly under the page h1, same as the main job board. */}
             {cityJobs.map((job) => (
-              <JobCard key={job.id} job={job} />
+              <JobCard key={job.id} job={job} headingLevel={2} />
             ))}
           </div>
         ) : (

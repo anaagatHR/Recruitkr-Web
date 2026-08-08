@@ -19,22 +19,57 @@ const hashKey = (key: string) => {
 };
 const brandColor = (key: string) => BRAND_COLORS[hashKey(key) % BRAND_COLORS.length];
 
-export default function JobCard({ job }: { job: Job }) {
+/**
+ * The same three hues, darkened until white text on them clears WCAG AA (4.5:1).
+ *
+ * The bright originals stay on the decorative top bar, which carries no text.
+ * But the avatar chip and the Apply button both set white 12px bold on the
+ * accent, and at that size WCAG counts it as normal text, not large — the green
+ * measured 2.99:1 and the amber 2.23:1, so both failed. Navy already passes at
+ * 8.87:1 and is unchanged.
+ */
+const ON_ACCENT_SAFE: Record<string, string> = {
+  "#264a7f": "#264a7f", // 8.87:1
+  "#69a44f": "#53823f", // 2.99 -> 4.53:1
+  "#e59f56": "#9c6c3a", // 2.23 -> 4.55:1
+};
+
+export default function JobCard({
+  job,
+  headingLevel = 3,
+}: {
+  job: Job;
+  /**
+   * The card's title tag. Defaults to h3, which is right when the card sits
+   * under a section h2. Screens that put cards directly under the page h1 pass
+   * 2, so the outline doesn't skip a level.
+   */
+  headingLevel?: 2 | 3;
+}) {
+  const Heading = (headingLevel === 2 ? "h2" : "h3") as "h2" | "h3";
   const navigate = useNavigate();
   const fresh = isFresh(job.postedAt);
   const hot = (job.applicants ?? 0) >= 40;
   const skills = job.skills ?? [];
   const key = String(job.id ?? job.title ?? "");
   const accent = brandColor(key);
+  const accentOnWhiteText = ON_ACCENT_SAFE[accent] ?? accent;
 
   // One ribbon only, strongest signal first: real demand beats an editorial
   // "featured" flag, which in turn beats "posted recently".
+  // The two tinted ribbons carry 10px text, which WCAG scores as normal size,
+  // so the original orange-600 (3.11:1) and secondary green (2.58:1) both fell
+  // short of 4.5:1 on their own tints. Darkened to clear AA.
+  //
+  // bg-orange-100 is a fixed light tint in both themes, so its text stays dark.
+  // bg-secondary/15 tracks the theme, so the hardcoded dark green is scoped to
+  // light mode and dark mode keeps the token.
   const ribbon = hot
-    ? { label: "High demand", className: "bg-orange-100 text-orange-600" }
+    ? { label: "High demand", className: "bg-orange-100 text-orange-700" }
     : job.featured
       ? { label: "Featured", className: "bg-primary/10 text-primary" }
       : fresh
-        ? { label: "New today", className: "bg-secondary/15 text-secondary" }
+        ? { label: "New today", className: "bg-secondary/15 text-[#4d783a] dark:text-secondary" }
         : null;
 
   return (
@@ -55,14 +90,14 @@ export default function JobCard({ job }: { job: Job }) {
       <div className="flex items-start gap-2.5">
         <div
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
-          style={{ backgroundColor: accent }}
+          style={{ backgroundColor: accentOnWhiteText }}
         >
           {displayInitial(job.company)}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-bold leading-tight text-foreground group-hover:text-primary">
+          <Heading className="truncate text-sm font-bold leading-tight text-foreground group-hover:text-primary">
             {job.title}
-          </h3>
+          </Heading>
           <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
             <p className="truncate text-[11px] text-muted-foreground">{job.company}</p>
             {job.companyRating != null && (
@@ -124,7 +159,7 @@ export default function JobCard({ job }: { job: Job }) {
             navigate(target);
           }}
           className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
-          style={{ backgroundColor: accent }}
+          style={{ backgroundColor: accentOnWhiteText }}
         >
           Apply
         </button>

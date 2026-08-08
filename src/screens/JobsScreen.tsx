@@ -211,6 +211,10 @@ export default function JobsScreen({
                   : `${filtered.length}${hasMore ? "+" : ""} job${filtered.length === 1 ? "" : "s"} found`}
               </p>
               <select
+                // The control has no visible <label> — its meaning comes from
+                // the selected option text — so screen readers announced it as
+                // an unnamed combo box.
+                aria-label="Sort jobs"
                 value={sort}
                 onChange={(e) => setSort(e.target.value as "recent" | "salary")}
                 className="rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none"
@@ -232,8 +236,10 @@ export default function JobsScreen({
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
+                {/* h2: these cards sit directly under the page h1, with no
+                    section heading between, so h3 would skip a level. */}
                 {filtered.map((job) => (
-                  <JobCard key={job.id} job={job} />
+                  <JobCard key={job.id} job={job} headingLevel={2} />
                 ))}
               </div>
             )}
