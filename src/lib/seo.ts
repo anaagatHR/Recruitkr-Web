@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+const SITE_NAME = "RecruitKr";
+
 type PageSeoInput = {
   title: string;
   description: string;
@@ -23,6 +25,11 @@ export function buildMetadata({
   noindex = false,
   type = "website",
 }: PageSeoInput): Metadata {
+  // The root layout's `template` only rewrites `metadata.title` — it never
+  // touches openGraph/twitter. So the brand has to be appended by hand here,
+  // or social cards would show a bare "Browse Jobs" with no company name.
+  const socialTitle = `${title} | ${SITE_NAME}`;
+
   return {
     title,
     description,
@@ -38,13 +45,13 @@ export function buildMetadata({
     openGraph: {
       type,
       url: path,
-      title,
+      title: socialTitle,
       description,
-      images: [{ url: image, alt: title }],
+      images: [{ url: image, alt: socialTitle }],
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: socialTitle,
       description,
       images: [image],
     },

@@ -8,7 +8,9 @@ import Index from "@/screens/Index";
  * — it can no longer inherit the root layout's defaults as the site root.
  */
 export const metadata: Metadata = buildMetadata({
-  title: "RecruitKr | Hiring & Job Search Partner Across India",
+  // The brand is appended by the root layout's title template, so it must not
+  // be repeated here — this used to render as "RecruitKr | ... | RecruitKr".
+  title: "Hiring & Job Search Partner Across India",
   description:
     "RecruitKr connects candidates with verified employers across India — recruitment, staffing and HR support from first interview to retention.",
   path: "/home",

@@ -4,7 +4,9 @@ import { fetchJobsPage } from "@/lib/jobs";
 import JobsScreen from "@/screens/JobsScreen";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Browse Jobs | Find Verified Jobs Across India | RecruitKr",
+  // No "| RecruitKr" here — the root layout's title template appends it. Spelling
+  // it out produced "... | RecruitKr | RecruitKr" on the live page.
+  title: "Browse Jobs | Find Verified Jobs Across India",
   description:
     "Browse verified job openings across India. Search jobs by role, location, salary, experience, and work mode. Apply online for free with RecruitKr.",
   path: "/jobs",
