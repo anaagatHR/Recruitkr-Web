@@ -187,7 +187,11 @@ const Footer = () => {
             <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
               {linkSections.map((section) => (
                 <div key={section.title}>
-                  <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#8fc46f]">{section.title}</h4>
+                  {/* h2, not h4: these are the first headings after the page's
+                      own, so h4 skipped a level. `heading-plain` opts out of the
+                      base layer's brand gradient, which would otherwise repaint
+                      the green and lose it against the navy footer. */}
+                  <h2 className="heading-plain mb-3 text-xs font-semibold uppercase tracking-widest text-[#8fc46f]">{section.title}</h2>
                   <nav className="grid gap-1">
                     {section.links.map((item) => (
                       <FooterNavLink key={item.label} item={item} />
@@ -197,7 +201,7 @@ const Footer = () => {
               ))}
 
               <div>
-                <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#8fc46f]">Contact</h4>
+                <h2 className="heading-plain mb-3 text-xs font-semibold uppercase tracking-widest text-[#8fc46f]">Contact</h2>
                 <div className="grid gap-1 text-sm">
                   {contactEmails.map((email) => (
                     <a key={email} href={`mailto:${email}`} className={contactLinkClass}>
