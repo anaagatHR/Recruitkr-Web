@@ -29,6 +29,19 @@ const nextConfig = {
     // sending them there would chain two redirects and land a visitor looking
     // for a services page on a list of vacancies.
     return [
+      // The site opens on the job board. This has to be a routing-layer
+      // redirect, not `redirect("/jobs")` in a `/` page component: a
+      // statically prerendered App Router page that calls redirect() builds an
+      // artifact with `status: 307` but no `location` header, so a hard GET of
+      // `/` returned a 307 that pointed nowhere and browsers rendered the
+      // __next_error__ body instead of navigating. The marketing home page it
+      // used to render lives at /home.
+      //
+      // Temporary (307), not permanent (308), on purpose: browsers and CDNs
+      // cache a 308 indefinitely, so a visitor who loaded `/` once could never
+      // see a different `/` again without clearing their cache. Flip
+      // `permanent` to true only once this is settled.
+      { source: "/", destination: "/jobs", permanent: false },
       // The intern portal was removed; /internship and the CRM's /intern-login
       // entry point were indexed and bookmarked, so they redirect rather than
       // 404. Internship *jobs* still exist — they're a type on the board.
