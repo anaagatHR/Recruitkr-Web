@@ -54,7 +54,10 @@ const ForgotPassword = () => {
               <Link to="/home" className="font-heading text-3xl font-bold">
                 Recruit<span style={{ color: "#264a7f" }}>kr</span>
               </Link>
-              <p className="mt-2 text-muted-foreground text-sm">Reset your password</p>
+              {/* The page had no heading element at all — only a styled <p> —
+                  so screen readers landed here with nothing to announce as the
+                  page's subject. `font-normal` keeps the existing look. */}
+              <h1 className="mt-2 text-sm font-normal text-muted-foreground">Reset your password</h1>
             </div>
 
             {done ? (

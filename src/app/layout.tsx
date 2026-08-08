@@ -159,8 +159,13 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // `suppressHydrationWarning` on <html> is required, not cosmetic: next-themes
+  // writes the active theme onto <html> as a class from a blocking script before
+  // React hydrates, so the client's className never matches the server's and
+  // React logs a mismatch on every page load. Suppression applies to this
+  // element's own attributes only — it does not hide mismatches in the tree.
   return (
-    <html lang="en" className={`${inter.variable} ${sora.variable}`}>
+    <html lang="en" className={`${inter.variable} ${sora.variable}`} suppressHydrationWarning>
       <body>
         <script
           type="application/ld+json"

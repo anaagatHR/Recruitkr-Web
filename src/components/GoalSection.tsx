@@ -42,9 +42,10 @@ const GoalSection = () => {
           <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-primary">
             Our Goal
           </p>
-          <h2 className="text-2xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">
+          {/* h1: this section is the main content of /goal, its only consumer. */}
+          <h1 className="text-2xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">
             Building The Workforce Of Tomorrow
-          </h2>
+          </h1>
           <p className="mt-5 text-lg text-muted-foreground">
             RecruitKR exists to close the gap between talent and opportunity. We
             help students and freshers gain real-world experience, connect skilled

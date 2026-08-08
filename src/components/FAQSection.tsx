@@ -385,9 +385,12 @@ const FAQSection = () => {
       <div className="container mx-auto px-4">
         <div className="mx-auto mb-12 max-w-3xl text-center">
           <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-primary">FAQs</p>
-          <h2 className="text-4xl font-extrabold tracking-tight md:text-5xl">
+          {/* h1: this section is the main content of /faqs, its only consumer.
+              The home page's short FAQ is a separate component (HomeFaq) with
+              its own h2, so promoting this cannot create a second h1 there. */}
+          <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">
             Frequently Asked Questions
-          </h2>
+          </h1>
           <p className="mt-4 text-base text-muted-foreground">
             Common questions from employers, job seekers, and partners about RecruitKr services.
           </p>

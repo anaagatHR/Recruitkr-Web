@@ -1,0 +1,60 @@
+name: Submit job URLs to Google
+
+# The sitemap regenerates itself hourly (src/app/sitemap.ts), but regenerating
+# it does not tell Google anything — Google retired sitemap ping in 2023 and
+# now recrawls on its own schedule, which can be days. For a board where a
+# listing is only relevant for a few weeks, that is most of its useful life.
+#
+# The Indexing API is the exception: JobPosting is one of the two page types it
+# officially supports, and URLs pushed through it are usually crawled within
+# minutes. This job pushes every job URL currently in the live sitemap.
+#
+# Requires the repository secret GOOGLE_INDEXING_CREDENTIALS_JSON — the full
+# service-account key JSON. See the setup steps at the top of
+# scripts/google-indexing.mjs (the account must be an Owner of the Search
+# Console property, or every call returns 403). Without the secret the run
+# skips cleanly rather than failing every night.
+
+on:
+  schedule:
+    # 02:30 UTC = 08:00 IST, after the overnight postings are up.
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+    inputs:
+      all:
+        description: "Submit every sitemap URL, not just job pages"
+        type: boolean
+        default: false
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check credentials
+        id: creds
+        env:
+          KEY: ${{ secrets.GOOGLE_INDEXING_CREDENTIALS_JSON }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "GOOGLE_INDEXING_CREDENTIALS_JSON is not set — skipping."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Submit URLs
+        if: steps.creds.outputs.ready == 'true'
+        env:
+          GOOGLE_INDEXING_CREDENTIALS_JSON: ${{ secrets.GOOGLE_INDEXING_CREDENTIALS_JSON }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'https://www.recruitkr.com' }}
+        # The script has no dependencies beyond Node, so there is nothing to
+        # install. --limit=190 stays under the default 200/day project quota,
+        # leaving headroom for manual submissions the same day.
+        run: |
+          node scripts/google-indexing.mjs --limit=190 ${{ inputs.all && '--all' || '' }}

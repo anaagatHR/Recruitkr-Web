@@ -237,9 +237,10 @@ const TeamSection = () => {
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur">
             <Sparkles size={13} /> RecruitKr Team
           </span>
-          <h2 className="mt-4 font-heading text-2xl font-extrabold tracking-tight text-white sm:mt-5 sm:text-4xl lg:text-5xl">
+          {/* h1: this section is the main content of /our-team, its only consumer. */}
+          <h1 className="mt-4 font-heading text-2xl font-extrabold tracking-tight text-white sm:mt-5 sm:text-4xl lg:text-5xl">
             The people behind your hiring growth
-          </h2>
+          </h1>
           <span className="mx-auto mt-4 block h-1 w-12 rounded-full bg-gradient-to-r from-white via-[#a9d68d] to-[#69a44f] sm:mt-5 sm:w-16" />
           <p className="mx-auto mt-3 max-w-xl text-[13px] leading-relaxed text-white/85 sm:mt-4 sm:text-base">
             Our team works across recruitment, employer support, and candidate success to make every hiring

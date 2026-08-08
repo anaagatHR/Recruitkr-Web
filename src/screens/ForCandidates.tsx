@@ -16,10 +16,24 @@ export default function ForCandidates() {
       subtitle="RecruitKr helps you build a professional profile, showcase your skills, connect with the right employers, and confidently secure your next opportunity."
       primaryCta={{ label: "Create your profile", to: "/signup" }}
       secondaryCta={{ label: "Explore jobs", to: "/jobs" }}
+      /*
+       * These were "12k+ Verified jobs", "3.5k+ Hiring companies" and
+       * "4.6★ Avg. rating" — all three invented. There is no review or rating
+       * model in the backend at all, so the star figure was not stale, it was
+       * fabricated, and the two counts had no source either. See the note at
+       * the top of HomeReviews.tsx, which already documents them as
+       * placeholders.
+       *
+       * What replaces them is capability, not measurement: "no fee" is the
+       * answer given verbatim on /faqs (the page of record for what RecruitKr
+       * charges candidates), and one-tap apply and direct chat are features
+       * listed on this very page. None of them can drift out of date or
+       * overstate the size of the marketplace.
+       */
       stats={[
-        { value: "12k+", label: "Verified jobs" },
-        { value: "3.5k+", label: "Hiring companies" },
-        { value: "4.6★", label: "Avg. rating" },
+        { value: "₹0", label: "Cost to apply" },
+        { value: "1 tap", label: "To apply to a job" },
+        { value: "Direct", label: "Chat with employers" },
       ]}
       beforeFeatures={<CandidateJourneySection />}
       featuresTitle="Everything you need to land your next role"

@@ -47,7 +47,11 @@ export default function CompanyDetailScreen() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto max-w-5xl px-4 pb-20 pt-24">
-        <Link to="/jobs" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary">
+        {/* See JobDetailScreen: 44px touch target, margin reduced to absorb it. */}
+        <Link
+          to="/jobs"
+          className="mb-3 inline-flex min-h-[44px] items-center gap-2 text-sm text-muted-foreground hover:text-primary"
+        >
           <ArrowLeft size={16} /> Back to jobs
         </Link>
 

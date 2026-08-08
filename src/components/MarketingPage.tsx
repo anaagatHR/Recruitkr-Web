@@ -123,8 +123,15 @@ export default function MarketingPage({
             {secondaryCta && <Cta cta={secondaryCta} variant="outline" />}
           </RevealItem>
 
+          {/* Column count follows the data. It was hardcoded to 3, so a page
+              supplying two stats left an empty third cell and the row read as
+              off-centre. */}
           {stats && stats.length > 0 && (
-            <RevealItem className="mt-10 grid grid-cols-3 gap-3 border-t border-white/15 pt-8 sm:gap-6">
+            <RevealItem
+              className={`mt-10 grid gap-3 border-t border-white/15 pt-8 sm:gap-6 ${
+                stats.length === 1 ? "grid-cols-1" : stats.length === 2 ? "grid-cols-2" : "grid-cols-3"
+              }`}
+            >
               {stats.map((s) => (
                 <div key={s.label}>
                   <div className="text-xl font-extrabold text-white sm:text-3xl">{s.value}</div>

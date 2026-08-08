@@ -30,16 +30,31 @@ const staticRoutes: Array<{ path: string; priority: number; changeFrequency: Met
   // URL in a sitemap just makes crawlers follow a hop to reach the page below.
   { path: "/jobs", priority: 1.0, changeFrequency: "hourly" },
   { path: "/home", priority: 0.9, changeFrequency: "weekly" },
+  { path: "/candidates", priority: 0.8, changeFrequency: "monthly" },
+  { path: "/employers", priority: 0.8, changeFrequency: "monthly" },
   { path: "/process", priority: 0.6, changeFrequency: "monthly" },
   { path: "/why-us", priority: 0.6, changeFrequency: "monthly" },
   { path: "/about", priority: 0.6, changeFrequency: "monthly" },
   { path: "/goal", priority: 0.6, changeFrequency: "monthly" },
   { path: "/success-stories", priority: 0.7, changeFrequency: "weekly" },
+  { path: "/training", priority: 0.6, changeFrequency: "monthly" },
+  { path: "/assessment", priority: 0.6, changeFrequency: "monthly" },
+  { path: "/partners", priority: 0.5, changeFrequency: "monthly" },
   { path: "/our-team", priority: 0.5, changeFrequency: "monthly" },
   { path: "/faqs", priority: 0.5, changeFrequency: "monthly" },
   { path: "/blog", priority: 0.7, changeFrequency: "daily" },
   { path: "/contact", priority: 0.5, changeFrequency: "monthly" },
 ];
+
+/**
+ * Pages whose `<lastmod>` is a real, derived timestamp rather than "whenever
+ * this sitemap happened to be regenerated". Everything not listed here ships
+ * without a `<lastmod>` at all — see below.
+ */
+const DERIVED_LASTMOD: Record<string, "jobs" | "blog"> = {
+  "/jobs": "jobs",
+  "/blog": "blog",
+};
 
 /**
  * A `<lastmod>` Next can serialise, or null.
@@ -54,21 +69,22 @@ function safeDate(value?: string | null): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+/** The most recent of a set of possibly-missing dates, or null if there are none. */
+function newest(dates: Array<Date | null>): Date | null {
+  let best: Date | null = null;
+  for (const date of dates) {
+    if (date && (!best || date > best)) best = date;
+  }
+  return best;
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date();
-
-  const base: MetadataRoute.Sitemap = staticRoutes.map((route) => ({
-    url: `${SITE_URL}${route.path}`,
-    lastModified: now,
-    changeFrequency: route.changeFrequency,
-    priority: route.priority,
-  }));
-
   // Individual job pages — so Google can crawl and index each JobPosting.
   // Every live listing, paged, not just the first 50: a job that never makes
   // the sitemap is a job Google may never find.
   let jobRoutes: MetadataRoute.Sitemap = [];
   let liveJobs: Job[] | null = null;
+  let jobsLastMod: Date | null = null;
   try {
     const { jobs, live } = await fetchAllJobs();
     // `live: false` means the API was unreachable and these are the fictional
@@ -78,10 +94,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       liveJobs = jobs;
       jobRoutes = jobs.map((job) => ({
         url: `${SITE_URL}/jobs/${job.id}`,
-        lastModified: safeDate(job.postedAt) ?? now,
+        // No `?? now` fallback: a job row with an unparseable timestamp ships
+        // without a <lastmod> (which is optional) rather than claiming it
+        // changed this minute. See the note on the static routes below.
+        lastModified: safeDate(job.postedAt) ?? undefined,
         changeFrequency: "daily",
         priority: 0.85,
       }));
+      jobsLastMod = newest(jobs.map((job) => safeDate(job.postedAt)));
     }
   } catch {
     /* no jobs available at build time — static + city routes still ship */
@@ -102,24 +122,55 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     (city) => !liveJobs || matchCity(liveJobs, city).length > 0,
   ).map((city) => ({
     url: `${SITE_URL}/jobs-in-${citySlug(city)}`,
-    lastModified: now,
+    // The page is a filtered view of the board, so it last changed when its
+    // newest matching job was posted.
+    lastModified: liveJobs
+      ? newest(matchCity(liveJobs, city).map((job) => safeDate(job.postedAt))) ?? undefined
+      : undefined,
     changeFrequency: "daily",
     priority: 0.8,
   }));
 
   // Individual blog posts — so each article gets crawled and indexed.
   let blogRoutes: MetadataRoute.Sitemap = [];
+  let blogLastMod: Date | null = null;
   try {
     const posts = await fetchBlogPosts();
     blogRoutes = posts.map((post) => ({
       url: `${SITE_URL}/blog/${post.slug}`,
-      lastModified: safeDate(post.updatedAt) ?? safeDate(post.publishedAt) ?? now,
+      lastModified: safeDate(post.updatedAt) ?? safeDate(post.publishedAt) ?? undefined,
       changeFrequency: "weekly",
       priority: 0.6,
     }));
+    blogLastMod = newest(
+      posts.map((post) => safeDate(post.updatedAt) ?? safeDate(post.publishedAt)),
+    );
   } catch {
     /* no blog posts available at build time — the rest of the sitemap ships */
   }
+
+  /**
+   * `<lastmod>` on the fixed pages.
+   *
+   * The index and blog index are derived from the freshest thing they list, so
+   * they update on their own as jobs and posts come in. The evergreen marketing
+   * pages get no `<lastmod>` at all — the tag is optional, and stamping every
+   * page with the current time (which is what a regenerating sitemap does if you
+   * write `new Date()`) tells Google the whole site changes hourly. Google
+   * ignores a `<lastmod>` it catches lying, so the honest signal on /jobs is
+   * worth more than a fake one on twelve static pages.
+   */
+  const derived = { jobs: jobsLastMod, blog: blogLastMod };
+
+  const base: MetadataRoute.Sitemap = staticRoutes.map((route) => {
+    const source = DERIVED_LASTMOD[route.path];
+    return {
+      url: `${SITE_URL}${route.path}`,
+      lastModified: (source ? derived[source] : null) ?? undefined,
+      changeFrequency: route.changeFrequency,
+      priority: route.priority,
+    };
+  });
 
   return [...base, ...cityRoutes, ...jobRoutes, ...blogRoutes];
 }

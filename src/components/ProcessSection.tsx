@@ -15,9 +15,14 @@ const ProcessSection = () => {
           <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-accent">
             How It Works
           </p>
-          <h2 className="text-4xl font-extrabold tracking-tight md:text-5xl">
+          {/* h1, not h2: this section is the whole of /process, so it carries
+              the page's main heading. It is not reused anywhere else, so there
+              is no page where this would compete with another h1. The global
+              h1/h2 rule in index.css styles both tags identically, so the tag
+              change is visually neutral. */}
+          <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">
             Our Process
-          </h2>
+          </h1>
         </div>
 
         <div className="overflow-hidden">

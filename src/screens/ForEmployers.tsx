@@ -42,10 +42,18 @@ export default function ForEmployers() {
       subtitle="Post a role, search verified candidates, chat instantly, and schedule interviews — your whole hiring pipeline in one place."
       primaryCta={{ label: "Post a job", to: "/signup/employer" }}
       secondaryCta={{ label: "Talk to us", to: "/contact" }}
+      /*
+       * "3.5k+ Companies hiring" was an invented count, and "70% Faster
+       * shortlisting" was an invented benchmark — there is nothing in the
+       * product measuring time-to-shortlist, so it could not be sourced or
+       * defended if a customer asked. Both are gone.
+       *
+       * What remains describes the product: chat is real-time, and the four
+       * steps are exactly the `steps` array rendered further down this page.
+       */
       stats={[
-        { value: "3.5k+", label: "Companies hiring" },
-        { value: "70%", label: "Faster shortlisting" },
         { value: "24/7", label: "Real-time chat" },
+        { value: "4 steps", label: "Post a role to hire" },
       ]}
       beforeFeatures={
         <>

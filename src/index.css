@@ -487,6 +487,23 @@
     background: linear-gradient(180deg, hsl(var(--navy-deep)) 0%, hsl(var(--navy)) 100%);
   }
 
+  /* Opt an h1/h2 out of the site-wide brand-gradient heading treatment.
+   *
+   * The base layer paints every h1 and h2 with `--brand-gradient` clipped to
+   * the glyphs. That reads well on light surfaces, but the gradient runs
+   * navy -> green, so on a dark navy panel the navy half of the heading
+   * disappears into the background and only the tail end stays legible.
+   *
+   * Put this on any heading that sits on a dark surface, then set a colour:
+   *   <h1 className="heading-plain text-white">…</h1>
+   */
+  .heading-plain {
+    background-image: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: inherit;
+  }
+
   .text-gradient-teal {
     @apply bg-clip-text text-transparent;
     background-image: var(--brand-gradient);

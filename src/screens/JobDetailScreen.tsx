@@ -129,7 +129,14 @@ export default function JobDetailScreen({ initialJob = null }: { initialJob?: Jo
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto max-w-5xl px-4 pb-20 pt-24">
-        <Link to="/jobs" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary">
+        {/* min-h-[44px] is the touch target, not the text size: this rendered
+            20px tall, under the 24px WCAG 2.5.8 minimum and well under the 44px
+            comfortable size. The margin drops from 6 to 3 so the extra height
+            is absorbed and the gap below the link looks unchanged. */}
+        <Link
+          to="/jobs"
+          className="mb-3 inline-flex min-h-[44px] items-center gap-2 text-sm text-muted-foreground hover:text-primary"
+        >
           <ArrowLeft size={16} /> Back to jobs
         </Link>
 
