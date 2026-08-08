@@ -16,6 +16,10 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
+    // AVIF first, WebP as the fallback. Next only emits WebP by default; AVIF
+    // is meaningfully smaller for the logo/photographic assets and every
+    // browser that matters now decodes it.
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       { protocol: "https", hostname: "ik.imagekit.io" },
       { protocol: "https", hostname: "www.recruitkr.com" },

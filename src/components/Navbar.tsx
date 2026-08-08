@@ -11,6 +11,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import Image from "next/image";
 import { memo, useCallback, useState } from "react";
 import logoImage from "@/assets/logo-tagline.png";
 import { Link, NavLink } from "@/compat/router";
@@ -42,11 +43,18 @@ const Navbar = memo(function Navbar() {
             genuinely transparent background (white removed) — no white box,
             works on any navbar colour, light or dark. */}
         <Link to="/home" aria-label="RecruitKr home" className="flex shrink-0 items-center">
-          <img
-            src={logoImage.src}
+          {/* next/image, not a raw <img>: the source PNG is 912x391 (186 KB) but
+              this renders at ~168x72, and it is the LCP element on every page.
+              A bare <img src={logoImage.src}> ships the full-size PNG and cost
+              ~1.8s of a 4.5s mobile LCP. Passing the static import lets Next
+              serve a correctly-sized WebP/AVIF. `priority` replaces the old
+              eager + fetchPriority="high" pair. */}
+          <Image
+            src={logoImage}
             alt="RecruitKr — Your Hiring Partner"
-            loading="eager"
-            fetchPriority="high"
+            width={168}
+            height={72}
+            priority
             className="h-16 w-auto object-contain sm:h-[4.5rem]"
           />
         </Link>

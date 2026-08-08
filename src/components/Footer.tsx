@@ -1,5 +1,6 @@
 ﻿"use client";
 import { Facebook, Instagram, Linkedin, Mail, Phone } from "lucide-react";
+import Image from "next/image";
 import logoImage from "@/assets/logo-tagline.png";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Link } from "@/compat/router";
@@ -99,11 +100,16 @@ const Footer = () => {
             {/* Soft white rounded chip so the navy logo art reads crisply
                 against the deep-navy footer, in its true brand colours. */}
             <div className="flex shrink-0 items-center animate-float rounded-2xl bg-white/95 px-4 py-2.5 shadow-soft-md ring-1 ring-white/50">
-              <img
-                src={logoImage.src}
+              {/* next/image for the same reason as the navbar. This one stays
+                  lazy (it is below the fold), but it must not request the raw
+                  912x391 PNG: that is a separate 186 KB download from the
+                  navbar's optimised copy, since they resolve to different URLs. */}
+              <Image
+                src={logoImage}
                 alt="RecruitKr"
+                width={131}
+                height={56}
                 loading="lazy"
-                decoding="async"
                 className="block h-11 w-auto object-contain sm:h-11 md:h-12 lg:h-14"
               />
             </div>
