@@ -97,6 +97,15 @@ export default function JobCard({
         <div className="min-w-0 flex-1">
           <Heading className="truncate text-sm font-bold leading-tight text-foreground group-hover:text-primary">
             {job.title}
+            {/* A board listing six "Computer Operator" roles gave a screen
+                reader six identically-named links to six different pages.
+                Hidden text rather than an aria-label on purpose: a label would
+                have to repeat the card's entire visible text or trip
+                label-content-name-mismatch. */}
+            <span className="sr-only">
+              {job.company ? ` at ${job.company}` : ""}
+              {job.location ? `, ${job.location}` : ""}
+            </span>
           </Heading>
           <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
             <p className="truncate text-[11px] text-muted-foreground">{job.company}</p>

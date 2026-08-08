@@ -141,6 +141,10 @@ export default function JobsScreen({
     <div className="min-h-screen bg-background">
       <Navbar />
 
+      {/* <main>: the page had no main landmark, so screen-reader users had no
+          way to skip the nav and jump to the board. It wraps the hero and the
+          results but not the Navbar/Footer, which are their own landmarks. */}
+      <main>
       {/* Search hero */}
       <section className="border-b border-border bg-muted/40 pt-24 pb-8">
         <div className="container mx-auto px-4">
@@ -263,6 +267,7 @@ export default function JobsScreen({
           </div>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

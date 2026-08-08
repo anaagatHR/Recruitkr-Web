@@ -2,6 +2,14 @@
   "name": "recruitkr-nextjs",
   "private": true,
   "version": "1.0.0",
+  "comment:browserslist": "Sets the compile target. Without it Next falls back to a default that still includes pre-2019 browsers, so every bundle shipped ~12 KiB of polyfills (Array.at, Object.fromEntries, String.replaceAll and friends) that no browser in this list needs. The floors are all 2020-era and cover the older Android WebViews that matter for an India-facing job board — this is deliberately not 'last 2 versions'.",
+  "browserslist": [
+    "chrome >= 87",
+    "edge >= 88",
+    "firefox >= 78",
+    "safari >= 14",
+    "not dead"
+  ],
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
     "dev": "next dev -p 3000",
