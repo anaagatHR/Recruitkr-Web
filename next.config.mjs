@@ -50,6 +50,7 @@ const nextConfig = {
       // entry point were indexed and bookmarked, so they redirect rather than
       // 404. Internship *jobs* still exist — they're a type on the board.
       { source: "/internship", destination: "/jobs?type=Internship", permanent: true },
+            { source: "/register/candidate", destination: "/signup", permanent: true },
       { source: "/intern-login", destination: "/login", permanent: true },
       { source: "/services", destination: "/home", permanent: true },
       { source: "/services/:id", destination: "/home", permanent: true },
