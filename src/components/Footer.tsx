@@ -1,4 +1,3 @@
-﻿"use client";
 import { Facebook, Instagram, Linkedin, Mail, Phone } from "lucide-react";
 import Image from "next/image";
 import logoImage from "@/assets/logo-tagline.png";
@@ -49,10 +48,13 @@ const linkSections = [
     ],
   },
   {
-    title: "Services",
+    title: "Services & Hiring",
     links: [
       { label: "Assessment", to: "/assessment" },
       { label: "Training", to: "/training" },
+      { label: "Executive Search", to: "/services/executive-search" },
+      { label: "Workforce Solutions", to: "/services/workforce-solutions" },
+      { label: "Campus Recruitment", to: "/services/campus-recruitment" },
     ],
   },
 ];
@@ -71,9 +73,6 @@ const contactLinkClass =
 
 type FooterLinkItem = { label: string; to: string; external?: boolean };
 
-// Footer nav links are internal router links by default; items flagged
-// `external` (e.g. the Admin / Business OS link) render as a plain anchor that
-// opens in a new tab.
 const FooterNavLink = ({ item }: { item: FooterLinkItem }) =>
   item.external ? (
     <a href={item.to} target="_blank" rel="noreferrer" className={footerLinkClass}>
@@ -90,20 +89,13 @@ const Footer = () => {
 
   return (
     <footer className="bg-deep-navy relative overflow-hidden border-t border-white/10 text-white">
-      {/* Soft brand glow accents so the deep navy reads rich, not flat. */}
       <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#69a44f]/12 blur-3xl" />
       <div aria-hidden className="pointer-events-none absolute -right-16 bottom-0 h-72 w-72 rounded-full bg-[#264a7f]/50 blur-3xl" />
       <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 opacity-[0.06]" />
       <div className="container relative mx-auto px-4 py-10 sm:px-6 sm:py-14">
         <div className="space-y-6">
           <div className="flex flex-col flex-wrap items-center gap-4 text-center animate-fade-up sm:flex-row sm:flex-nowrap sm:gap-6 sm:text-left">
-            {/* Soft white rounded chip so the navy logo art reads crisply
-                against the deep-navy footer, in its true brand colours. */}
             <div className="flex shrink-0 items-center animate-float rounded-2xl bg-white/95 px-4 py-2.5 shadow-soft-md ring-1 ring-white/50">
-              {/* next/image for the same reason as the navbar. This one stays
-                  lazy (it is below the fold), but it must not request the raw
-                  912x391 PNG: that is a separate 186 KB download from the
-                  navbar's optimised copy, since they resolve to different URLs. */}
               <Image
                 src={logoImage}
                 alt="RecruitKr"
@@ -187,10 +179,6 @@ const Footer = () => {
             <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
               {linkSections.map((section) => (
                 <div key={section.title}>
-                  {/* h2, not h4: these are the first headings after the page's
-                      own, so h4 skipped a level. `heading-plain` opts out of the
-                      base layer's brand gradient, which would otherwise repaint
-                      the green and lose it against the navy footer. */}
                   <h2 className="heading-plain mb-3 text-xs font-semibold uppercase tracking-widest text-[#8fc46f]">{section.title}</h2>
                   <nav className="grid gap-1">
                     {section.links.map((item) => (
