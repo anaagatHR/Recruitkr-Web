@@ -10,24 +10,24 @@ import JobCard from "@/components/job/JobCard";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
 
-/** Pre-render the curated cities; other cities are still served on demand. */
-export function generateStaticParams() {
-  if (!Array.isArray(CITIES)) return [];
-  return CITIES.map((c) => ({ city: citySlug(c) }));
-}
-
-/** Keep the opening count fresh without rebuilding the site. */
-export const revalidate = 600;
+// Force dynamic rendering so Vercel does not crash during static export
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ city: string }> | { city: string };
+  params: { city: string };
 }): Promise<Metadata> {
-  const resolvedParams = await Promise.resolve(params);
-  const city = cityFromSlug(resolvedParams?.city || "");
-  const { jobs, live } = await fetchJobs();
-  const count = live ? matchCity(jobs, city).length : null;
+  const city = cityFromSlug(params?.city || "");
+  let count: number | null = null;
+
+  try {
+    const { jobs, live } = await fetchJobs();
+    count = live ? matchCity(jobs, city).length : null;
+  } catch (e) {
+    count = null;
+  }
 
   const noindex = count === 0;
   const title = count ? `Jobs in ${city} — ${count} Verified Opening${count === 1 ? "" : "s"}` : `Jobs in ${city}`;
@@ -37,7 +37,7 @@ export async function generateMetadata({
     description: count
       ? `${count} verified job opening${count === 1 ? "" : "s"} in ${city} across IT, healthcare, finance, sales and retail. Browse salaries and apply free on RecruitKr.`
       : `Find the latest verified job openings in ${city}. Browse roles across IT, healthcare, finance, sales, retail and more. Apply free on RecruitKr.`,
-    path: `/jobs-in-${resolvedParams?.city || ""}`,
+    path: `/jobs-in-${params?.city || ""}`,
     keywords: [`jobs in ${city}`, `${city} jobs`, `vacancies in ${city}`, `careers in ${city}`, `hiring in ${city}`, `${city} job openings`],
     noindex,
   });
@@ -46,12 +46,17 @@ export async function generateMetadata({
 export default async function Page({
   params,
 }: {
-  params: Promise<{ city: string }> | { city: string };
+  params: { city: string };
 }) {
-  const resolvedParams = await Promise.resolve(params);
-  const city = cityFromSlug(resolvedParams?.city || "");
-  const { jobs } = await fetchJobs();
-  const cityJobs = matchCity(jobs, city);
+  const city = cityFromSlug(params?.city || "");
+  let cityJobs: any[] = [];
+
+  try {
+    const { jobs } = await fetchJobs();
+    cityJobs = matchCity(jobs, city) || [];
+  } catch (e) {
+    cityJobs = [];
+  }
 
   const itemListLd = {
     "@context": "https://schema.org/",
@@ -124,7 +129,7 @@ export default async function Page({
         <h2 className="font-heading text-lg font-bold">Jobs in other cities</h2>
         <div className="mt-4 flex flex-wrap gap-2">
           {Array.isArray(CITIES) &&
-            CITIES.filter((c) => citySlug(c) !== resolvedParams?.city).map((c) => (
+            CITIES.filter((c) => citySlug(c) !== params?.city).map((c) => (
               <Link
                 key={c}
                 href={`/jobs-in-${citySlug(c)}`}
