@@ -13,11 +13,11 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com"
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-interface PageProps {
-  params: { city?: string } | Promise<{ city?: string }>;
-}
-
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: any;
+}): Promise<Metadata> {
   const resolvedParams = await Promise.resolve(params);
   const cityParam = resolvedParams?.city || "";
   const city = typeof cityFromSlug === "function" ? cityFromSlug(cityParam) : cityParam;
@@ -45,7 +45,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   });
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({
+  params,
+}: {
+  params: any;
+}) {
   const resolvedParams = await Promise.resolve(params);
   const cityParam = resolvedParams?.city || "";
   const city = typeof cityFromSlug === "function" ? cityFromSlug(cityParam) : cityParam;
@@ -71,7 +75,7 @@ export default async function Page({ params }: PageProps) {
     "@context": "https://schema.org/",
     "@type": "ItemList",
     name: `Jobs in ${city}`,
-    itemListElement: cityJobs.map((job, i) => ({
+    itemListElement: cityJobs.map((job: any, i: number) => ({
       "@type": "ListItem",
       position: i + 1,
       url: `${SITE_URL}/jobs/${job.id || job._id}`,
@@ -117,7 +121,7 @@ export default async function Page({ params }: PageProps) {
       <section className="container mx-auto px-4 py-10">
         {cityJobs.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {cityJobs.map((job) => (
+            {cityJobs.map((job: any) => (
               <JobCard key={job.id || job._id} job={job} headingLevel={2} />
             ))}
           </div>
@@ -138,8 +142,8 @@ export default async function Page({ params }: PageProps) {
         <h2 className="font-heading text-lg font-bold">Jobs in other cities</h2>
         <div className="mt-4 flex flex-wrap gap-2">
           {Array.isArray(CITIES) &&
-            CITIES.filter((c) => (typeof citySlug === "function" ? citySlug(c) : c) !== cityParam).map((c) => {
-              const slug = typeof citySlug === "function" ? citySlug(c) : c.toLowerCase();
+            CITIES.filter((c: any) => (typeof citySlug === "function" ? citySlug(c) : c) !== cityParam).map((c: any) => {
+              const slug = typeof citySlug === "function" ? citySlug(c) : String(c).toLowerCase();
               return (
                 <Link
                   key={c}
