@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MapPin, Search } from "lucide-react";
-import { buildMetadata } from "@/lib/seo";
 import { fetchJobs } from "@/lib/jobs";
-import { CITIES, citySlug, cityFromSlug, matchCity } from "@/lib/locations";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import JobCard from "@/components/job/JobCard";
@@ -13,101 +11,89 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com"
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type RouteParams = Promise<{ city: string }> | { city: string };
-
-export async function generateMetadata(props: {
-  params: RouteParams;
-}): Promise<Metadata> {
-  const resolvedParams = await Promise.resolve(props.params);
-  const cityParam = resolvedParams?.city || "";
-  const city = typeof cityFromSlug === "function" ? cityFromSlug(cityParam) : cityParam;
-  let count: number | null = null;
-
-  try {
-    const res = await fetchJobs();
-    const jobs = Array.isArray(res?.jobs) ? res.jobs : [];
-    count = res?.live && typeof matchCity === "function" ? matchCity(jobs, city).length : null;
-  } catch (e) {
-    count = null;
-  }
-
-  const noindex = count === 0;
-  const title = count ? `Jobs in ${city} — ${count} Verified Opening${count === 1 ? "" : "s"}` : `Jobs in ${city}`;
-
-  return buildMetadata({
-    title,
-    description: count
-      ? `${count} verified job opening${count === 1 ? "" : "s"} in ${city} across IT, healthcare, finance, sales and retail. Browse salaries and apply free on RecruitKr.`
-      : `Find the latest verified job openings in ${city}. Browse roles across IT, healthcare, finance, sales, retail and more. Apply free on RecruitKr.`,
-    path: `/jobs/location/${cityParam}`,
-    keywords: [`jobs in ${city}`, `${city} jobs`, `vacancies in ${city}`, `careers in ${city}`, `hiring in ${city}`],
-    noindex,
-  });
+// Inline clean function: Zero dependency, never crashes
+function getCleanCity(slug: string): string {
+  if (!slug) return "All India";
+  const decoded = decodeURIComponent(slug).replace(/^jobs-in-/, "").replace(/-/g, " ");
+  return decoded.charAt(0).toUpperCase() + decoded.slice(1);
 }
 
-export default async function Page(props: {
-  params: RouteParams;
-}) {
-  const resolvedParams = await Promise.resolve(props.params);
-  const cityParam = resolvedParams?.city || "";
-  const city = typeof cityFromSlug === "function" ? cityFromSlug(cityParam) : cityParam;
+export async function generateMetadata({
+  params,
+}: {
+  params: any;
+}): Promise<Metadata> {
+  const resolved = await Promise.resolve(params);
+  const cityParam = resolved?.city || "";
+  const cityName = getCleanCity(cityParam);
 
-  let cityJobs: Record<string, unknown>[] = [];
+  return {
+    title: `Jobs in ${cityName} — Verified Openings | RecruitKr`,
+    description: `Find latest verified job openings and career vacancies in ${cityName}. Apply online for free on RecruitKr.`,
+    alternates: {
+      canonical: `${SITE_URL}/jobs/location/${cityParam.toLowerCase()}`,
+    },
+  };
+}
+
+export default async function Page({
+  params,
+}: {
+  params: any;
+}) {
+  const resolved = await Promise.resolve(params);
+  const cityParam = resolved?.city || "";
+  const cityName = getCleanCity(cityParam);
+
+  let cityJobs: any[] = [];
 
   try {
     const res = await fetchJobs();
-    const allJobs = Array.isArray(res?.jobs) ? (res.jobs as Record<string, unknown>[]) : [];
-    if (typeof matchCity === "function") {
-      cityJobs = matchCity(allJobs as any, city) || [];
-    } else {
-      cityJobs = allJobs.filter((j) =>
-        String(j.city || j.location || "").toLowerCase().includes(city.toLowerCase())
-      );
-    }
-  } catch (e) {
+    const allJobs = Array.isArray(res?.jobs) ? res.jobs : (Array.isArray(res) ? res : []);
+    
+    // Pure inline case-insensitive match
+    const target = cityName.toLowerCase();
+    cityJobs = allJobs.filter((job: any) => {
+      const loc = String(job?.city || job?.location || "").toLowerCase();
+      return loc.includes(target) || target.includes(loc);
+    });
+  } catch (err) {
+    console.error("Fetch error on location page:", err);
     cityJobs = [];
   }
 
-  const itemListLd = {
-    "@context": "https://schema.org/",
-    "@type": "ItemList",
-    name: `Jobs in ${city}`,
-    itemListElement: cityJobs.map((job, i: number) => ({
-      "@type": "ListItem",
-      position: i + 1,
-      url: `${SITE_URL}/jobs/${job.id || job._id}`,
-      name: `${job.title} at ${job.company || job.companyName || "RecruitKr"}`,
-    })),
-  };
+  const popularLocations = [
+    { name: "Jaipur", slug: "jaipur" },
+    { name: "Jodhpur", slug: "jodhpur" },
+    { name: "Kota", slug: "kota" },
+    { name: "Udaipur", slug: "udaipur" },
+    { name: "Ajmer", slug: "ajmer" },
+    { name: "Bhilwara", slug: "bhilwara" },
+    { name: "Delhi NCR", slug: "delhi" },
+    { name: "Mumbai", slug: "mumbai" },
+  ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground">
       <Navbar />
 
-      {cityJobs.length > 0 && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListLd) }}
-        />
-      )}
-
-      <section className="border-b border-border bg-gradient-to-b from-primary/5 to-transparent">
-        <div className="container mx-auto px-4 py-12">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-            <MapPin size={13} /> {city || "Location"}
+      <section className="border-b border-border bg-muted/20 py-12">
+        <div className="container mx-auto px-4">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium">
+            <MapPin size={13} /> {cityName}
           </span>
-          <h1 className="mt-4 font-heading text-3xl font-extrabold tracking-tight sm:text-4xl">
-            Jobs in {city || "India"}
+          <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
+            Jobs in {cityName}
           </h1>
-          <p className="mt-3 max-w-2xl text-muted-foreground">
+          <p className="mt-2 max-w-2xl text-muted-foreground text-sm sm:text-base">
             {cityJobs.length > 0
-              ? `${cityJobs.length} verified opening${cityJobs.length === 1 ? "" : "s"} in ${city}. Browse freely — log in only when you're ready to apply.`
-              : `We're adding fresh openings in ${city} every day. Browse all jobs across India while we update this list.`}
+              ? `Currently showing ${cityJobs.length} verified opening${cityJobs.length === 1 ? "" : "s"} in ${cityName}.`
+              : `We are actively onboarding employers in ${cityName}. Explore openings across India or check back soon.`}
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-6">
             <Link
               href="/jobs"
-              className="btn-gradient inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold transition hover:scale-[1.02]"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow hover:opacity-90 transition"
             >
               <Search size={16} /> Search all jobs
             </Link>
@@ -118,39 +104,37 @@ export default async function Page(props: {
       <section className="container mx-auto px-4 py-10">
         {cityJobs.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {cityJobs.map((job) => (
-              <JobCard key={String(job.id || job._id)} job={job as any} headingLevel={2} />
+            {cityJobs.map((job: any) => (
+              <JobCard key={job.id || job._id} job={job} headingLevel={2} />
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-border bg-card p-10 text-center">
-            <p className="text-muted-foreground">No openings listed in {city} right now.</p>
+          <div className="rounded-2xl border border-border bg-card p-10 text-center max-w-lg mx-auto shadow-sm">
+            <p className="text-muted-foreground font-medium">
+              No active openings listed in {cityName} right now.
+            </p>
             <Link
               href="/jobs"
-              className="btn-gradient mt-5 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold"
+              className="mt-4 inline-block text-sm font-semibold text-primary underline underline-offset-4"
             >
-              Browse all jobs
+              Browse all live jobs
             </Link>
           </div>
         )}
       </section>
 
       <section className="container mx-auto px-4 pb-14">
-        <h2 className="font-heading text-lg font-bold">Jobs in other cities</h2>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {Array.isArray(CITIES) &&
-            CITIES.filter((c: string) => (typeof citySlug === "function" ? citySlug(c) : c) !== cityParam).map((c: string) => {
-              const slug = typeof citySlug === "function" ? citySlug(c) : String(c).toLowerCase();
-              return (
-                <Link
-                  key={c}
-                  href={`/jobs/location/${slug}`}
-                  className="inline-flex min-h-[40px] items-center rounded-full border border-border px-4 py-2 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-primary"
-                >
-                  Jobs in {c}
-                </Link>
-              );
-            })}
+        <h2 className="text-lg font-bold mb-4">Jobs in other locations</h2>
+        <div className="flex flex-wrap gap-2">
+          {popularLocations.map((loc) => (
+            <Link
+              key={loc.slug}
+              href={`/jobs/location/${loc.slug}`}
+              className="rounded-full border border-border px-4 py-1.5 text-xs font-medium text-muted-foreground hover:border-primary hover:text-primary transition"
+            >
+              Jobs in {loc.name}
+            </Link>
+          ))}
         </div>
       </section>
 
