@@ -13,12 +13,12 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com"
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function generateMetadata({
-  params,
-}: {
-  params: any;
+type RouteParams = Promise<{ city: string }> | { city: string };
+
+export async function generateMetadata(props: {
+  params: RouteParams;
 }): Promise<Metadata> {
-  const resolvedParams = await Promise.resolve(params);
+  const resolvedParams = await Promise.resolve(props.params);
   const cityParam = resolvedParams?.city || "";
   const city = typeof cityFromSlug === "function" ? cityFromSlug(cityParam) : cityParam;
   let count: number | null = null;
@@ -45,29 +45,26 @@ export async function generateMetadata({
   });
 }
 
-export default async function Page({
-  params,
-}: {
-  params: any;
+export default async function Page(props: {
+  params: RouteParams;
 }) {
-  const resolvedParams = await Promise.resolve(params);
+  const resolvedParams = await Promise.resolve(props.params);
   const cityParam = resolvedParams?.city || "";
   const city = typeof cityFromSlug === "function" ? cityFromSlug(cityParam) : cityParam;
 
-  let cityJobs: any[] = [];
+  let cityJobs: Record<string, unknown>[] = [];
 
   try {
     const res = await fetchJobs();
-    const allJobs = Array.isArray(res?.jobs) ? res.jobs : [];
+    const allJobs = Array.isArray(res?.jobs) ? (res.jobs as Record<string, unknown>[]) : [];
     if (typeof matchCity === "function") {
-      cityJobs = matchCity(allJobs, city) || [];
+      cityJobs = matchCity(allJobs as any, city) || [];
     } else {
-      cityJobs = allJobs.filter((j: any) =>
-        (j.city || j.location || "").toLowerCase().includes(city.toLowerCase())
+      cityJobs = allJobs.filter((j) =>
+        String(j.city || j.location || "").toLowerCase().includes(city.toLowerCase())
       );
     }
   } catch (e) {
-    console.error("Error matching city jobs:", e);
     cityJobs = [];
   }
 
@@ -75,7 +72,7 @@ export default async function Page({
     "@context": "https://schema.org/",
     "@type": "ItemList",
     name: `Jobs in ${city}`,
-    itemListElement: cityJobs.map((job: any, i: number) => ({
+    itemListElement: cityJobs.map((job, i: number) => ({
       "@type": "ListItem",
       position: i + 1,
       url: `${SITE_URL}/jobs/${job.id || job._id}`,
@@ -121,8 +118,8 @@ export default async function Page({
       <section className="container mx-auto px-4 py-10">
         {cityJobs.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {cityJobs.map((job: any) => (
-              <JobCard key={job.id || job._id} job={job} headingLevel={2} />
+            {cityJobs.map((job) => (
+              <JobCard key={String(job.id || job._id)} job={job as any} headingLevel={2} />
             ))}
           </div>
         ) : (
@@ -142,7 +139,7 @@ export default async function Page({
         <h2 className="font-heading text-lg font-bold">Jobs in other cities</h2>
         <div className="mt-4 flex flex-wrap gap-2">
           {Array.isArray(CITIES) &&
-            CITIES.filter((c: any) => (typeof citySlug === "function" ? citySlug(c) : c) !== cityParam).map((c: any) => {
+            CITIES.filter((c: string) => (typeof citySlug === "function" ? citySlug(c) : c) !== cityParam).map((c: string) => {
               const slug = typeof citySlug === "function" ? citySlug(c) : String(c).toLowerCase();
               return (
                 <Link
