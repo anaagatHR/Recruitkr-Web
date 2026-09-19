@@ -26,48 +26,26 @@ const nextConfig = {
     ],
   },
   async redirects() {
-    // The Services and Sectors pages were removed. Permanent redirects keep
-    // previously indexed / bookmarked URLs from 404ing.
-    //
-    // They target /home rather than /: `/` now forwards to the job board, so
-    // sending them there would chain two redirects and land a visitor looking
-    // for a services page on a list of vacancies.
     return [
-      // The site opens on the job board. This has to be a routing-layer
-      // redirect, not `redirect("/jobs")` in a `/` page component: a
-      // statically prerendered App Router page that calls redirect() builds an
-      // artifact with `status: 307` but no `location` header, so a hard GET of
-      // `/` returned a 307 that pointed nowhere and browsers rendered the
-      // __next_error__ body instead of navigating. The marketing home page it
-      // used to render lives at /home.
-      //
-      // Temporary (307), not permanent (308), on purpose: browsers and CDNs
-      // cache a 308 indefinitely, so a visitor who loaded `/` once could never
-      // see a different `/` again without clearing their cache. Flip
-      // `permanent` to true only once this is settled.
       { source: "/", destination: "/jobs", permanent: false },
-      // The intern portal was removed; /internship and the CRM's /intern-login
-      // entry point were indexed and bookmarked, so they redirect rather than
-      // 404. Internship *jobs* still exist — they're a type on the board.
       { source: "/internship", destination: "/jobs?type=Internship", permanent: true },
-            { source: "/register/candidate", destination: "/signup", permanent: true },
+      { source: "/register/candidate", destination: "/signup", permanent: true },
       { source: "/intern-login", destination: "/login", permanent: true },
       { source: "/services", destination: "/home", permanent: true },
       { source: "/services/:id", destination: "/home", permanent: true },
       { source: "/sectors", destination: "/home", permanent: true },
+
+      // --- 404 Dead Job Postings Redirect to Jobs Board ---
+      { source: "/jobs/6a45f9efafb720ea6a4f5484", destination: "/jobs", permanent: true },
+      { source: "/jobs/6a45f9efafb720ea6a4f52e9", destination: "/jobs", permanent: true },
+      { source: "/jobs/6a45f9efafb720ea6a4f5373", destination: "/jobs", permanent: true },
+      { source: "/jobs/6a45f9f1afb720ea6a4f58ce", destination: "/jobs", permanent: true },
+      { source: "/jobs/6a45f9efafb720ea6a4f5186", destination: "/jobs", permanent: true },
     ];
   },
   async rewrites() {
-    // Allow same-origin /api/v1 calls to be proxied to the Express backend in dev.
-    // Default to 127.0.0.1 (not "localhost"): on Windows "localhost" resolves to
-    // IPv6 ::1 first, but the Express server listens on IPv4 only, which causes
-    // intermittent "ECONNREFUSED ::1:5000" proxy failures.
     const backend = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000/api/v1";
     const root = backend.replace(/\/api\/v\d+\/?$/, "");
-    // Blog images authored in the CRM are stored as relative /uploads/... paths
-    // and served by the CRM app (not this frontend or the API backend). Default
-    // to the local CRM on :8080; set NEXT_PUBLIC_CRM_URL to the CRM's public URL
-    // in production so the live blog can load those images.
     const crmAssetBase = (process.env.NEXT_PUBLIC_CRM_URL || "http://localhost:8080").replace(/\/$/, "");
     return [
       {
@@ -75,10 +53,6 @@ const nextConfig = {
         destination: `${root}/api/v1/:path*`,
       },
       {
-        // Blog posts are served by the backend at the un-versioned /api/blogposts
-        // mount (see backend app.js). Proxy them so the public blog renders.
-        // The bare path (list endpoint, hit as /api/blogposts?published=true) is
-        // matched explicitly so it proxies even though it has no trailing segment.
         source: "/api/blogposts",
         destination: `${root}/api/blogposts`,
       },
@@ -87,7 +61,6 @@ const nextConfig = {
         destination: `${root}/api/blogposts/:path*`,
       },
       {
-        // Team members are served at the un-versioned /api/team mount.
         source: "/api/team",
         destination: `${root}/api/team`,
       },
@@ -96,14 +69,10 @@ const nextConfig = {
         destination: `${root}/api/team/:path*`,
       },
       {
-        // Blog cover/content images are stored as relative /uploads/... paths
-        // served by the CRM. Proxy them so the public blog renders the images
-        // instead of 404ing against this app's own origin.
         source: "/uploads/:path*",
         destination: `${crmAssetBase}/uploads/:path*`,
       },
       {
-        // Clean public URL for the city SEO landing pages.
         source: "/jobs-in-:city",
         destination: "/jobs/location/:city",
       },
