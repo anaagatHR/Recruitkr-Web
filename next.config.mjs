@@ -27,7 +27,6 @@ const nextConfig = {
   },
   async redirects() {
     return [
-      { source: "/", destination: "/jobs", permanent: false },
       { source: "/internship", destination: "/jobs?type=Internship", permanent: true },
       { source: "/register/candidate", destination: "/signup", permanent: true },
       { source: "/intern-login", destination: "/login", permanent: true },
