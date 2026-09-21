@@ -25,16 +25,14 @@ export const revalidate = 3600;
  */
 export const maxDuration = 60;
 
-const staticRoutes: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }> = [
-  // 1. Root domain sabse pehle add karein (Ab 404 nahi hai, live marketing page hai)
-  { path: "", priority: 1.0, changeFrequency: "daily" },
+cconst staticRoutes: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }> = [
+  // Final destination page daalein taaki 307 redirect error na aaye:
+  { path: "/home", priority: 1.0, changeFrequency: "daily" },
 
-  // 2. Job Board & Core Commercial Pages
+  // Baaki ke routes waise hi rahenge:
   { path: "/jobs", priority: 0.9, changeFrequency: "hourly" },
   { path: "/candidates", priority: 0.8, changeFrequency: "weekly" },
   { path: "/employers", priority: 0.8, changeFrequency: "weekly" },
-
-  // 3. Information & Brand Pages
   { path: "/about", priority: 0.6, changeFrequency: "monthly" },
   { path: "/process", priority: 0.6, changeFrequency: "monthly" },
   { path: "/why-us", priority: 0.6, changeFrequency: "monthly" },
