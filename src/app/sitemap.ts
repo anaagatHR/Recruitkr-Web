@@ -26,15 +26,18 @@ export const revalidate = 3600;
 export const maxDuration = 60;
 
 const staticRoutes: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }> = [
-  // `/` is deliberately absent: it 307s to /jobs, and listing a redirecting
-  // URL in a sitemap just makes crawlers follow a hop to reach the page below.
-  { path: "/jobs", priority: 1.0, changeFrequency: "hourly" },
-  { path: "/home", priority: 0.9, changeFrequency: "weekly" },
-  { path: "/candidates", priority: 0.8, changeFrequency: "monthly" },
-  { path: "/employers", priority: 0.8, changeFrequency: "monthly" },
+  // 1. Root domain sabse pehle add karein (Ab 404 nahi hai, live marketing page hai)
+  { path: "", priority: 1.0, changeFrequency: "daily" },
+
+  // 2. Job Board & Core Commercial Pages
+  { path: "/jobs", priority: 0.9, changeFrequency: "hourly" },
+  { path: "/candidates", priority: 0.8, changeFrequency: "weekly" },
+  { path: "/employers", priority: 0.8, changeFrequency: "weekly" },
+
+  // 3. Information & Brand Pages
+  { path: "/about", priority: 0.6, changeFrequency: "monthly" },
   { path: "/process", priority: 0.6, changeFrequency: "monthly" },
   { path: "/why-us", priority: 0.6, changeFrequency: "monthly" },
-  { path: "/about", priority: 0.6, changeFrequency: "monthly" },
   { path: "/goal", priority: 0.6, changeFrequency: "monthly" },
   { path: "/success-stories", priority: 0.7, changeFrequency: "weekly" },
   { path: "/training", priority: 0.6, changeFrequency: "monthly" },
