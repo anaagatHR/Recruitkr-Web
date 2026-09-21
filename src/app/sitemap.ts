@@ -25,7 +25,7 @@ export const revalidate = 3600;
  */
 export const maxDuration = 60;
 
-cconst staticRoutes: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }> = [
+const staticRoutes: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }> = [
   // Final destination page daalein taaki 307 redirect error na aaye:
   { path: "/home", priority: 1.0, changeFrequency: "daily" },
 
