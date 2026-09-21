@@ -75,13 +75,14 @@ export default function PartnerCompanies() {
               only two logos fitted on screen at a time. */}
           <div className="flex w-max animate-company-scroll items-center gap-8 sm:gap-16 lg:gap-20">
             {[...logos, ...logos].map((company, index) => (
-             <Image
+              <Image
                 key={`${company.fileId ?? company.url}-${index}`}
                 src={company.url}
                 alt={labelFromName(company.name)}
                 width={160}
                 height={40}
                 loading="lazy"
+                unoptimized
                 className="h-10 w-auto shrink-0 object-contain opacity-75 grayscale transition duration-300 hover:opacity-100 hover:grayscale-0 sm:h-16 lg:h-20"
               />
             ))}
