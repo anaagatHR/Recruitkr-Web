@@ -69,6 +69,7 @@ const HeroPhotoSlider = ({
           }`}
           aria-hidden={i !== index}
         >
+       >
           {failed[slide.src] ? (
             <div className="h-full w-full bg-gradient-to-br from-[#264a7f] via-[#2f5b98] to-[#69a44f]" />
           ) : (
@@ -78,7 +79,8 @@ const HeroPhotoSlider = ({
               fill
               // Only the first slide is above the fold on load; the rest can wait.
               priority={i === 0}
-              sizes="100vw"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 1200px"
+              quality={75}
               className="object-cover object-center"
               onError={() => setFailed((f) => ({ ...f, [slide.src]: true }))}
             />
