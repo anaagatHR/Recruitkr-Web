@@ -235,6 +235,18 @@ const Footer = () => {
             suppressHydrationWarning
           >
             &copy; {new Date().getFullYear()} RecruitKr. All rights reserved.
+            <span className="mx-2" aria-hidden>
+              ·
+            </span>
+            <Link to="/privacy-policy" className="underline-offset-2 hover:text-white hover:underline">
+              Privacy Policy
+            </Link>
+            <span className="mx-2" aria-hidden>
+              ·
+            </span>
+            <Link to="/delete-account" className="underline-offset-2 hover:text-white hover:underline">
+              Delete Account
+            </Link>
           </div>
         </div>
       </div>
