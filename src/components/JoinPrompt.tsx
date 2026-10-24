@@ -28,6 +28,9 @@ const SUPPRESSED_PREFIXES = [
   "/dashboard",
   "/forgot-password",
   "/reset-password",
+  // Legal pages are checked by Google Play reviewers; nothing may cover them.
+  "/privacy-policy",
+  "/delete-account",
 ];
 
 const NAVY = "#264a7f";
