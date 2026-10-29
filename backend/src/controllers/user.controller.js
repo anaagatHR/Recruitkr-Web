@@ -4,37 +4,12 @@ import { CandidateProfile } from '../models/CandidateProfile.js';
 import { ClientProfile } from '../models/ClientProfile.js';
 import { Resume } from '../models/Resume.js';
 import { User } from '../models/User.js';
+import { syncCandidateLegacyFields, toCandidateProfileResponse } from '../services/candidateProfile.service.js';
 import { deleteImageKitFile, uploadBufferToImageKit } from '../services/imagekit.js';
 import { buildGeneratedResumeData } from '../services/resume.service.js';
 import { indexCandidate, isSolrConfigured } from '../services/solr.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-
-const DEFAULT_LEGACY_DATE_OF_BIRTH = new Date('2000-01-01T00:00:00.000Z');
-
-const syncCandidateLegacyFields = ({ profile, user, resumeLocation = '' }) => {
-  const summary = profile.summary || '';
-  const preferredLocation = profile.preferences?.preferredLocation || '';
-  const preferredIndustry = profile.preferences?.preferredIndustry || '';
-  const preferredRole = profile.preferences?.preferredRole || '';
-  const workModes = profile.preferences?.workModes || [];
-
-  profile.about = summary;
-  profile.city = preferredLocation;
-  profile.currentCity = preferredLocation;
-  profile.email = user?.email || profile.email || '';
-  profile.isActive = true;
-  profile.mobile = user?.mobile || profile.mobile || '';
-  profile.name = profile.fullName || '';
-  profile.phone = user?.mobile || profile.phone || '';
-  profile.preferredIndustry = preferredIndustry;
-  profile.preferredLocation = preferredLocation;
-  profile.preferredRole = preferredRole;
-  if (resumeLocation) {
-    profile.resumePath = resumeLocation;
-  }
-  profile.workModes = workModes;
-};
 
 const ensureCandidateProfile = async ({ reqUserId, user, body = {} }) => {
   const existingProfile = await CandidateProfile.findOne({ userId: reqUserId });
@@ -53,22 +28,25 @@ const ensureCandidateProfile = async ({ reqUserId, user, body = {} }) => {
 
   const preferences = body.preferences || {};
 
+  // Unknown values stay empty: placeholder strings ("Not specified", an email
+  // prefix as the name) made empty profiles look complete. Consent flags stay
+  // false until the candidate actually gives them.
   const profile = await CandidateProfile.create({
     userId: reqUserId,
-    fullName: body.fullName || user?.email?.split('@')[0] || 'Candidate',
-    dateOfBirth: body.dateOfBirth || DEFAULT_LEGACY_DATE_OF_BIRTH,
-    gender: body.gender || 'Prefer Not to Say',
-    address: body.address || 'Not provided',
-    pincode: body.pincode || '000000',
+    fullName: body.fullName || '',
+    dateOfBirth: body.dateOfBirth,
+    gender: body.gender,
+    address: body.address || '',
+    pincode: body.pincode || '',
     linkedinUrl: body.linkedinUrl || '',
     portfolioUrl: body.portfolioUrl || '',
-    highestQualification: body.highestQualification || 'Not specified',
-    experienceStatus: body.experienceStatus || 'fresher',
+    highestQualification: body.highestQualification || '',
+    experienceStatus: body.experienceStatus,
     experienceDetails: body.experienceDetails,
     preferences: {
-      preferredLocation: preferences.preferredLocation || 'Not specified',
-      preferredIndustry: preferences.preferredIndustry || 'Not specified',
-      preferredRole: preferences.preferredRole || 'Not specified',
+      preferredLocation: preferences.preferredLocation || '',
+      preferredIndustry: preferences.preferredIndustry || '',
+      preferredRole: preferences.preferredRole || '',
       workModes: preferences.workModes || [],
     },
     summary: body.summary || '',
@@ -77,11 +55,8 @@ const ensureCandidateProfile = async ({ reqUserId, user, body = {} }) => {
     certifications: Array.isArray(body.certifications) ? body.certifications : [],
     referral: body.referral || '',
     email: user?.email || '',
-    mobile: user?.mobile || '',
-    name: body.fullName || user?.email?.split('@')[0] || 'Candidate',
-    phone: user?.mobile || '',
-    declarationAccepted: true,
-    representationAuthorized: true,
+    declarationAccepted: false,
+    representationAuthorized: false,
   });
 
   syncCandidateLegacyFields({ profile, user, resumeLocation: '' });
@@ -150,15 +125,9 @@ const upsertCandidateResume = async ({ profile, user, body }) => {
     }
   }
 
-  const explicitResumeData = body.resumeType === 'generated' ? body.resumeData : null;
-
-  const resumeData = buildGeneratedResumeData({
-    ...(explicitResumeData ? { resumeData: explicitResumeData } : profile.toObject()),
-    name: explicitResumeData?.name || profile.fullName,
-    fullName: profile.fullName,
-    email: user.email,
-    mobile: user.mobile,
-  });
+  // Generated resumes are a projection of the profile (audit P1-3); any
+  // client-sent resumeData is ignored so the two can never drift apart.
+  const resumeData = buildGeneratedResumeData(profile.toObject());
 
   const savedResume = await Resume.findOneAndUpdate(
     { candidateUserId: user._id },
@@ -197,7 +166,7 @@ export const getCandidateProfile = asyncHandler(async (req, res) => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
   }
   const profile = await ensureCandidateProfile({ reqUserId: req.user.id, user, body: {} });
-  res.json({ success: true, data: profile });
+  res.json({ success: true, data: toCandidateProfileResponse(profile, user) });
 });
 
 export const updateCandidateProfile = asyncHandler(async (req, res) => {
@@ -209,6 +178,12 @@ export const updateCandidateProfile = asyncHandler(async (req, res) => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
   }
   const profile = await ensureCandidateProfile({ reqUserId: req.user.id, user, body });
+
+  // Phone lives on the User (signup, apply snapshot and resume all read User.mobile).
+  if (body.mobile !== undefined && body.mobile !== user.mobile) {
+    await User.updateOne({ _id: req.user.id }, { $set: { mobile: body.mobile } });
+    user.mobile = body.mobile;
+  }
 
   const assignIfDefined = (key, value) => {
     if (value === undefined) return;
@@ -223,11 +198,14 @@ export const updateCandidateProfile = asyncHandler(async (req, res) => {
   assignIfDefined('linkedinUrl', body.linkedinUrl);
   assignIfDefined('portfolioUrl', body.portfolioUrl);
   assignIfDefined('highestQualification', body.highestQualification);
+  assignIfDefined('city', body.city);
+  assignIfDefined('college', body.college);
 
   if (body.experienceStatus !== undefined) {
     profile.experienceStatus = body.experienceStatus;
     if (body.experienceStatus === 'fresher') {
       profile.experienceDetails = undefined;
+      profile.experience = [];
     }
   }
 
@@ -236,6 +214,21 @@ export const updateCandidateProfile = asyncHandler(async (req, res) => {
       ...(profile.experienceDetails?.toObject ? profile.experienceDetails.toObject() : profile.experienceDetails),
       ...body.experienceDetails,
     };
+  }
+
+  if (body.experience !== undefined && profile.experienceStatus !== 'fresher') {
+    profile.experience = body.experience.map((entry) => ({
+      ...entry,
+      endDate: entry.current ? '' : entry.endDate || '',
+    }));
+    const latest = profile.experience.find((entry) => entry.current) || profile.experience[0];
+    if (latest) {
+      profile.experienceDetails = {
+        ...(profile.experienceDetails?.toObject ? profile.experienceDetails.toObject() : profile.experienceDetails),
+        currentCompany: latest.company,
+        designation: latest.role,
+      };
+    }
   }
 
   if (body.preferences !== undefined) {
@@ -276,7 +269,7 @@ export const updateCandidateProfile = asyncHandler(async (req, res) => {
     void indexCandidate(profile.toObject ? profile.toObject() : profile);
   }
 
-  res.json({ success: true, data: profile });
+  res.json({ success: true, data: toCandidateProfileResponse(profile, user) });
 });
 
 export const getClientProfile = asyncHandler(async (req, res) => {

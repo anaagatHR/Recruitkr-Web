@@ -7,6 +7,7 @@ import { CandidateProfile } from '../models/CandidateProfile.js';
 import { ClientProfile } from '../models/ClientProfile.js';
 import { Resume } from '../models/Resume.js';
 import { User } from '../models/User.js';
+import { syncCandidateLegacyFields } from '../services/candidateProfile.service.js';
 import { sendPasswordResetEmail } from '../services/mail.service.js';
 import { buildGeneratedResumeData } from '../services/resume.service.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -100,28 +101,6 @@ const issueTokensAndPersistRefresh = async (user) => {
 const buildResetPasswordUrl = (token) => {
   const base = env.FRONTEND_URL.replace(/\/$/, '');
   return `${base}/reset-password/${encodeURIComponent(token)}`;
-};
-
-const syncCandidateLegacyFields = ({ profile, user, resumeLocation = '' }) => {
-  const summary = profile.summary || '';
-  const preferredLocation = profile.preferences?.preferredLocation || '';
-  const preferredIndustry = profile.preferences?.preferredIndustry || '';
-  const preferredRole = profile.preferences?.preferredRole || '';
-  const workModes = profile.preferences?.workModes || [];
-
-  profile.about = summary;
-  profile.city = preferredLocation;
-  profile.currentCity = preferredLocation;
-  profile.email = user?.email || profile.email || '';
-  profile.isActive = true;
-  profile.mobile = user?.mobile || profile.mobile || '';
-  profile.name = profile.fullName || '';
-  profile.phone = user?.mobile || profile.phone || '';
-  profile.preferredIndustry = preferredIndustry;
-  profile.preferredLocation = preferredLocation;
-  profile.preferredRole = preferredRole;
-  profile.resumePath = resumeLocation || profile.resumePath || '';
-  profile.workModes = workModes;
 };
 
 const syncClientLegacyFields = ({ profile, user }) => {
@@ -333,29 +312,18 @@ export const registerCandidate = asyncHandler(async (req, res) => {
     experienceStatus: payload.experienceStatus,
     experienceDetails: payload.experienceDetails,
     preferences: payload.preferences,
-    about: payload.summary || '',
-    city: payload.preferences?.preferredLocation || '',
-    currentCity: payload.preferences?.preferredLocation || '',
+    // Skills/summary typed into the signup resume form belong on the profile
+    // (the canonical copy); legacy mirror fields are filled by the sync below.
+    summary: payload.resumeData?.summary || '',
+    skills: payload.resumeData?.skills || [],
     email: payload.email,
     isActive: true,
-    mobile: payload.mobile,
-    name: payload.fullName,
-    phone: payload.mobile,
-    preferredIndustry: payload.preferences?.preferredIndustry || '',
-    preferredLocation: payload.preferences?.preferredLocation || '',
-    preferredRole: payload.preferences?.preferredRole || '',
-    workModes: payload.preferences?.workModes || [],
     declarationAccepted: payload.declarationAccepted,
     representationAuthorized: payload.representationAuthorized,
   });
 
   const generatedResumeData =
-    payload.resumeType === 'generated'
-      ? buildGeneratedResumeData({
-          ...payload,
-          skills: payload.resumeData?.skills,
-        })
-      : null;
+    payload.resumeType === 'generated' ? buildGeneratedResumeData(candidateProfile.toObject()) : null;
 
   // A resume is optional at registration; only create one when the candidate
   // supplied an uploaded file or asked us to generate one from form details.

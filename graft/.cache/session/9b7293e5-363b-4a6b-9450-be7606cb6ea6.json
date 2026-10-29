@@ -1,11 +1,16 @@
 {
   "graftReads": 0,
-  "sourceReads": 23,
+  "sourceReads": 33,
   "savedTokens": 0,
-  "injectedPointers": [],
-  "nudges": 0,
+  "injectedPointers": [
+    "src/components/HomeJobSearch.tsx:L13-L15",
+    "src/components/HeroSection.tsx:L42-L44",
+    "src/screens/CandidateDashboard.tsx:L1378-L1391"
+  ],
+  "nudges": 1,
   "host": "claude-code",
-  "lastBillingUuid": "1b6a563d-2793-46aa-b77b-c1903bd9d2b0",
-  "inputCostMicros": 1601643,
-  "inputTokensBilled": 1823528
+  "lastBillingUuid": "e8f2ecea-760d-4815-917e-149399f9c821",
+  "inputCostMicros": 9227157,
+  "inputTokensBilled": 15548304,
+  "promptAsks": 3
 }

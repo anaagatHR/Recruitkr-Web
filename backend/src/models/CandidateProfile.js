@@ -29,6 +29,24 @@ const candidateProfileSchema = new mongoose.Schema(
       noticePeriod: String,
       lastWorkingDay: Date,
     },
+    // Work history. experienceDetails.currentCompany/designation are derived
+    // from the current (or first) entry on save so older readers keep working.
+    experience: {
+      type: [
+        new mongoose.Schema(
+          {
+            company: { type: String, trim: true, default: '' },
+            role: { type: String, trim: true, default: '' },
+            startDate: { type: String, trim: true, default: '' }, // YYYY-MM
+            endDate: { type: String, trim: true, default: '' }, // YYYY-MM, empty when current
+            current: { type: Boolean, default: false },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+    college: { type: String, trim: true, default: '' },
     preferences: {
       preferredLocation: { type: String },
       preferredIndustry: { type: String },

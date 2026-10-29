@@ -1,6 +1,7 @@
 import { Application } from '../models/Application.js';
 import { CandidateProfile } from '../models/CandidateProfile.js';
 import { JobRequirement } from '../models/JobRequirement.js';
+import { toCandidateProfileResponse } from '../services/candidateProfile.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 import { fetchLegacyApplicationsForClient } from './job.controller.js';
@@ -36,7 +37,7 @@ export const candidateDashboard = asyncHandler(async (req, res) => {
         profileCompletion: profile ? 72 : 10,
       },
       applications: applications.slice(0, 10),
-      profile,
+      profile: toCandidateProfileResponse(profile),
     },
   });
 });

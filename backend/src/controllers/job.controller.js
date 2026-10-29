@@ -2,6 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import mongoose from 'mongoose';
 
 import { Application } from '../models/Application.js';
+import { CandidateFile } from '../models/CandidateFile.js';
 import { CandidateProfile } from '../models/CandidateProfile.js';
 import { ClientProfile } from '../models/ClientProfile.js';
 import { JobRequirement } from '../models/JobRequirement.js';
@@ -19,6 +20,7 @@ import {
 import { publishLiveUpdate } from '../services/liveUpdate.service.js';
 import {
   buildGeneratedResumeData,
+  buildResumeProfile,
   generateResumePdfBuffer,
   generateStructuredResumePdfBuffer,
 } from '../services/resume.service.js';
@@ -1291,10 +1293,15 @@ export const downloadClientApplicationResume = asyncHandler(async (req, res) => 
     return;
   }
 
-  const [resume, candidateProfile, candidateUser] = await Promise.all([
+  const [resume, candidateProfile, candidateUser, certificateFiles] = await Promise.all([
     Resume.findOne({ candidateUserId: application.candidateId }).lean().exec(),
     CandidateProfile.findOne({ userId: application.candidateId }).lean().exec(),
     User.findById(application.candidateId).select('email mobile').lean().exec(),
+    CandidateFile.find({ candidateUserId: application.candidateId, kind: 'certificate' })
+      .select('title name createdAt')
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec(),
   ]);
   if (!resume) {
     const applicationWithResume = await Application.findById(applicationId).select('+resumeData resumePath hasCustomResume').lean();
@@ -1321,13 +1328,11 @@ export const downloadClientApplicationResume = asyncHandler(async (req, res) => 
     return res.redirect(resume.resumeUrl);
   }
 
-  const pdfBuffer = resume.resumeData?.name
-    ? await generateStructuredResumePdfBuffer(resume.resumeData)
-    : await generateResumePdfBuffer({
-        ...(candidateProfile || {}),
-        email: candidateUser?.email || '',
-        mobile: candidateUser?.mobile || '',
-      });
+  // Rendered from the live profile (same projection as the candidate's own
+  // download); the stored resumeData is only a fallback for orphaned resumes.
+  const pdfBuffer = candidateProfile
+    ? await generateResumePdfBuffer(buildResumeProfile({ profile: candidateProfile, user: candidateUser, certificateFiles }))
+    : await generateStructuredResumePdfBuffer(resume.resumeData || {});
 
   const downloadName = `${String(candidateProfile?.fullName || 'Resume').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_') || 'Resume'}_RecruitKr.pdf`;
 

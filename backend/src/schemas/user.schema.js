@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { INDIAN_MOBILE_PATTERN, normalizeIndianMobile } from '../utils/mobile.js';
 import { normalizeOptionalHttpUrl, normalizeOptionalLinkedinUrl } from '../utils/url.js';
 
 const trimString = () => z.string().trim();
@@ -12,6 +13,27 @@ const optionalLinkedinUrl = z.preprocess(
   normalizeOptionalLinkedinUrl,
   z.string().trim().url('Enter a valid LinkedIn URL').or(z.literal('')).optional(),
 );
+
+const indianMobile = z.preprocess(
+  normalizeIndianMobile,
+  z.string().regex(INDIAN_MOBILE_PATTERN, 'Enter a valid 10 digit Indian mobile number'),
+);
+
+const yearMonth = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use YYYY-MM')
+  .or(z.literal(''));
+
+const experienceEntrySchema = z
+  .object({
+    company: trimString().max(150).optional(),
+    role: trimString().max(100).optional(),
+    startDate: yearMonth.optional(),
+    endDate: yearMonth.optional(),
+    current: z.boolean().optional(),
+  })
+  .strict();
 
 const resumeProjectSchema = z
   .object({
@@ -30,6 +52,10 @@ const resumeCertificationSchema = z
 export const updateCandidateProfileSchema = z
   .object({
     fullName: trimString().min(2).max(120).optional(),
+    mobile: indianMobile.optional(),
+    city: trimString().max(100).optional(),
+    college: trimString().max(160).optional(),
+    experience: z.array(experienceEntrySchema).max(20).optional(),
     dateOfBirth: z.coerce.date().optional(),
     gender: z.enum(['Male', 'Female', 'Other', 'Prefer Not to Say']).optional(),
     address: trimString().min(5).max(500).optional(),
@@ -114,13 +140,15 @@ export const updateCandidateProfileSchema = z
     (payload) => {
       if (!payload.resumeType) return true;
       if (payload.resumeType === 'uploaded') {
-        return Boolean(payload.resumeUrl) && Boolean(payload.resumeFileId) && !payload.resumeData;
+        return Boolean(payload.resumeUrl) && Boolean(payload.resumeFileId);
       }
 
-      return Boolean(payload.resumeData) && !payload.resumeUrl && !payload.resumeFileId;
+      // Generated resumes are projected from the profile server-side; a sent
+      // resumeData is accepted (older clients) but ignored.
+      return !payload.resumeUrl && !payload.resumeFileId;
     },
     {
-      message: 'Send either resumeUrl + resumeFileId for uploaded resumes or resumeData for generated resumes',
+      message: 'Send resumeUrl + resumeFileId for uploaded resumes, or neither for a generated resume',
       path: ['resumeType'],
     },
   )

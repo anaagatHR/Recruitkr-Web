@@ -7,6 +7,7 @@ import { CandidateProfile } from '../models/CandidateProfile.js';
 import { Resume } from '../models/Resume.js';
 import { User } from '../models/User.js';
 import {
+  buildResumeProfile,
   extractResumeText,
   generateResumePdfBuffer,
   generateStructuredResumePdfBuffer,
@@ -285,21 +286,11 @@ export const downloadResumeById = asyncHandler(async (req, res) => {
       .exec(),
   ]);
 
-  const uploadedCertifications = (certificateFiles || [])
-    .map((file) => ({
-      name: file.title?.trim() || file.name?.trim() || 'Certificate',
-      institute: '',
-    }))
-    .filter((item) => item.name || item.institute);
-
   const pdf =
     candidateProfile && candidateUser
-      ? await generateResumePdfBuffer({
-          ...candidateProfile.toObject(),
-          email: candidateUser.email,
-          mobile: candidateUser.mobile,
-          certifications: uploadedCertifications,
-        })
+      ? await generateResumePdfBuffer(
+          buildResumeProfile({ profile: candidateProfile.toObject(), user: candidateUser, certificateFiles }),
+        )
       : await generateStructuredResumePdfBuffer(resume.resumeData || {});
 
   res.set({
@@ -334,23 +325,10 @@ export const downloadMyGeneratedResume = asyncHandler(async (req, res) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'This candidate uses an uploaded resume. Open the stored resume URL instead.');
   }
 
-  const uploadedCertifications = (certificateFiles || [])
-    .map((file) => ({
-      name: file.title?.trim() || file.name?.trim() || 'Certificate',
-      institute: '',
-    }))
-    .filter((item) => item.name || item.institute);
-
-  const fallbackResumeBuffer = await generateResumePdfBuffer({
-    ...profile.toObject(),
-    email: user.email,
-    mobile: user.mobile,
-    certifications: uploadedCertifications,
-  });
-
-  const pdfBuffer = resumeRecord.resumeData?.name
-    ? await generateStructuredResumePdfBuffer(resumeRecord.resumeData)
-    : fallbackResumeBuffer;
+  // Same projection the employer downloads, so the candidate sees what is sent.
+  const pdfBuffer = await generateResumePdfBuffer(
+    buildResumeProfile({ profile: profile.toObject(), user, certificateFiles }),
+  );
 
   const fileName = getSafeResumeFileName(profile.fullName);
 

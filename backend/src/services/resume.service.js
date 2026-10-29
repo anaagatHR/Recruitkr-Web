@@ -742,6 +742,38 @@ export const extractResumeText = async ({ mimeType, buffer }) => {
   throw new Error('Unsupported resume file type');
 };
 
+// "2022-04" -> "Apr 2022"
+const formatYearMonth = (value) => {
+  const match = /^(\d{4})-(\d{2})$/.exec(clean(value));
+  if (!match) return '';
+  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1)).toLocaleDateString('en-IN', {
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+};
+
+/**
+ * The single resume projection (audit P1-3): every generated PDF — the
+ * candidate's own download and the employer's — renders from the live profile,
+ * so the two can never disagree. `profile` must be a plain object.
+ */
+export const buildResumeProfile = ({ profile = {}, user = {}, certificateFiles = [] }) => {
+  const projected = buildGeneratedResumeData(profile);
+  const uploadedCertifications = certificateFiles.map((file) => ({
+    name: clean(file?.title) || clean(file?.name) || 'Certificate',
+    institute: '',
+  }));
+  return {
+    ...profile,
+    email: user?.email || profile.email || '',
+    mobile: user?.mobile || '',
+    educationEntries: projected.education,
+    experienceEntries: projected.experience,
+    certifications: [...(Array.isArray(profile.certifications) ? profile.certifications : []), ...uploadedCertifications],
+  };
+};
+
 export const buildGeneratedResumeData = (input = {}) => {
   const providedEducation = Array.isArray(input.resumeData?.education)
     ? input.resumeData.education
@@ -761,24 +793,36 @@ export const buildGeneratedResumeData = (input = {}) => {
       : [
           {
             degree: clean(input.highestQualification),
-            institution: '',
+            institution: clean(input.college),
             year: '',
             description: '',
           },
-        ].filter((item) => item.degree);
+        ].filter((item) => item.degree || item.institution);
+
+  // Profile work history ({ company, role, startDate, endDate, current }).
+  const profileExperience = (Array.isArray(input.experience) ? input.experience : []).map((entry) => ({
+    title: clean(entry?.role),
+    company: clean(entry?.company),
+    duration: [formatYearMonth(entry?.startDate), entry?.current ? 'Present' : formatYearMonth(entry?.endDate)]
+      .filter(Boolean)
+      .join(' – '),
+    description: '',
+  }));
 
   const derivedExperience =
     providedExperience.length > 0
       ? providedExperience
       : input.experienceStatus === 'experienced'
-        ? [
-            {
-              title: clean(input.experienceDetails?.designation),
-              company: clean(input.experienceDetails?.currentCompany),
-              duration: clean(input.experienceDetails?.totalExperience),
-              description: clean(input.experienceDetails?.industry),
-            },
-          ].filter((item) => item.title || item.company || item.duration || item.description)
+        ? profileExperience.length > 0
+          ? profileExperience
+          : [
+              {
+                title: clean(input.experienceDetails?.designation),
+                company: clean(input.experienceDetails?.currentCompany),
+                duration: clean(input.experienceDetails?.totalExperience),
+                description: clean(input.experienceDetails?.industry),
+              },
+            ].filter((item) => item.title || item.company || item.duration || item.description)
         : [];
 
   return {
@@ -919,10 +963,15 @@ const generateBasicResumePdfBuffer = (profile = {}) =>
     }
 
     if (profile.experienceStatus === 'experienced') {
+      // Designation/company are listed under Professional Experience when the
+      // work-history entries exist; repeating them here would duplicate them.
+      const hasEntries = experienceEntries.length > 0;
       pushSection('Experience', [
-        clean(profile.experienceDetails?.designation) &&
+        !hasEntries &&
+          clean(profile.experienceDetails?.designation) &&
           `Designation: ${profile.experienceDetails.designation}`,
-        clean(profile.experienceDetails?.currentCompany) &&
+        !hasEntries &&
+          clean(profile.experienceDetails?.currentCompany) &&
           `Company: ${profile.experienceDetails.currentCompany}`,
         clean(profile.experienceDetails?.totalExperience) &&
           `Total Experience: ${profile.experienceDetails.totalExperience}`,

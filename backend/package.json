@@ -17,6 +17,8 @@
     "format": "prettier --write .",
     "jobs:backfill-companies": "node scripts/backfillJobCompanies.js",
     "jobs:backfill-companies:apply": "node scripts/backfillJobCompanies.js --apply",
+    "candidates:migrate": "node scripts/migrateCandidateProfiles.js",
+    "candidates:migrate:apply": "node scripts/migrateCandidateProfiles.js --apply",
     "test": "node --test \"tests/**/*.test.js\""
   },
   "dependencies": {

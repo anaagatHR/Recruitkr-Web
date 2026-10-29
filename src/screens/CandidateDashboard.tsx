@@ -348,6 +348,14 @@ type CandidateApplicationsResponse = {
   }>;
 };
 
+type ExperienceEntry = {
+  company?: string;
+  role?: string;
+  startDate?: string; // YYYY-MM
+  endDate?: string; // YYYY-MM, empty when current
+  current?: boolean;
+};
+
 type CandidateProfileResponse = {
   success: boolean;
   data: {
@@ -359,6 +367,9 @@ type CandidateProfileResponse = {
     pincode?: string;
     linkedinUrl?: string;
     portfolioUrl?: string;
+    phone?: string;
+    city?: string;
+    college?: string;
     highestQualification?: string;
     experienceStatus?: "fresher" | "experienced";
     experienceDetails?: {
@@ -367,6 +378,7 @@ type CandidateProfileResponse = {
       totalExperience?: string;
       industry?: string;
     };
+    experience?: ExperienceEntry[];
     preferences?: {
       preferredRole?: string;
       preferredLocation?: string;
@@ -494,6 +506,12 @@ const CandidateDashboard = () => {
   const [sessionState, setSessionState] = useState<ReturnType<typeof getSession>>(null);
 
   const [resumeForm, setResumeForm] = useState<{
+    fullName: string;
+    phone: string;
+    city: string;
+    college: string;
+    linkedinUrl: string;
+    portfolioUrl: string;
     highestQualification: string;
     experienceStatus: "fresher" | "experienced";
     experienceDetails: {
@@ -502,6 +520,7 @@ const CandidateDashboard = () => {
       totalExperience: string;
       industry: string;
     };
+    experience: Array<Required<ExperienceEntry>>;
     preferences: {
       preferredRole: string;
       preferredLocation: string;
@@ -514,9 +533,16 @@ const CandidateDashboard = () => {
     certifications: Array<{ name: string; institute: string }>;
     referral: string;
   }>({
+    fullName: "",
+    phone: "",
+    city: "",
+    college: "",
+    linkedinUrl: "",
+    portfolioUrl: "",
     highestQualification: "",
     experienceStatus: "fresher",
     experienceDetails: { currentCompany: "", designation: "", totalExperience: "", industry: "" },
+    experience: [],
     preferences: { preferredRole: "", preferredLocation: "", preferredIndustry: "", workModes: [] },
     summary: "",
     skillsText: "",
@@ -573,6 +599,25 @@ const CandidateDashboard = () => {
     if (!profileData) return;
 
     setResumeForm((prev) => ({
+      fullName: profileData?.fullName || "",
+      phone: profileData?.phone || "",
+      city: profileData?.city || "",
+      college: profileData?.college || "",
+      linkedinUrl: profileData?.linkedinUrl || "",
+      portfolioUrl: profileData?.portfolioUrl || "",
+      experience: (profileData?.experience?.length
+        ? profileData.experience
+        : // Profiles saved before the work-history block: seed it from the old single job.
+          profileData?.experienceDetails?.currentCompany || profileData?.experienceDetails?.designation
+          ? [{ company: profileData.experienceDetails.currentCompany, role: profileData.experienceDetails.designation, current: true }]
+          : []
+      ).map((entry) => ({
+        company: entry?.company || "",
+        role: entry?.role || "",
+        startDate: entry?.startDate || "",
+        endDate: entry?.endDate || "",
+        current: Boolean(entry?.current),
+      })),
       highestQualification:
         activeProfileField === "highestQualification" ? prev.highestQualification : profileData?.highestQualification || "",
       experienceStatus:
@@ -927,6 +972,16 @@ const CandidateDashboard = () => {
         .map((c) => ({ name: c.name.trim(), institute: c.institute.trim() }))
         .filter((c) => c.name || c.institute);
 
+      const experience = resumeForm.experience
+        .map((entry) => ({
+          company: entry.company.trim(),
+          role: entry.role.trim(),
+          startDate: entry.startDate,
+          endDate: entry.current ? "" : entry.endDate,
+          current: entry.current,
+        }))
+        .filter((entry) => entry.company || entry.role);
+
       const payload: Record<string, unknown> = {
         experienceStatus: resumeForm.experienceStatus,
         summary: resumeForm.summary.trim(),
@@ -934,7 +989,17 @@ const CandidateDashboard = () => {
         projects,
         certifications,
         referral: resumeForm.referral.trim(),
+        city: resumeForm.city.trim(),
+        college: resumeForm.college.trim(),
+        linkedinUrl: resumeForm.linkedinUrl.trim(),
+        portfolioUrl: resumeForm.portfolioUrl.trim(),
       };
+
+      // Name and phone can't be cleared once set: only send them when filled.
+      const fullName = resumeForm.fullName.trim();
+      if (fullName) payload.fullName = fullName;
+      const phone = resumeForm.phone.trim();
+      if (phone) payload.mobile = phone;
 
       const highestQualification = resumeForm.highestQualification.trim();
       if (highestQualification) {
@@ -955,40 +1020,13 @@ const CandidateDashboard = () => {
       }
 
       if (resumeForm.experienceStatus === "experienced") {
+        // currentCompany/designation are derived server-side from the experience entries.
         payload.experienceDetails = {
-          currentCompany: resumeForm.experienceDetails.currentCompany.trim(),
-          designation: resumeForm.experienceDetails.designation.trim(),
           totalExperience: resumeForm.experienceDetails.totalExperience.trim(),
           industry: resumeForm.experienceDetails.industry.trim(),
         };
+        payload.experience = experience;
       }
-
-      const generatedResumeData = {
-        name: profile?.fullName?.trim() || inlineProfileDrafts.fullName.trim() || "Candidate",
-        summary: resumeForm.summary.trim(),
-        skills,
-        education: highestQualification
-          ? [
-              {
-                degree: highestQualification,
-                institution: "",
-                year: "",
-                description: "",
-              },
-            ]
-          : [],
-        experience:
-          resumeForm.experienceStatus === "experienced"
-            ? [
-                {
-                  title: resumeForm.experienceDetails.designation.trim(),
-                  company: resumeForm.experienceDetails.currentCompany.trim(),
-                  duration: resumeForm.experienceDetails.totalExperience.trim(),
-                  description: resumeForm.experienceDetails.industry.trim(),
-                },
-              ].filter((item) => item.title || item.company || item.duration || item.description)
-            : [],
-      };
 
       if (resumeFile) {
         const asset = await uploadFile(resumeFile, "resumes");
@@ -997,8 +1035,8 @@ const CandidateDashboard = () => {
         payload.resumeFileId = asset.fileId;
         payload.resumeFileName = resumeFile.name;
       } else {
+        // The server builds the generated resume from the saved profile.
         payload.resumeType = "generated";
-        payload.resumeData = generatedResumeData;
       }
 
       const res = await apiPatch<CandidateProfileResponse>("/users/candidate/me", payload, true);
@@ -2465,12 +2503,22 @@ const CandidateDashboard = () => {
         {tab === "resume" && (
           <div className="space-y-4">
             <CandidateVideos />
+            <form
+              aria-labelledby="cp-heading"
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void saveResume();
+              }}
+            >
             <div className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-[0_1px_2px_rgba(16,24,40,0.05)] sm:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="font-heading text-xl font-bold">Resume Editor</h2>
+                  <h2 id="cp-heading" className="font-heading text-xl font-bold">Resume Editor</h2>
                   <p className="text-sm text-muted-foreground">
-                    Fill only what you have; empty sections will be hidden in the PDF.
+                    Fill only what you have; empty sections will be hidden in the PDF.{" "}
+                    Fields marked <span aria-hidden="true" className="text-red-500">*</span>
+                    <span className="sr-only">as required</span> are needed before you can apply to jobs.
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Current resume type: {resumeMeta?.resumeType === "uploaded" ? "Uploaded PDF" : "Generated from form"}
@@ -2480,17 +2528,21 @@ const CandidateDashboard = () => {
                       Current file: {resumeMeta.fileName}
                     </p>
                   ) : null}
-                  {resumeNotice && <p className="mt-2 text-sm text-green-600">{resumeNotice}</p>}
+                  <p role="status" aria-live="polite" className="mt-2 text-sm text-green-600">
+                    {resumeNotice}
+                  </p>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <button
-                    onClick={saveResume}
+                    type="submit"
                     disabled={resumeSaving}
+                    aria-busy={resumeSaving}
                     className="btn-gradient rounded-lg px-4 py-2 text-sm disabled:opacity-60"
                   >
                     {resumeSaving ? "Saving..." : "Save"}
                   </button>
                   <button
+                    type="button"
                     onClick={downloadResumePdf}
                     disabled={resumeDownloading}
                     className="rounded-lg border border-border bg-card px-4 py-2 text-sm disabled:opacity-60"
@@ -2503,12 +2555,17 @@ const CandidateDashboard = () => {
               <div className="rounded-lg border border-dashed border-border bg-background/60 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h3 className="text-sm font-semibold text-foreground">Upload Resume PDF</h3>
-                    <p className="text-xs text-muted-foreground">
+                    <label htmlFor="cp-resume-file" className="text-sm font-semibold text-foreground">
+                      Upload Resume PDF
+                    </label>
+                    <p id="cp-resume-file-hint" className="text-xs text-muted-foreground">
                       PDF only, max {Math.round(uploadRules.resumeMaxBytes / (1024 * 1024))}MB. Save with a selected file to keep this resume as uploaded.
                     </p>
                   </div>
                   <input
+                    id="cp-resume-file"
+                    name="resumeFile"
+                    aria-describedby="cp-resume-file-hint"
                     type="file"
                     accept=".pdf,application/pdf"
                     onChange={handleResumeFileSelect}
@@ -2527,10 +2584,122 @@ const CandidateDashboard = () => {
                 )}
               </div>
 
+              <fieldset className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <legend className="mb-2 text-sm font-semibold text-foreground">Personal details</legend>
+                <div className="space-y-2">
+                  <label htmlFor="cp-full-name" className="text-sm font-medium">
+                    Full name <span aria-hidden="true" className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="cp-full-name"
+                    name="fullName"
+                    autoComplete="name"
+                    aria-required="true"
+                    minLength={2}
+                    maxLength={120}
+                    value={resumeForm.fullName}
+                    onChange={(e) => setResumeForm((p) => ({ ...p, fullName: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    placeholder="e.g. Priya Sharma"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="cp-phone" className="text-sm font-medium">
+                    Mobile number <span aria-hidden="true" className="text-red-500">*</span>
+                  </label>
+                  <div className="flex">
+                    <span className="inline-flex items-center rounded-l-lg border border-r-0 border-border bg-muted px-3 text-sm text-muted-foreground">
+                      +91
+                    </span>
+                    <input
+                      id="cp-phone"
+                      name="mobile"
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel-national"
+                      aria-required="true"
+                      aria-describedby="cp-phone-hint"
+                      pattern="[6-9][0-9]{9}"
+                      maxLength={10}
+                      value={resumeForm.phone}
+                      onChange={(e) =>
+                        setResumeForm((p) => ({ ...p, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))
+                      }
+                      className="w-full rounded-r-lg border border-border bg-background px-3 py-2 text-sm"
+                      placeholder="9876543210"
+                    />
+                  </div>
+                  <p id="cp-phone-hint" className="text-xs text-muted-foreground">
+                    10-digit Indian mobile. Shared with employers you apply to.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="cp-city" className="text-sm font-medium">Current city</label>
+                  <input
+                    id="cp-city"
+                    name="city"
+                    autoComplete="address-level2"
+                    maxLength={100}
+                    value={resumeForm.city}
+                    onChange={(e) => setResumeForm((p) => ({ ...p, city: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    placeholder="e.g. Jaipur"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="cp-college" className="text-sm font-medium">College / Institute</label>
+                  <input
+                    id="cp-college"
+                    name="college"
+                    autoComplete="organization"
+                    maxLength={160}
+                    value={resumeForm.college}
+                    onChange={(e) => setResumeForm((p) => ({ ...p, college: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    placeholder="e.g. University of Rajasthan"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="cp-linkedin" className="text-sm font-medium">LinkedIn URL</label>
+                  <input
+                    id="cp-linkedin"
+                    name="linkedinUrl"
+                    inputMode="url"
+                    autoComplete="url"
+                    value={resumeForm.linkedinUrl}
+                    onChange={(e) => setResumeForm((p) => ({ ...p, linkedinUrl: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    placeholder="linkedin.com/in/your-name"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="cp-portfolio" className="text-sm font-medium">Portfolio URL</label>
+                  <input
+                    id="cp-portfolio"
+                    name="portfolioUrl"
+                    inputMode="url"
+                    value={resumeForm.portfolioUrl}
+                    onChange={(e) => setResumeForm((p) => ({ ...p, portfolioUrl: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    placeholder="e.g. github.com/your-name"
+                  />
+                </div>
+              </fieldset>
+
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Highest Qualification</label>
+                  <label htmlFor="cp-qualification" className="text-sm font-medium">
+                    Highest Qualification <span aria-hidden="true" className="text-red-500">*</span>
+                  </label>
                   <input
+                    id="cp-qualification"
+                    name="highestQualification"
+                    aria-required="true"
                     value={resumeForm.highestQualification}
                     onChange={(e) => setResumeForm((p) => ({ ...p, highestQualification: e.target.value }))}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
@@ -2539,8 +2708,13 @@ const CandidateDashboard = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Experience Status</label>
+                  <label htmlFor="cp-experience-status" className="text-sm font-medium">
+                    Experience Status <span aria-hidden="true" className="text-red-500">*</span>
+                  </label>
                   <select
+                    id="cp-experience-status"
+                    name="experienceStatus"
+                    aria-required="true"
                     value={resumeForm.experienceStatus}
                     onChange={(e) =>
                       setResumeForm((p) => ({
@@ -2556,8 +2730,11 @@ const CandidateDashboard = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Summary</label>
+                  <label htmlFor="cp-summary" className="text-sm font-medium">Summary</label>
                   <textarea
+                    id="cp-summary"
+                    name="summary"
+                    maxLength={1200}
                     value={resumeForm.summary}
                     onChange={(e) => setResumeForm((p) => ({ ...p, summary: e.target.value }))}
                     rows={5}
@@ -2567,21 +2744,32 @@ const CandidateDashboard = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Skills</label>
+                  <label htmlFor="cp-skills" className="text-sm font-medium">
+                    Skills <span aria-hidden="true" className="text-red-500">*</span>
+                  </label>
                   <input
+                    id="cp-skills"
+                    name="skills"
+                    aria-required="true"
+                    aria-describedby="cp-skills-hint"
                     value={resumeForm.skillsText}
                     onChange={(e) => setResumeForm((p) => ({ ...p, skillsText: e.target.value }))}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     placeholder="e.g. JavaScript, Node.js, React, MongoDB"
                   />
-                  <p className="text-xs text-muted-foreground">Comma separated</p>
+                  <p id="cp-skills-hint" className="text-xs text-muted-foreground">Comma separated, at least 3</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Preferred Role</label>
+                  <label htmlFor="cp-preferred-role" className="text-sm font-medium">
+                    Preferred Role <span aria-hidden="true" className="text-red-500">*</span>
+                  </label>
                   <input
+                    id="cp-preferred-role"
+                    name="preferredRole"
+                    aria-required="true"
                     value={resumeForm.preferences.preferredRole}
                     onChange={(e) =>
                       setResumeForm((p) => ({ ...p, preferences: { ...p.preferences, preferredRole: e.target.value } }))
@@ -2592,8 +2780,13 @@ const CandidateDashboard = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Preferred Location</label>
+                  <label htmlFor="cp-preferred-location" className="text-sm font-medium">
+                    Preferred Location <span aria-hidden="true" className="text-red-500">*</span>
+                  </label>
                   <input
+                    id="cp-preferred-location"
+                    name="preferredLocation"
+                    aria-required="true"
                     value={resumeForm.preferences.preferredLocation}
                     onChange={(e) =>
                       setResumeForm((p) => ({
@@ -2607,8 +2800,10 @@ const CandidateDashboard = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Preferred Industry</label>
+                  <label htmlFor="cp-preferred-industry" className="text-sm font-medium">Preferred Industry</label>
                   <input
+                    id="cp-preferred-industry"
+                    name="preferredIndustry"
                     value={resumeForm.preferences.preferredIndustry}
                     onChange={(e) =>
                       setResumeForm((p) => ({
@@ -2621,8 +2816,10 @@ const CandidateDashboard = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Work Mode</label>
+                <fieldset className="space-y-2">
+                  <legend className="text-sm font-medium">
+                    Work Mode <span aria-hidden="true" className="text-red-500">*</span>
+                  </legend>
                   <div className="flex flex-wrap gap-2 pt-1">
                     {(["On-site", "Hybrid", "Remote"] as const).map((mode) => {
                       const checked = resumeForm.preferences.workModes.includes(mode);
@@ -2630,6 +2827,8 @@ const CandidateDashboard = () => {
                         <label key={mode} className="flex items-center gap-2 text-sm">
                           <input
                             type="checkbox"
+                            name="workModes"
+                            value={mode}
                             checked={checked}
                             onChange={() =>
                               setResumeForm((p) => ({
@@ -2648,42 +2847,17 @@ const CandidateDashboard = () => {
                       );
                     })}
                   </div>
-                </div>
+                </fieldset>
               </div>
 
               {resumeForm.experienceStatus === "experienced" && (
+                <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Current Company</label>
+                    <label htmlFor="cp-total-experience" className="text-sm font-medium">Total Experience</label>
                     <input
-                      value={resumeForm.experienceDetails.currentCompany}
-                      onChange={(e) =>
-                        setResumeForm((p) => ({
-                          ...p,
-                          experienceDetails: { ...p.experienceDetails, currentCompany: e.target.value },
-                        }))
-                      }
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                      placeholder="Company name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Designation</label>
-                    <input
-                      value={resumeForm.experienceDetails.designation}
-                      onChange={(e) =>
-                        setResumeForm((p) => ({
-                          ...p,
-                          experienceDetails: { ...p.experienceDetails, designation: e.target.value },
-                        }))
-                      }
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                      placeholder="e.g. Software Engineer"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Total Experience</label>
-                    <input
+                      id="cp-total-experience"
+                      name="totalExperience"
                       value={resumeForm.experienceDetails.totalExperience}
                       onChange={(e) =>
                         setResumeForm((p) => ({
@@ -2696,8 +2870,10 @@ const CandidateDashboard = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Industry</label>
+                    <label htmlFor="cp-industry" className="text-sm font-medium">Industry</label>
                     <input
+                      id="cp-industry"
+                      name="industry"
                       value={resumeForm.experienceDetails.industry}
                       onChange={(e) =>
                         setResumeForm((p) => ({
@@ -2710,17 +2886,137 @@ const CandidateDashboard = () => {
                     />
                   </div>
                 </div>
+
+                <fieldset className="space-y-3">
+                  <legend className="mb-3 text-sm font-semibold text-foreground">
+                    Work experience <span aria-hidden="true" className="text-red-500">*</span>
+                  </legend>
+
+                  {resumeForm.experience.length === 0 && (
+                    <p className="text-sm text-muted-foreground">Add at least one job with company, role and start month.</p>
+                  )}
+
+                  {resumeForm.experience.map((entry, idx) => {
+                    const updateEntry = (patch: Partial<Required<ExperienceEntry>>) =>
+                      setResumeForm((p) => ({
+                        ...p,
+                        experience: p.experience.map((x, i) => (i === idx ? { ...x, ...patch } : x)),
+                      }));
+                    const fieldId = (key: string) => `cp-exp-${idx}-${key}`;
+                    return (
+                      <div key={idx} className="grid grid-cols-1 gap-3 rounded-lg border border-border p-4 md:grid-cols-2">
+                        <div className="flex items-center justify-between gap-2 md:col-span-2">
+                          <p className="text-sm font-medium">Job #{idx + 1}</p>
+                          <button
+                            type="button"
+                            className="text-sm text-red-500"
+                            aria-label={`Remove job ${idx + 1}`}
+                            onClick={() =>
+                              setResumeForm((p) => ({ ...p, experience: p.experience.filter((_, i) => i !== idx) }))
+                            }
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor={fieldId("company")} className="text-sm font-medium">Company</label>
+                          <input
+                            id={fieldId("company")}
+                            name={`experience.${idx}.company`}
+                            autoComplete="organization"
+                            maxLength={150}
+                            value={entry.company}
+                            onChange={(e) => updateEntry({ company: e.target.value })}
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            placeholder="Company name"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor={fieldId("role")} className="text-sm font-medium">Role</label>
+                          <input
+                            id={fieldId("role")}
+                            name={`experience.${idx}.role`}
+                            autoComplete="organization-title"
+                            maxLength={100}
+                            value={entry.role}
+                            onChange={(e) => updateEntry({ role: e.target.value })}
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            placeholder="e.g. Sales Executive"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor={fieldId("start")} className="text-sm font-medium">Start month</label>
+                          <input
+                            id={fieldId("start")}
+                            name={`experience.${idx}.startDate`}
+                            type="month"
+                            // Fallback for browsers without a month picker (render as text).
+                            pattern="[0-9]{4}-(0[1-9]|1[0-2])"
+                            placeholder="YYYY-MM"
+                            value={entry.startDate}
+                            onChange={(e) => updateEntry({ startDate: e.target.value })}
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor={fieldId("end")} className="text-sm font-medium">End month</label>
+                          <input
+                            id={fieldId("end")}
+                            name={`experience.${idx}.endDate`}
+                            type="month"
+                            pattern="[0-9]{4}-(0[1-9]|1[0-2])"
+                            placeholder="YYYY-MM"
+                            min={entry.startDate || undefined}
+                            disabled={entry.current}
+                            value={entry.current ? "" : entry.endDate}
+                            onChange={(e) => updateEntry({ endDate: e.target.value })}
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-60"
+                          />
+                        </div>
+                        <label htmlFor={fieldId("current")} className="flex items-center gap-2 text-sm md:col-span-2">
+                          <input
+                            id={fieldId("current")}
+                            name={`experience.${idx}.current`}
+                            type="checkbox"
+                            checked={entry.current}
+                            onChange={(e) => updateEntry({ current: e.target.checked, endDate: "" })}
+                          />
+                          I currently work here
+                        </label>
+                      </div>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
+                    onClick={() =>
+                      setResumeForm((p) => ({
+                        ...p,
+                        experience: [...p.experience, { company: "", role: "", startDate: "", endDate: "", current: false }],
+                      }))
+                    }
+                  >
+                    Add job
+                  </button>
+                </fieldset>
+                </div>
               )}
             </div>
 
             <div className="rounded-xl border border-border bg-card p-6 space-y-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h3 className="font-heading font-semibold">Profile Photo</h3>
-                  <p className="text-sm text-muted-foreground">JPG/PNG/WEBP (max 2MB)</p>
+                  <h3 className="font-heading font-semibold">
+                    <label htmlFor="cp-photo-file">Profile Photo</label>
+                  </h3>
+                  <p id="cp-photo-hint" className="text-sm text-muted-foreground">JPG/PNG/WEBP (max 2MB)</p>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <input
+                    id="cp-photo-file"
+                    name="profilePhoto"
+                    aria-describedby="cp-photo-hint"
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
                     onChange={(e) => {
@@ -2732,6 +3028,7 @@ const CandidateDashboard = () => {
                     disabled={profilePhotoLoading}
                   />
                   <button
+                    type="button"
                     onClick={removeProfilePhoto}
                     className="rounded-lg border border-border bg-card px-4 py-2 text-sm disabled:opacity-60"
                     disabled={!profilePhotoUrl}
@@ -2757,10 +3054,15 @@ const CandidateDashboard = () => {
             <div className="rounded-xl border border-border bg-card p-6 space-y-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h3 className="font-heading font-semibold">Certificates (Files)</h3>
-                  <p className="text-sm text-muted-foreground">Upload PDF or image (max 5MB)</p>
+                  <h3 className="font-heading font-semibold">
+                    <label htmlFor="cp-certificate-file">Certificates (Files)</label>
+                  </h3>
+                  <p id="cp-certificate-hint" className="text-sm text-muted-foreground">Upload PDF or image (max 5MB)</p>
                 </div>
                 <input
+                  id="cp-certificate-file"
+                  name="certificateFile"
+                  aria-describedby="cp-certificate-hint"
                   type="file"
                   accept="application/pdf,image/png,image/jpeg,image/webp"
                   onChange={(e) => {
@@ -2798,12 +3100,14 @@ const CandidateDashboard = () => {
                       </div>
                       <div className="flex gap-2">
                         <button
+                          type="button"
                           className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
                           onClick={() => void downloadCertificate(c.url, c.fileName)}
                         >
                           Download
                         </button>
                         <button
+                          type="button"
                           className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-red-500"
                           onClick={() => void deleteCertificate(c.id)}
                         >
@@ -2820,6 +3124,7 @@ const CandidateDashboard = () => {
               <div className="flex items-center justify-between">
                 <h3 className="font-heading font-semibold">Projects</h3>
                 <button
+                  type="button"
                   className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
                   onClick={() =>
                     setResumeForm((p) => ({
@@ -2842,6 +3147,8 @@ const CandidateDashboard = () => {
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium">Project #{idx + 1}</p>
                       <button
+                        type="button"
+                        aria-label={`Remove project ${idx + 1}`}
                         className="text-sm text-red-500"
                         onClick={() =>
                           setResumeForm((p) => ({
@@ -2853,7 +3160,11 @@ const CandidateDashboard = () => {
                         Remove
                       </button>
                     </div>
+                    <label htmlFor={`cp-project-${idx}-name`} className="sr-only">Project {idx + 1} name</label>
                     <input
+                      id={`cp-project-${idx}-name`}
+                      name={`projects.${idx}.name`}
+                      maxLength={120}
                       value={project.name}
                       onChange={(e) =>
                         setResumeForm((p) => ({
@@ -2864,7 +3175,13 @@ const CandidateDashboard = () => {
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                       placeholder="Project name"
                     />
+                    <label htmlFor={`cp-project-${idx}-description`} className="sr-only">
+                      Project {idx + 1} description
+                    </label>
                     <textarea
+                      id={`cp-project-${idx}-description`}
+                      name={`projects.${idx}.description`}
+                      maxLength={800}
                       value={project.description}
                       onChange={(e) =>
                         setResumeForm((p) => ({
@@ -2885,6 +3202,7 @@ const CandidateDashboard = () => {
               <div className="flex items-center justify-between">
                 <h3 className="font-heading font-semibold">Certifications</h3>
                 <button
+                  type="button"
                   className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
                   onClick={() =>
                     setResumeForm((p) => ({
@@ -2907,6 +3225,8 @@ const CandidateDashboard = () => {
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium">Certification #{idx + 1}</p>
                       <button
+                        type="button"
+                        aria-label={`Remove certification ${idx + 1}`}
                         className="text-sm text-red-500"
                         onClick={() =>
                           setResumeForm((p) => ({
@@ -2918,7 +3238,11 @@ const CandidateDashboard = () => {
                         Remove
                       </button>
                     </div>
+                    <label htmlFor={`cp-cert-${idx}-name`} className="sr-only">Certification {idx + 1} name</label>
                     <input
+                      id={`cp-cert-${idx}-name`}
+                      name={`certifications.${idx}.name`}
+                      maxLength={120}
                       value={cert.name}
                       onChange={(e) =>
                         setResumeForm((p) => ({
@@ -2929,7 +3253,13 @@ const CandidateDashboard = () => {
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                       placeholder="Certification name"
                     />
+                    <label htmlFor={`cp-cert-${idx}-institute`} className="sr-only">
+                      Certification {idx + 1} institute
+                    </label>
                     <input
+                      id={`cp-cert-${idx}-institute`}
+                      name={`certifications.${idx}.institute`}
+                      maxLength={160}
                       value={cert.institute}
                       onChange={(e) =>
                         setResumeForm((p) => ({
@@ -2946,14 +3276,18 @@ const CandidateDashboard = () => {
             </div>
 
             <div className="rounded-xl border border-border bg-card p-6 space-y-2">
-              <label className="text-sm font-medium">Referral</label>
+              <label htmlFor="cp-referral" className="text-sm font-medium">Referral</label>
               <input
+                id="cp-referral"
+                name="referral"
+                maxLength={200}
                 value={resumeForm.referral}
                 onChange={(e) => setResumeForm((p) => ({ ...p, referral: e.target.value }))}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 placeholder="Optional referral info"
               />
             </div>
+            </form>
           </div>
         )}
 
