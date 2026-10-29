@@ -85,6 +85,13 @@ export const errorHandler = (error, _req, res, _next) => {
   if (error.details) {
     response.details = error.details;
   }
+  // Only intentional ApiErrors set these; never driver/infrastructure errors.
+  if (!isServerError && error.code && typeof error.code === 'string') {
+    response.code = error.code;
+  }
+  if (!isServerError && error.data !== undefined) {
+    response.data = error.data;
+  }
 
   res.status(statusCode).json(response);
 };

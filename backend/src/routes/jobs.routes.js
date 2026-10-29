@@ -10,6 +10,7 @@ import {
   getPublicJob,
   getPublicStats,
   listCandidateApplications,
+  listCandidateJobs,
   listClientApplications,
   listMyJobs,
   listPublicJobs,
@@ -22,13 +23,27 @@ import {
   applyJobSchema,
   updateApplicationStatusSchema,
 } from '../schemas/application.schema.js';
-import { createJobSchema, listJobsQuerySchema, updateJobSchema, updateJobStatusSchema } from '../schemas/job.schema.js';
+import {
+  createJobSchema,
+  listCandidateJobsQuerySchema,
+  listJobsQuerySchema,
+  updateJobSchema,
+  updateJobStatusSchema,
+} from '../schemas/job.schema.js';
 
 const router = Router();
 
 router.get('/', validate(listJobsQuerySchema, 'query'), listPublicJobs);
 // Aggregate counts for the homepage (active jobs, companies, by type/mode/city).
 router.get('/stats', getPublicStats);
+
+router.get(
+  '/for-me',
+  requireAuth,
+  requireRole('candidate'),
+  validate(listCandidateJobsQuerySchema, 'query'),
+  listCandidateJobs,
+);
 
 router.post('/', requireAuth, requireRole('client'), validate(createJobSchema), createJob);
 router.get('/mine', requireAuth, requireRole('client'), listMyJobs);

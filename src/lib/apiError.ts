@@ -19,11 +19,17 @@ const TECHNICAL_MESSAGE_PATTERNS = [
 
 export class ApiClientError extends Error {
   status?: number;
+  /** Stable server reason, e.g. "PROFILE_INCOMPLETE" or "ALREADY_APPLIED". */
+  code?: string;
+  /** Structured server payload for that reason (e.g. missing profile fields). */
+  data?: unknown;
 
-  constructor(message: string, options?: { status?: number; cause?: unknown }) {
+  constructor(message: string, options?: { status?: number; cause?: unknown; code?: string; data?: unknown }) {
     super(message, options?.cause ? { cause: options.cause } : undefined);
     this.name = "ApiClientError";
     this.status = options?.status;
+    this.code = options?.code;
+    this.data = options?.data;
   }
 }
 
@@ -109,9 +115,13 @@ export const buildApiError = ({
     error,
   });
 
+  const body = payload && typeof payload === "object" ? (payload as { code?: unknown; data?: unknown }) : null;
+
   return new ApiClientError(userMessage, {
     status,
     cause: error,
+    code: typeof body?.code === "string" ? body.code : undefined,
+    data: body?.data,
   });
 };
 

@@ -1,6 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import mongoose from 'mongoose';
 
+import { env } from '../config/env.js';
 import { Application } from '../models/Application.js';
 import { CandidateFile } from '../models/CandidateFile.js';
 import { CandidateProfile } from '../models/CandidateProfile.js';
@@ -8,6 +9,7 @@ import { ClientProfile } from '../models/ClientProfile.js';
 import { JobRequirement } from '../models/JobRequirement.js';
 import { Resume } from '../models/Resume.js';
 import { User } from '../models/User.js';
+import { refreshProfileCompletion } from '../services/candidateProfile.service.js';
 import {
   filterSortPaginateJobs,
   getActiveNormalizedJobs,
@@ -800,6 +802,70 @@ export const listPublicJobs = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET /api/v1/jobs/for-me — the candidate dashboard's job feed (audit P1-2, §4.3).
+ *
+ * Separate from the public GET /jobs because that response is CDN-cached
+ * (s-maxage=300): per-candidate flags on it could be served to someone else.
+ * Each row gets `canApply` + `blockReason` for THIS candidate, and
+ * `excludeApplied=true` drops applied jobs BEFORE paginating, so `meta.total`
+ * and the page contents always agree.
+ */
+export const BLOCK_REASONS = Object.freeze({
+  JOB_CLOSED: 'JOB_CLOSED',
+  ALREADY_APPLIED: 'ALREADY_APPLIED',
+  PROFILE_INCOMPLETE: 'PROFILE_INCOMPLETE',
+});
+
+export const annotateJobsForCandidate = (jobs, { appliedIds, completion }) =>
+  jobs.map((job) => {
+    const blockReason =
+      job.canApply === false
+        ? BLOCK_REASONS.JOB_CLOSED
+        : appliedIds.has(String(job._id))
+          ? BLOCK_REASONS.ALREADY_APPLIED
+          : completion && !completion.canApply
+            ? BLOCK_REASONS.PROFILE_INCOMPLETE
+            : null;
+    return { ...job, canApply: !blockReason, blockReason };
+  });
+
+export const listCandidateJobs = asyncHandler(async (req, res) => {
+  const { q, page = 1, limit = 10, location, type, minSalary, maxSalary, excludeApplied } = req.query;
+  res.set('Cache-Control', 'private, no-store');
+
+  const [allJobs, applications, completion] = await Promise.all([
+    getActiveNormalizedJobs(loadActiveNormalizedJobs),
+    Application.find({ candidateId: req.user.id }).select('jobId sourceJobId').lean(),
+    env.FEATURE_APPLY_GATE ? refreshProfileCompletion(req.user.id) : null,
+  ]);
+
+  const appliedIds = new Set(
+    applications.map((application) => String(application.jobId || application.sourceJobId || '')).filter(Boolean),
+  );
+  const hideApplied = excludeApplied === 'true' || excludeApplied === '1';
+  const jobs = allJobs.filter((job) => !job.isExpired && !(hideApplied && appliedIds.has(String(job._id))));
+  const { data, meta } = filterSortPaginateJobs(jobs, { q, location, type, minSalary, maxSalary, page, limit });
+
+  res.json({
+    success: true,
+    data: annotateJobsForCandidate(data, { appliedIds, completion }),
+    meta: {
+      ...meta,
+      applyGate: completion
+        ? {
+            enabled: true,
+            score: completion.score,
+            threshold: completion.threshold,
+            canApply: completion.canApply,
+            missingRequired: completion.missingRequired,
+          }
+        : { enabled: false },
+    },
+    source: 'mongo',
+  });
+});
+
+/**
  * GET /api/v1/stats — the real numbers behind the homepage.
  *
  * The hero used to say "500+ Active openings" and "100+ Trusted companies"
@@ -1006,7 +1072,23 @@ export const applyToJob = asyncHandler(async (req, res) => {
     : { candidateId: req.user.id, sourceCollection, sourceJobId: String(jobId) };
   const exists = await Application.findOne(duplicateQuery);
   if (exists) {
-    throw new ApiError(StatusCodes.CONFLICT, 'Already applied to this job');
+    throw new ApiError(StatusCodes.CONFLICT, 'You have already applied to this job', null, { code: 'ALREADY_APPLIED' });
+  }
+
+  // Authoritative profile gate (audit P0-3): re-derived from the database on
+  // every request, never from anything the client sends.
+  if (env.FEATURE_APPLY_GATE) {
+    const completion = await refreshProfileCompletion(req.user.id);
+    if (!completion.canApply) {
+      throw new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, 'Complete your profile to apply', null, {
+        code: 'PROFILE_INCOMPLETE',
+        data: {
+          score: completion.score,
+          threshold: completion.threshold,
+          missingRequired: completion.missingRequired,
+        },
+      });
+    }
   }
 
   const [candidateUser, candidateProfile] = await Promise.all([
@@ -1042,8 +1124,8 @@ export const applyToJob = asyncHandler(async (req, res) => {
     email: candidateUser?.email || '',
     phone: candidateUser?.mobile || '',
     qualification: candidateProfile?.highestQualification || '',
-    college: '',
-    currentCity: candidateProfile?.preferences?.preferredLocation || '',
+    college: candidateProfile?.college || '',
+    currentCity: candidateProfile?.city || '',
     profilePhotoUrl: candidateProfile?.profilePhotoUrl || '',
     skills: Array.isArray(candidateProfile?.skills) ? candidateProfile.skills : [],
     experienceLabel:
@@ -1051,6 +1133,8 @@ export const applyToJob = asyncHandler(async (req, res) => {
     preferredLocation: candidateProfile?.preferences?.preferredLocation || '',
     portfolioUrl: candidateProfile?.portfolioUrl || '',
     linkedinUrl: candidateProfile?.linkedinUrl || '',
+    // experience[0].jobProfile is read as the fresher/experienced flag
+    // (normalizeApplicationResponse and the legacy CRM) — keep it a label.
     experience: [
       {
         jobProfile:

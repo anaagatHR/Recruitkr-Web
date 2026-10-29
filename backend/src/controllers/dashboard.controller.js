@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Application } from '../models/Application.js';
 import { CandidateProfile } from '../models/CandidateProfile.js';
 import { JobRequirement } from '../models/JobRequirement.js';
@@ -38,7 +39,7 @@ export const candidateDashboard = asyncHandler(async (req, res) => {
         offersReceived: offers,
         profileCompletion: completion.score,
       },
-      completion,
+      completion: { ...completion, gateEnabled: env.FEATURE_APPLY_GATE },
       applications: applications.slice(0, 10),
       profile: toCandidateProfileResponse(profile),
     },

@@ -10,6 +10,7 @@ import SearchBar from "@/components/search/SearchBar";
 import StatCard from "@/components/dashboard/StatCard";
 import { fetchJobSuggestions } from "@/lib/search";
 import { API_BASE, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
+import { ApiClientError } from "@/lib/apiError";
 import { clearSession, getSession } from "@/lib/auth";
 import { useServerEvents, type SseConnectionStatus } from "@/hooks/useServerEvents";
 import { tryAutoLogin } from "@/lib/autoLogin";
@@ -18,6 +19,10 @@ import { uploadFile, uploadRules, validateUploadFile } from "@/lib/uploadFile";
 import Messages from "./Messages";
 const JOBS_PAGE_LIMIT = 20;
 const LIVE_REFRESH_MS = 5000;
+// Personalised feed: applied jobs are excluded server-side before paginating,
+// so meta.total matches what the page shows (audit P1-2).
+const candidateJobsUrl = (page: number) => `/jobs/for-me?page=${page}&limit=${JOBS_PAGE_LIMIT}&excludeApplied=true`;
+const GATE_INTRO_DISMISSED_KEY = "rk-apply-gate-intro-dismissed-v1";
 // Photo behind the overview hero. This used to point at "/hero-bg.jpg", which
 // is not where the file lives — every dashboard load fired a request that 404'd
 // and logged an error, and the onError handler quietly hid the result, so the
@@ -292,6 +297,7 @@ type CandidateDashboardResponse = {
       offersReceived: number;
       profileCompletion: number;
     };
+    completion?: ProfileGateSummary & { gateEnabled: boolean; missingOptional: MissingProfileField[] };
     applications: Array<{
       _id: string;
       status: ApplicationStatus;
@@ -424,6 +430,8 @@ type JobsResponse = {
     sourceLabel?: string;
     ownerRole?: "admin" | "client";
     canApply?: boolean;
+    /** Why THIS candidate can't apply (server-computed by /jobs/for-me). */
+    blockReason?: "JOB_CLOSED" | "ALREADY_APPLIED" | "PROFILE_INCOMPLETE" | null;
     applyDisabledReason?: string;
     isLegacy?: boolean;
     description?: string;
@@ -449,7 +457,17 @@ type JobsResponse = {
     limit: number;
     total: number;
     totalPages: number;
+    applyGate?: { enabled: boolean } & Partial<ProfileGateSummary>;
   };
+};
+
+type MissingProfileField = { key: string; label: string; weight: number };
+
+type ProfileGateSummary = {
+  score: number;
+  threshold: number;
+  canApply: boolean;
+  missingRequired: MissingProfileField[];
 };
 
 type EditableProfileField =
@@ -483,6 +501,10 @@ const CandidateDashboard = () => {
   const [jobReadinessFilter, setJobReadinessFilter] = useState<"all" | "ready">("all");
   const [jobsLoadingMore, setJobsLoadingMore] = useState(false);
   const [applyLoadingJobId, setApplyLoadingJobId] = useState<string | null>(null);
+  // What blocked the last apply (server 422 PROFILE_INCOMPLETE), shown above the editor.
+  const [gateNotice, setGateNotice] = useState<ProfileGateSummary | null>(null);
+  // Starts true so SSR and first paint match; the real value is read after mount.
+  const [gateIntroDismissed, setGateIntroDismissed] = useState(true);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const [expandedApplicationId, setExpandedApplicationId] = useState<string | null>(null);
   const [expandedProfileApplicationId, setExpandedProfileApplicationId] = useState<string | null>(null);
@@ -590,7 +612,7 @@ const CandidateDashboard = () => {
   };
 
   const fetchJobsPage = async (page: number) => {
-    const jobsRes = await apiGet<JobsResponse>(`/jobs?page=${page}&limit=${JOBS_PAGE_LIMIT}`);
+    const jobsRes = await apiGet<JobsResponse>(candidateJobsUrl(page), true);
     setJobsMeta(jobsRes.meta);
     setJobs(jobsRes.data);
   };
@@ -690,7 +712,7 @@ const CandidateDashboard = () => {
       const [dashboardRes, appsRes, jobsRes, profileRes] = await Promise.all([
         apiGet<CandidateDashboardResponse>("/dashboards/candidate", true),
         apiGet<CandidateApplicationsResponse>("/jobs/applications/mine", true),
-        apiGet<JobsResponse>(`/jobs?page=${currentJobsPage}&limit=${JOBS_PAGE_LIMIT}`),
+        apiGet<JobsResponse>(candidateJobsUrl(currentJobsPage), true),
         apiGet<CandidateProfileResponse>("/users/candidate/me", true).catch(() => null),
       ]);
 
@@ -817,11 +839,6 @@ const CandidateDashboard = () => {
     },
   });
 
-  const applicationJobIds = useMemo(
-    () => new Set((applications || []).map((a) => a.jobId?._id).filter(Boolean)),
-    [applications],
-  );
-
   const jobTypeOptions = useMemo(
     () => Array.from(new Set(jobs.map((job) => job.employmentType).filter(Boolean))).sort(),
     [jobs],
@@ -851,20 +868,15 @@ const CandidateDashboard = () => {
 
       const matchesType = jobTypeFilter === "all" || job.employmentType === jobTypeFilter;
       const matchesLocation = jobLocationFilter === "all" || job.jobLocation === jobLocationFilter;
-      const isApplied = applicationJobIds.has(job._id);
-      if (isApplied) return false;
       const matchesReadiness =
         jobReadinessFilter === "all" ||
         (jobReadinessFilter === "ready" && job.canApply !== false);
 
       return matchesQuery && matchesType && matchesLocation && matchesReadiness;
     });
-  }, [applicationJobIds, jobLocationFilter, jobReadinessFilter, jobSearch, jobTypeFilter, jobs]);
+  }, [jobLocationFilter, jobReadinessFilter, jobSearch, jobTypeFilter, jobs]);
 
-  const readyToApplyCount = useMemo(
-    () => jobs.filter((job) => job.canApply !== false && !applicationJobIds.has(job._id)).length,
-    [applicationJobIds, jobs],
-  );
+  const readyToApplyCount = useMemo(() => jobs.filter((job) => job.canApply !== false).length, [jobs]);
 
   useEffect(() => {
     if (!applications.length) {
@@ -939,18 +951,58 @@ const CandidateDashboard = () => {
     ];
   }, [selectedApplication?.status]);
 
+  // Send the candidate to the editor with the list of what still blocks applying.
+  const openProfileGate = (summary?: Partial<ProfileGateSummary> | null) => {
+    const source = summary?.missingRequired ? summary : dashboard?.completion;
+    setGateNotice({
+      score: source?.score ?? 0,
+      threshold: source?.threshold ?? 70,
+      canApply: false,
+      missingRequired: source?.missingRequired ?? [],
+    });
+    setTab("resume");
+  };
+
   const applyToJob = async (jobId: string) => {
+    if (applyLoadingJobId) return;
     setApplyLoadingJobId(jobId);
     setError("");
     try {
       await apiPost("/jobs/apply", { jobId }, true);
-      await Promise.all([refreshDashboard(), refreshApplications()]);
+      await Promise.all([refreshDashboard(), refreshApplications(), fetchJobsPage(currentJobsPage)]);
       // The application now lives as a chat thread with the employer.
       openChat();
     } catch (err) {
+      if (err instanceof ApiClientError && err.code === "PROFILE_INCOMPLETE") {
+        openProfileGate(err.data as Partial<ProfileGateSummary>);
+        return;
+      }
+      if (err instanceof ApiClientError && err.code === "ALREADY_APPLIED") {
+        void Promise.all([refreshApplications(), fetchJobsPage(currentJobsPage)]).catch(() => {});
+      }
       setError(err instanceof Error ? err.message : "Failed to apply");
     } finally {
       setApplyLoadingJobId(null);
+    }
+  };
+
+  // Live view of the gate once it has been shown: refreshes as saves recompute the score.
+  const gateStatus = gateNotice ? (dashboard?.completion ?? gateNotice) : null;
+
+  useEffect(() => {
+    try {
+      setGateIntroDismissed(window.localStorage.getItem(GATE_INTRO_DISMISSED_KEY) === "1");
+    } catch {
+      setGateIntroDismissed(false);
+    }
+  }, []);
+
+  const dismissGateIntro = () => {
+    setGateIntroDismissed(true);
+    try {
+      window.localStorage.setItem(GATE_INTRO_DISMISSED_KEY, "1");
+    } catch {
+      // Private mode / blocked storage: the banner just reappears next visit.
     }
   };
 
@@ -1559,6 +1611,43 @@ const CandidateDashboard = () => {
     >
         {error && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
 
+        {/* One-time explainer for the apply gate, so existing candidates aren't silently locked out. */}
+        {dashboard?.completion?.gateEnabled && !dashboard.completion.canApply && !gateIntroDismissed && tab !== "resume" && (
+          <div
+            role="region"
+            aria-label="Profile required to apply"
+            className="mb-4 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p>
+              We now ask for a complete profile before applying — you&apos;re at{" "}
+              <strong>{dashboard.completion.score}%</strong>
+              {dashboard.completion.missingRequired.length > 0 && (
+                <>
+                  , <strong>{dashboard.completion.missingRequired.length}</strong> required{" "}
+                  {dashboard.completion.missingRequired.length === 1 ? "item" : "items"} left
+                </>
+              )}
+              . You need {dashboard.completion.threshold}% to apply.
+            </p>
+            <div className="flex shrink-0 gap-2">
+              <button
+                type="button"
+                onClick={() => openProfileGate(dashboard.completion)}
+                className="rounded-lg bg-[#264a7f] px-3 py-2 font-semibold text-white"
+              >
+                Complete profile
+              </button>
+              <button
+                type="button"
+                onClick={dismissGateIntro}
+                className="rounded-lg border border-amber-300 px-3 py-2 font-semibold"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         {tab === "overview" && (
           <div className="space-y-5 sm:space-y-6">
             <div className={`${brandCardClass} relative overflow-hidden bg-[#16305a] p-5 sm:p-6 md:p-8`}>
@@ -1780,15 +1869,20 @@ const CandidateDashboard = () => {
                
                 <div className="grid gap-3 lg:grid-cols-2">
                   {filteredJobs.map((job) => {
-                const isApplied = applicationJobIds.has(job._id);
+                const isApplied = job.blockReason === "ALREADY_APPLIED";
+                const isGated = job.blockReason === "PROFILE_INCOMPLETE";
+                const isApplying = applyLoadingJobId === job._id;
+                const missingCount = jobsMeta?.applyGate?.missingRequired?.length ?? 0;
                 const isExpanded = expandedJobId === job._id;
-                const applyLabel = job.canApply === false
-                  ? "Apply unavailable"
-                  : isApplied
-                    ? "Applied"
-                    : applyLoadingJobId === job._id
-                      ? "Applying..."
-                      : "Apply now";
+                const applyLabel = isApplying
+                  ? "Applying..."
+                  : isGated
+                    ? `Complete profile to apply${missingCount ? ` · ${missingCount} left` : ""}`
+                    : isApplied
+                      ? "Applied"
+                      : job.canApply === false
+                        ? "Apply unavailable"
+                        : "Apply now";
 
                     return (
                       <div
@@ -1856,18 +1950,30 @@ const CandidateDashboard = () => {
                         >
                           {isExpanded ? "Hide details" : "View details"}
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void applyToJob(job._id);
-                          }}
-                          disabled={job.canApply === false || isApplied || applyLoadingJobId === job._id}
-                          title={job.canApply === false ? job.applyDisabledReason || "Applications are not available for this opening yet." : undefined}
-                          className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-                          style={isApplied ? { background: "#69a44f" } : { background: JOBS_HERO_GRADIENT }}
-                        >
-                          {applyLabel}
-                        </button>
+                        {isGated ? (
+                          // Never a plain disabled button: it must explain and lead to the fix.
+                          <button
+                            type="button"
+                            onClick={() => openProfileGate(jobsMeta?.applyGate)}
+                            className="flex-1 rounded-xl border-2 border-[#264a7f] bg-white px-4 py-2.5 text-sm font-semibold text-[#264a7f] transition hover:bg-[#264a7f]/5"
+                          >
+                            {applyLabel}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void applyToJob(job._id);
+                            }}
+                            disabled={job.canApply === false || Boolean(applyLoadingJobId)}
+                            aria-busy={isApplying}
+                            title={job.canApply === false && !isApplied ? job.applyDisabledReason || "Applications are not available for this opening yet." : undefined}
+                            className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                            style={isApplied ? { background: "#69a44f" } : { background: JOBS_HERO_GRADIENT }}
+                          >
+                            {applyLabel}
+                          </button>
+                        )}
                       </div>
                   </div>
                 );
@@ -2553,6 +2659,52 @@ const CandidateDashboard = () => {
                   </button>
                 </div>
               </div>
+
+              {gateStatus && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className={`rounded-lg border p-4 text-sm ${
+                    gateStatus.canApply
+                      ? "border-green-200 bg-green-50 text-green-900"
+                      : "border-amber-200 bg-amber-50 text-amber-900"
+                  }`}
+                >
+                  {gateStatus.canApply ? (
+                    <p className="font-semibold">
+                      You&apos;re at {gateStatus.score}% — you can now apply to jobs.{" "}
+                      <button type="button" className="underline" onClick={() => { setGateNotice(null); setTab("jobs"); }}>
+                        Back to jobs
+                      </button>
+                    </p>
+                  ) : (
+                    <>
+                      <p className="font-semibold">
+                        Your profile is at {gateStatus.score}%. You need {gateStatus.threshold}% and every required field to
+                        apply.
+                      </p>
+                      {gateStatus.missingRequired.length > 0 && (
+                        <>
+                          <p className="mt-2">Still required:</p>
+                          <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                            {gateStatus.missingRequired.map((item) => (
+                              <li key={item.key}>
+                                {item.label} <span className="text-amber-700">· +{item.weight}%</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                      {gateStatus.missingRequired.length === 0 && (
+                        <p className="mt-2">
+                          All required fields are done — add a photo, summary, project, certificate or video to reach{" "}
+                          {gateStatus.threshold}%.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
 
               <div className="rounded-lg border border-dashed border-border bg-background/60 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

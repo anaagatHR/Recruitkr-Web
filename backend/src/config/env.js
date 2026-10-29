@@ -72,6 +72,12 @@ const envSchema = z.object({
   // without a secret the form still works, protected by the honeypot field
   // and the per-IP rate limit only.
   TURNSTILE_SECRET_KEY: z.preprocess(emptyToUndefined, z.string().min(10).optional()),
+  // Profile-completion gate on POST /jobs/apply (audit P0-3). Off unless set to
+  // "true"/"1" so it can be enabled per environment: staging first, then prod.
+  FEATURE_APPLY_GATE: z.preprocess(
+    (value) => ['true', '1', 'yes'].includes(String(emptyToUndefined(value) ?? '').toLowerCase()),
+    z.boolean(),
+  ),
 });
 
 const parsed = envSchema.safeParse(process.env);

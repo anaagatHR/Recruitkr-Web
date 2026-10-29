@@ -55,3 +55,9 @@ export const listJobsQuerySchema = z
   })
   .strict();
 
+// GET /jobs/for-me (authenticated candidate feed): same filters, plus
+// excludeApplied to drop jobs the candidate already applied to before paginating.
+export const listCandidateJobsQuerySchema = listJobsQuerySchema
+  .omit({ complete: true })
+  .extend({ excludeApplied: z.enum(['1', '0', 'true', 'false']).optional() });
+
