@@ -4,7 +4,11 @@ import { CandidateProfile } from '../models/CandidateProfile.js';
 import { ClientProfile } from '../models/ClientProfile.js';
 import { Resume } from '../models/Resume.js';
 import { User } from '../models/User.js';
-import { syncCandidateLegacyFields, toCandidateProfileResponse } from '../services/candidateProfile.service.js';
+import {
+  refreshProfileCompletion,
+  syncCandidateLegacyFields,
+  toCandidateProfileResponse,
+} from '../services/candidateProfile.service.js';
 import { deleteImageKitFile, uploadBufferToImageKit } from '../services/imagekit.js';
 import { buildGeneratedResumeData } from '../services/resume.service.js';
 import { indexCandidate, isSolrConfigured } from '../services/solr.service.js';
@@ -181,6 +185,10 @@ export const updateCandidateProfile = asyncHandler(async (req, res) => {
 
   // Phone lives on the User (signup, apply snapshot and resume all read User.mobile).
   if (body.mobile !== undefined && body.mobile !== user.mobile) {
+    // Soft flag only (audit §4.1): families share numbers, so never block.
+    if (await User.exists({ mobile: body.mobile, _id: { $ne: req.user.id } })) {
+      console.warn('[profile] mobile number already used by another account — review', { userId: req.user.id });
+    }
     await User.updateOne({ _id: req.user.id }, { $set: { mobile: body.mobile } });
     user.mobile = body.mobile;
   }
@@ -262,6 +270,7 @@ export const updateCandidateProfile = asyncHandler(async (req, res) => {
   syncCandidateLegacyFields({ profile, user, resumeLocation });
 
   await profile.save();
+  const completion = await refreshProfileCompletion(req.user.id);
 
   // Keep the recruiter-facing Solr candidate index in sync. Fire-and-forget:
   // Solr failures are swallowed inside the service so Mongo stays source of truth.
@@ -269,7 +278,11 @@ export const updateCandidateProfile = asyncHandler(async (req, res) => {
     void indexCandidate(profile.toObject ? profile.toObject() : profile);
   }
 
-  res.json({ success: true, data: toCandidateProfileResponse(profile, user) });
+  res.json({ success: true, data: toCandidateProfileResponse(profile, user), meta: { completion } });
+});
+
+export const getCandidateProfileCompletion = asyncHandler(async (req, res) => {
+  res.json({ success: true, data: await refreshProfileCompletion(req.user.id) });
 });
 
 export const getClientProfile = asyncHandler(async (req, res) => {
@@ -414,6 +427,7 @@ export const uploadCandidateVideo = asyncHandler(async (req, res) => {
 
   profile.videos.push(video);
   await profile.save();
+  await refreshProfileCompletion(req.user.id);
 
   const created = profile.videos[profile.videos.length - 1];
   res.status(StatusCodes.CREATED).json({ success: true, data: serializeVideo(created) });
@@ -434,6 +448,7 @@ export const deleteCandidateVideo = asyncHandler(async (req, res) => {
   const fileId = String(video.fileId || '').trim();
   video.deleteOne();
   await profile.save();
+  await refreshProfileCompletion(req.user.id);
 
   if (fileId) {
     try {

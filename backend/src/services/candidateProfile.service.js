@@ -12,6 +12,11 @@
  * this database and may read them. Nothing in this repo reads them, and they
  * are stripped from API responses.
  */
+import { CandidateFile } from '../models/CandidateFile.js';
+import { CandidateProfile } from '../models/CandidateProfile.js';
+import { Resume } from '../models/Resume.js';
+import { User } from '../models/User.js';
+import { computeProfileCompletion, meaningful } from '../shared/profileCompletion.js';
 import { isIndianMobile, normalizeIndianMobile } from '../utils/mobile.js';
 
 export const LEGACY_MIRROR_FIELDS = [
@@ -50,13 +55,43 @@ export const toCandidateProfileResponse = (profile, user) => {
   return data;
 };
 
-// Placeholder strings older code wrote instead of leaving a field empty.
-const SENTINELS = new Set(['not specified', 'not provided', 'candidate', 'n/a', 'na', '-', '000000']);
 const LEGACY_DEFAULT_DOB = Date.parse('2000-01-01T00:00:00.000Z');
 
-export const meaningful = (value) => {
-  const text = typeof value === 'string' ? value.trim() : '';
-  return text && !SENTINELS.has(text.toLowerCase()) ? text : '';
+/**
+ * Recompute a candidate's completion from the database and persist it on the
+ * profile when it changed. Called after every write that can change the score
+ * (profile PATCH, photo, certificate and video upload/delete) and on read, so a
+ * stale PROFILE_COMPLETION_VERSION heals itself. Returns the full result.
+ */
+export const refreshProfileCompletion = async (userId) => {
+  const [profile, user, resume, certificateFileCount] = await Promise.all([
+    CandidateProfile.findOne({ userId }).lean(),
+    User.findById(userId).select('email mobile').lean(),
+    Resume.findOne({ candidateUserId: userId }).select('resumeType resumeFileId').lean(),
+    CandidateFile.countDocuments({ candidateUserId: userId, kind: 'certificate' }),
+  ]);
+  const result = computeProfileCompletion({ profile: profile || {}, user: user || {}, resume, certificateFileCount });
+
+  if (
+    profile &&
+    (profile.profileCompletionScore !== result.score ||
+      profile.profileCompletionVersion !== result.version ||
+      profile.profileCanApply !== result.canApply)
+  ) {
+    await CandidateProfile.updateOne(
+      { _id: profile._id },
+      {
+        $set: {
+          profileCompletionScore: result.score,
+          profileCompletionVersion: result.version,
+          profileCanApply: result.canApply,
+          profileCompletionComputedAt: new Date(),
+        },
+      },
+      { timestamps: false },
+    );
+  }
+  return result;
 };
 
 /**

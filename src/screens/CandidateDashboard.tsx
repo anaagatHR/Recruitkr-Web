@@ -1061,6 +1061,7 @@ const CandidateDashboard = () => {
               },
       );
       setResumeFile(null);
+      void refreshDashboard().catch(() => {}); // completion score is recomputed server-side on save
       setResumeNotice(
         resumeFile
           ? "Resume PDF uploaded and saved successfully."
@@ -1110,6 +1111,7 @@ const CandidateDashboard = () => {
       setProfile(res.data);
       syncResumeFormFromProfile(res.data);
       setActiveProfileField(null);
+      void refreshDashboard().catch(() => {});
       setResumeNotice("Resume saved successfully.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save profile");

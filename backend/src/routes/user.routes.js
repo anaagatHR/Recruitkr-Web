@@ -13,6 +13,7 @@ import {
   deleteCandidateVideo,
   deleteClientProfileImage,
   getCandidateProfile,
+  getCandidateProfileCompletion,
   getClientProfileImage,
   getClientProfile,
   getMe,
@@ -30,6 +31,12 @@ const router = Router();
 
 router.get('/me', requireAuth, getMe);
 router.get('/candidate/me', requireAuth, requireRole('candidate'), getCandidateProfile);
+router.get(
+  '/candidate/profile-completion',
+  requireAuth,
+  requireRole('candidate'),
+  getCandidateProfileCompletion,
+);
 router.patch(
   '/candidate/me',
   requireAuth,

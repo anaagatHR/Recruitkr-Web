@@ -108,6 +108,12 @@ const candidateProfileSchema = new mongoose.Schema(
     workModes: { type: [String], default: [] },
     declarationAccepted: { type: Boolean, default: false },
     representationAuthorized: { type: Boolean, default: false },
+    // Persisted output of shared/profileCompletion.js; written only by
+    // refreshProfileCompletion (candidateProfile.service.js).
+    profileCompletionScore: { type: Number, default: 0 },
+    profileCompletionVersion: { type: Number, default: 0 },
+    profileCanApply: { type: Boolean, default: false },
+    profileCompletionComputedAt: { type: Date },
   },
   { timestamps: true },
 );

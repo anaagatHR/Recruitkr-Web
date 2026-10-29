@@ -2,6 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 
 import { CandidateFile } from '../models/CandidateFile.js';
 import { CandidateProfile } from '../models/CandidateProfile.js';
+import { refreshProfileCompletion } from '../services/candidateProfile.service.js';
 import { deleteImageKitFile, uploadBufferToImageKit } from '../services/imagekit.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -34,6 +35,7 @@ export const uploadMyProfilePhoto = asyncHandler(async (req, res) => {
   profile.profilePhotoUrl = asset.url;
   profile.profilePhotoFileId = asset.fileId;
   await profile.save();
+  await refreshProfileCompletion(req.user.id);
 
   res.status(StatusCodes.CREATED).json({
     success: true,
@@ -78,6 +80,7 @@ export const deleteMyProfilePhoto = asyncHandler(async (req, res) => {
   profile.profilePhotoUrl = '';
   profile.profilePhotoFileId = '';
   await profile.save();
+  await refreshProfileCompletion(req.user.id);
   res.json({ success: true, message: 'Profile photo removed' });
 });
 
@@ -104,6 +107,7 @@ export const uploadMyCertificate = asyncHandler(async (req, res) => {
     size: req.file.size,
     type: req.file.mimetype,
   });
+  await refreshProfileCompletion(req.user.id);
 
   res.status(StatusCodes.CREATED).json({
     success: true,
@@ -173,5 +177,6 @@ export const deleteMyCertificate = asyncHandler(async (req, res) => {
   }
 
   await CandidateFile.deleteOne({ _id: file._id }).exec();
+  await refreshProfileCompletion(req.user.id);
   res.json({ success: true, message: 'Certificate deleted' });
 });
