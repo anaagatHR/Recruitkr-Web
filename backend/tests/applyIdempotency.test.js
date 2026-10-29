@@ -90,6 +90,22 @@ describe('duplicate-key errors', () => {
   });
 });
 
+describe('applyJobSchema (review sheet fields)', async () => {
+  const { applyJobSchema } = await import('../src/schemas/application.schema.js');
+  const jobId = 'a'.repeat(24);
+
+  it('accepts a bare jobId (older clients) and the optional note + consent', () => {
+    assert.equal(applyJobSchema.safeParse({ jobId }).success, true);
+    assert.equal(applyJobSchema.safeParse({ jobId, note: 'Available immediately', declarationAccepted: true }).success, true);
+  });
+
+  it('rejects a note over 300 chars, consent other than true, and unknown keys', () => {
+    assert.equal(applyJobSchema.safeParse({ jobId, note: 'x'.repeat(301) }).success, false);
+    assert.equal(applyJobSchema.safeParse({ jobId, declarationAccepted: false }).success, false);
+    assert.equal(applyJobSchema.safeParse({ jobId, score: 99 }).success, false);
+  });
+});
+
 describe('Application indexes', () => {
   const indexes = Application.schema.indexes();
   const find = (keys) => indexes.find(([fields]) => JSON.stringify(fields) === JSON.stringify(keys));

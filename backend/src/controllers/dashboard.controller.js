@@ -28,7 +28,8 @@ export const candidateDashboard = asyncHandler(async (req, res) => {
   const interviewCalls = applications.filter((a) => a.status === 'interview').length;
   const offers = applications.filter((a) => a.status === 'offer' || a.status === 'hired').length;
   // Was a hardcoded 72 for any profile (audit P0-2).
-  const { fields: _fields, ...completion } = await refreshProfileCompletion(req.user.id);
+  // Includes per-field points so the completion ring can draw its four segments.
+  const completion = await refreshProfileCompletion(req.user.id);
 
   res.json({
     success: true,

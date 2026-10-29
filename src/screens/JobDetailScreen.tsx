@@ -82,7 +82,7 @@ export default function JobDetailScreen({ initialJob = null }: { initialJob?: Jo
           title: "Complete your profile to apply",
           description: "Employers need your name, phone, skills and resume. Finish your profile, then apply.",
         });
-        navigate("/dashboard/candidate");
+        navigate("/dashboard/candidate?tab=profile");
         return;
       }
       // Session expired / not authenticated — send them to log in, then back here.

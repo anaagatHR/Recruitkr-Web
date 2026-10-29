@@ -10,13 +10,17 @@ import DashboardLayout, { type DashboardNavItem } from "@/components/DashboardLa
 import SearchBar from "@/components/search/SearchBar";
 import StatCard from "@/components/dashboard/StatCard";
 import { fetchJobSuggestions } from "@/lib/search";
-import { applyToJobRequest } from "@/lib/jobs";
+import { applyToJobRequest, PLACEHOLDER_LOCATION, scoreJobMatch } from "@/lib/jobs";
 import { API_BASE, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { ApiClientError } from "@/lib/apiError";
 import { clearSession, getSession } from "@/lib/auth";
 import { useServerEvents, type SseConnectionStatus } from "@/hooks/useServerEvents";
 import { tryAutoLogin } from "@/lib/autoLogin";
 import { useTabHistory } from "@/hooks/useTabHistory";
+import { useToast } from "@/hooks/use-toast";
+import ApplyReviewDialog from "@/components/dashboard/ApplyReviewDialog";
+import ProfileCompletionCard from "@/components/dashboard/ProfileCompletionCard";
+import { computeProfileCompletion, type CompletionField, type CompletionResult } from "@/lib/profileCompletion";
 import { uploadFile, uploadRules, validateUploadFile } from "@/lib/uploadFile";
 import Messages from "./Messages";
 const JOBS_PAGE_LIMIT = 20;
@@ -24,6 +28,28 @@ const JOBS_PAGE_LIMIT = 20;
 // so meta.total matches what the page shows (audit P1-2).
 const candidateJobsUrl = (page: number) => `/jobs/for-me?page=${page}&limit=${JOBS_PAGE_LIMIT}&excludeApplied=true`;
 const GATE_INTRO_DISMISSED_KEY = "rk-apply-gate-intro-dismissed-v1";
+
+// Completion checklist item -> the editor control it should focus.
+const FIELD_CONTROL_IDS: Record<string, string> = {
+  fullName: "cp-full-name",
+  phone: "cp-phone",
+  qualification: "cp-qualification",
+  experienceStatus: "cp-experience-status",
+  summary: "cp-summary",
+  skills: "cp-skills",
+  preferredRole: "cp-preferred-role",
+  preferredLocation: "cp-preferred-location",
+  preferredIndustry: "cp-preferred-industry",
+  workModes: "cp-workmode-On-site",
+  resume: "cp-resume-file",
+  photo: "cp-photo-file",
+  certifications: "cp-certificate-file",
+  projects: "cp-add-project",
+  introVideo: "cp-videos",
+};
+
+const DASHBOARD_TABS = ["overview", "jobs", "applications", "messages", "profile", "preview"] as const;
+type DashboardTab = (typeof DASHBOARD_TABS)[number];
 
 // Stable empty values so memo/effect dependencies don't change every render.
 const EMPTY_APPLICATIONS: CandidateApplicationsResponse["data"] = [];
@@ -177,11 +203,13 @@ const INTERVIEW_MODE_LABELS: Record<NonNullable<InterviewDetails["mode"]>, strin
   other: "Other",
 };
 
-const LIVE_STATUS_META: Record<SseConnectionStatus, { label: string; className: string }> = {
-  connecting: { label: "Live connecting", className: "border-amber-200 bg-amber-50 text-amber-700" },
-  connected: { label: "Live connected", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-  reconnecting: { label: "Live reconnecting", className: "border-sky-200 bg-sky-50 text-sky-700" },
-  disconnected: { label: "Live disconnected", className: "border-slate-200 bg-slate-100 text-slate-600" },
+// The chip must never claim "Live" while the dashboard is failing to load (audit §6.6).
+const LIVE_STATUS_META: Record<SseConnectionStatus | "degraded", { label: string; className: string }> = {
+  connecting: { label: "Connecting…", className: "border-amber-200 bg-amber-50 text-amber-800" },
+  connected: { label: "Live", className: "border-emerald-200 bg-emerald-50 text-emerald-800" },
+  reconnecting: { label: "Reconnecting…", className: "border-amber-200 bg-amber-50 text-amber-800" },
+  disconnected: { label: "Offline — updates paused", className: "border-slate-300 bg-slate-100 text-slate-700" },
+  degraded: { label: "Having trouble loading", className: "border-red-200 bg-red-50 text-red-700" },
 };
 
 const PROFILE_STATUS_LABELS: Record<ApplicationStatus, string> = {
@@ -368,7 +396,11 @@ type CandidateDashboardResponse = {
       offersReceived: number;
       profileCompletion: number;
     };
-    completion?: ProfileGateSummary & { gateEnabled: boolean; missingOptional: MissingProfileField[] };
+    completion?: ProfileGateSummary & {
+      gateEnabled: boolean;
+      missingOptional: MissingProfileField[];
+      fields: CompletionField[];
+    };
     applications: Array<{
       _id: string;
       status: ApplicationStatus;
@@ -554,19 +586,31 @@ type EditableProfileField =
 
 const CandidateDashboard = () => {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"overview" | "jobs" | "applications" | "messages" | "resume" | "profile">("overview");
-  // Back button (incl. phone) steps through tabs, leaving the page from Overview.
-  useTabHistory(tab, setTab, "overview");
+  // "profile" is the editor and "preview" the read-only employer view (audit P2-1:
+  // they used to be labelled the other way round).
+  const [tab, setTab] = useState<DashboardTab>("overview");
+  // Back button (incl. phone) steps through tabs, leaving the page from Overview;
+  // ?tab= makes each tab linkable (audit P2-4).
+  useTabHistory(tab, setTab, "overview", { urlParam: "tab", validTabs: DASHBOARD_TABS });
   const [chatApplicationId, setChatApplicationId] = useState<string | null>(null);
-  const [error, setError] = useState("");
+  const { toast } = useToast();
+  // Other action failures (uploads, downloads, logout) become a toast that stays
+  // until dismissed — the global "Backend is unavailable" banner is gone (audit P0-6).
+  const setError = (message: string) => {
+    if (message) toast({ variant: "destructive", title: "That didn't work", description: message, duration: Infinity });
+  };
   const [currentJobsPage, setCurrentJobsPage] = useState(1);
   const [jobSearch, setJobSearch] = useState("");
   const [jobTypeFilter, setJobTypeFilter] = useState("all");
   const [jobLocationFilter, setJobLocationFilter] = useState("all");
   const [jobReadinessFilter, setJobReadinessFilter] = useState<"all" | "ready">("all");
+  const [jobSort, setJobSort] = useState<"newest" | "match">("newest");
   const [applyLoadingJobId, setApplyLoadingJobId] = useState<string | null>(null);
-  // What blocked the last apply (server 422 PROFILE_INCOMPLETE), shown above the editor.
-  const [gateNotice, setGateNotice] = useState<ProfileGateSummary | null>(null);
+  // Apply review sheet: the job being reviewed and that attempt's error (audit §6.4).
+  const [reviewJob, setReviewJob] = useState<JobsResponse["data"][number] | null>(null);
+  const [applyError, setApplyError] = useState("");
+  // Save failures are shown next to the Save button, not in a global banner.
+  const [saveError, setSaveError] = useState("");
   // Starts true so SSR and first paint match; the real value is read after mount.
   const [gateIntroDismissed, setGateIntroDismissed] = useState(true);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
@@ -617,7 +661,7 @@ const CandidateDashboard = () => {
     placeholderData: keepPreviousData,
   });
   // Certificates are only shown in the editor: fetched on first visit, not on load.
-  const certificatesQuery = useQuery({ ...certificatesQueryOptions, enabled: isCandidateSession && tab === "resume" });
+  const certificatesQuery = useQuery({ ...certificatesQueryOptions, enabled: isCandidateSession && tab === "profile" });
 
   const loading = isCandidateSession && dashboardQuery.isPending;
   const dashboard = dashboardQuery.data ?? null;
@@ -840,14 +884,17 @@ const CandidateDashboard = () => {
   );
 
   const jobLocationOptions = useMemo(
-    () => Array.from(new Set(jobs.map((job) => job.jobLocation).filter(Boolean))).sort(),
+    () =>
+      Array.from(
+        new Set(jobs.map((job) => job.jobLocation?.trim()).filter((location) => location && location !== PLACEHOLDER_LOCATION)),
+      ).sort(),
     [jobs],
   );
 
   const filteredJobs = useMemo(() => {
     const query = jobSearch.trim().toLowerCase();
 
-    return jobs.filter((job) => {
+    const matching = jobs.filter((job) => {
       const matchesQuery =
         !query ||
         [
@@ -862,14 +909,26 @@ const CandidateDashboard = () => {
           .some((value) => String(value).toLowerCase().includes(query));
 
       const matchesType = jobTypeFilter === "all" || job.employmentType === jobTypeFilter;
-      const matchesLocation = jobLocationFilter === "all" || job.jobLocation === jobLocationFilter;
+      const matchesLocation = jobLocationFilter === "all" || job.jobLocation?.trim() === jobLocationFilter;
       const matchesReadiness =
         jobReadinessFilter === "all" ||
         (jobReadinessFilter === "ready" && job.canApply !== false);
 
       return matchesQuery && matchesType && matchesLocation && matchesReadiness;
     });
-  }, [jobLocationFilter, jobReadinessFilter, jobSearch, jobTypeFilter, jobs]);
+
+    if (jobSort !== "match") return matching;
+    const prefs = {
+      preferredRole: profile?.preferences?.preferredRole,
+      preferredLocation: profile?.preferences?.preferredLocation,
+      skills: profile?.skills,
+    };
+    // Stable sort: equal scores keep the newest-first order from the server.
+    return matching
+      .map((job, index) => ({ job, index, score: scoreJobMatch(job, prefs) }))
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .map((entry) => entry.job);
+  }, [jobLocationFilter, jobReadinessFilter, jobSearch, jobSort, jobTypeFilter, jobs, profile]);
 
   const readyToApplyCount = useMemo(() => jobs.filter((job) => job.canApply !== false).length, [jobs]);
 
@@ -946,43 +1005,85 @@ const CandidateDashboard = () => {
     ];
   }, [selectedApplication?.status]);
 
-  // Send the candidate to the editor with the list of what still blocks applying.
-  const openProfileGate = (summary?: Partial<ProfileGateSummary> | null) => {
-    const source = summary?.missingRequired ? summary : dashboard?.completion;
-    setGateNotice({
-      score: source?.score ?? 0,
-      threshold: source?.threshold ?? 70,
-      canApply: false,
-      missingRequired: source?.missingRequired ?? [],
-    });
-    setTab("resume");
+  // The ring in the editor recomputes from unsaved edits with the server's own
+  // scoring function, so it moves as the candidate types (display only — the
+  // server re-derives the score before letting anyone apply).
+  const liveCompletion = useMemo((): CompletionResult | null => {
+    if (!profile) return null;
+    return computeProfileCompletion({
+      profile: {
+        ...profile,
+        fullName: resumeForm.fullName,
+        college: resumeForm.college,
+        highestQualification: resumeForm.highestQualification,
+        experienceStatus: resumeForm.experienceStatus,
+        experience: resumeForm.experience,
+        summary: resumeForm.summary,
+        skills: resumeForm.skillsText.split(","),
+        preferences: resumeForm.preferences,
+        projects: resumeForm.projects,
+        certifications: resumeForm.certifications,
+      },
+      user: { email: sessionState?.user.email, mobile: resumeForm.phone },
+      resume: resumeFile ? { resumeType: "uploaded", resumeFileId: "pending-upload" } : resumeMeta,
+      certificateFileCount: certificates.length,
+    }) as CompletionResult;
+  }, [profile, resumeForm, resumeFile, resumeMeta, certificates, sessionState]);
+
+  // Open the editor and move focus straight to the control for a checklist item
+  // (audit §6.2). Runs after the tab renders so the target exists.
+  const focusProfileField = (key: string) => {
+    setTab("profile");
+    window.setTimeout(() => {
+      const id =
+        key === "experienceDetail"
+          ? resumeForm.experienceStatus !== "experienced"
+            ? "cp-experience-status"
+            : resumeForm.experience.length
+              ? "cp-exp-0-company"
+              : "cp-add-job"
+          : FIELD_CONTROL_IDS[key];
+      const target = id ? document.getElementById(id) : null;
+      if (!target) return;
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      target.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+      target.focus({ preventScroll: true });
+    }, 0);
   };
 
-  const applyToJob = async (jobId: string) => {
+  // Blocked from applying: take the candidate to the first thing still missing.
+  const openProfileGate = (summary?: Partial<ProfileGateSummary> | null) => {
+    const first = summary?.missingRequired?.[0]?.key ?? dashboard?.completion?.missingRequired?.[0]?.key;
+    if (first) focusProfileField(first);
+    else setTab("profile");
+  };
+
+  const applyToJob = async (job: JobsResponse["data"][number], note: string) => {
     if (applyLoadingJobId) return;
-    setApplyLoadingJobId(jobId);
-    setError("");
+    setApplyLoadingJobId(job._id);
+    setApplyError("");
     try {
-      await applyToJobRequest(jobId);
+      await applyToJobRequest(job._id, { note, declarationAccepted: true });
+      setReviewJob(null);
+      toast({ title: "Application sent", description: `Applied to ${job.jobTitle}. The employer can now message you.` });
       await Promise.all([refreshDashboard(), refreshApplications(), refreshJobs()]);
       // The application now lives as a chat thread with the employer.
       openChat();
     } catch (err) {
       if (err instanceof ApiClientError && err.code === "PROFILE_INCOMPLETE") {
+        setReviewJob(null);
         openProfileGate(err.data as Partial<ProfileGateSummary>);
         return;
       }
       if (err instanceof ApiClientError && err.code === "ALREADY_APPLIED") {
         void Promise.all([refreshApplications(), refreshJobs()]);
       }
-      setError(err instanceof Error ? err.message : "Failed to apply");
+      // Shown inside the sheet; resubmitting reuses the same idempotency key, so it is safe.
+      setApplyError(err instanceof Error ? err.message : "We couldn't send your application.");
     } finally {
       setApplyLoadingJobId(null);
     }
   };
-
-  // Live view of the gate once it has been shown: refreshes as saves recompute the score.
-  const gateStatus = gateNotice ? (dashboard?.completion ?? gateNotice) : null;
 
   useEffect(() => {
     try {
@@ -1003,7 +1104,7 @@ const CandidateDashboard = () => {
 
   const saveResume = async () => {
     setResumeSaving(true);
-    setError("");
+    setSaveError("");
     setResumeNotice("");
     try {
       const skills = resumeForm.skillsText
@@ -1116,7 +1217,10 @@ const CandidateDashboard = () => {
       );
       void refreshResumeMeta();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save resume");
+      const message = err instanceof Error ? err.message : "We couldn't save your profile.";
+      setSaveError(message);
+      // Also called from the Preview tab's inline edits, where the inline error isn't visible.
+      if (tab !== "profile") setError(message);
     } finally {
       setResumeSaving(false);
     }
@@ -1462,8 +1566,8 @@ const CandidateDashboard = () => {
     { key: "jobs", label: "Find Jobs", icon: BriefcaseBusiness },
     { key: "applications", label: "Applied Jobs", icon: FileText },
     { key: "messages", label: "My Chat", icon: MessageSquare },
-    { key: "profile", label: "Profile", icon: UserCircle2 },
-    { key: "resume", label: "My Card", icon: Pencil },
+    { key: "profile", label: "Profile", icon: Pencil },
+    { key: "preview", label: "Preview", icon: UserCircle2 },
   ];
 
   const profileSummaryCards = [
@@ -1568,20 +1672,32 @@ const CandidateDashboard = () => {
       userLabel={profile?.fullName || sessionState?.user.email}
       headerExtra={
         <span
-          className={`hidden rounded-full border px-3 py-1 text-xs font-semibold sm:inline-flex ${LIVE_STATUS_META[liveStatus].className}`}
+          className={`hidden rounded-full border px-3 py-1 text-xs font-semibold sm:inline-flex ${LIVE_STATUS_META[loadErrorMessage ? "degraded" : liveStatus].className}`}
         >
-          {LIVE_STATUS_META[liveStatus].label}
+          {LIVE_STATUS_META[loadErrorMessage ? "degraded" : liveStatus].label}
         </span>
       }
     >
-        {(error || loadErrorMessage) && (
-          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-            {error || loadErrorMessage}
-          </p>
+        {/* Only loading failures live here, with a way to retry; action errors are
+            shown next to the control that failed (or as a dismissible toast). */}
+        {loadErrorMessage && (
+          <div
+            role="alert"
+            className="mb-4 flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p>We couldn&apos;t load part of your dashboard. {loadErrorMessage}</p>
+            <button
+              type="button"
+              onClick={() => void queryClient.refetchQueries({ queryKey: candidateKeys.all, type: "active" })}
+              className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1.5 font-semibold"
+            >
+              Retry
+            </button>
+          </div>
         )}
 
         {/* One-time explainer for the apply gate, so existing candidates aren't silently locked out. */}
-        {dashboard?.completion?.gateEnabled && !dashboard.completion.canApply && !gateIntroDismissed && tab !== "resume" && (
+        {dashboard?.completion?.gateEnabled && !dashboard.completion.canApply && !gateIntroDismissed && tab !== "profile" && (
           <div
             role="region"
             aria-label="Profile required to apply"
@@ -1652,7 +1768,8 @@ const CandidateDashboard = () => {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/75 sm:text-xs">RecruitKr Candidate Space</p>
                   <h1 className="mt-2 font-heading text-2xl font-bold text-white break-words sm:mt-3 sm:text-3xl md:text-4xl">
-                    Welcome, {profile?.fullName || sessionState?.user.email}
+                    {/* Greet by first name, never by email address (audit P2-7). */}
+                    {profile?.fullName?.trim() ? `Welcome, ${profile.fullName.trim().split(/\s+/)[0]}` : "Welcome to RecruitKr"}
                   </h1>
                   <p className="mt-3 max-w-2xl text-sm text-white/80 md:text-base">
                     Keep your applications moving, stay ready for interviews, and make your profile recruiter-ready.
@@ -1726,6 +1843,18 @@ const CandidateDashboard = () => {
               />
             </div>
 
+            {dashboard?.completion?.fields && (
+              <ProfileCompletionCard
+                score={dashboard.completion.score}
+                threshold={dashboard.completion.threshold}
+                canApply={dashboard.completion.canApply}
+                fields={dashboard.completion.fields}
+                headingId="overview-completion"
+                onSelectField={focusProfileField}
+                onBrowseJobs={() => setTab("jobs")}
+              />
+            )}
+
             {/* Recent activity */}
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.05)] dark:border-border dark:bg-card">
               <div className="mb-4 flex items-center justify-between">
@@ -1776,7 +1905,8 @@ const CandidateDashboard = () => {
           <div className="space-y-4 sm:space-y-5">
             <div className="space-y-4">
               <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)] sm:p-5">
-                <div className="grid gap-3 md:grid-cols-[1.4fr,1fr,1fr,auto]">
+                <h2 className="sr-only">Find jobs</h2>
+                <div className="grid gap-3 md:grid-cols-[1.4fr,1fr,1fr,1fr,auto]">
                   <SearchBar
                     value={jobSearch}
                     onChange={setJobSearch}
@@ -1788,9 +1918,10 @@ const CandidateDashboard = () => {
                   <label className="relative block">
                     <MapPin className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <select
+                      aria-label="Filter by location"
                       value={jobLocationFilter}
                       onChange={(event) => setJobLocationFilter(event.target.value)}
-                      className="w-full appearance-none rounded-xl border border-[#264a7f]/12 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-700 outline-none"
+                      className="w-full appearance-none rounded-xl border border-[#264a7f]/12 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#264a7f]"
                     >
                       <option value="all">All locations</option>
                       {jobLocationOptions.map((option) => (
@@ -1804,9 +1935,10 @@ const CandidateDashboard = () => {
                   <label className="relative block">
                     <BriefcaseBusiness className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <select
+                      aria-label="Filter by job type"
                       value={jobTypeFilter}
                       onChange={(event) => setJobTypeFilter(event.target.value)}
-                      className="w-full appearance-none rounded-xl border border-[#264a7f]/12 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-700 outline-none"
+                      className="w-full appearance-none rounded-xl border border-[#264a7f]/12 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#264a7f]"
                     >
                       <option value="all">All job types</option>
                       {jobTypeOptions.map((option) => (
@@ -1816,6 +1948,16 @@ const CandidateDashboard = () => {
                       ))}
                     </select>
                   </label>
+
+                  <select
+                    aria-label="Sort jobs"
+                    value={jobSort}
+                    onChange={(event) => setJobSort(event.target.value === "match" ? "match" : "newest")}
+                    className="w-full rounded-xl border border-[#264a7f]/12 bg-slate-50 px-4 py-3 text-sm text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#264a7f]"
+                  >
+                    <option value="newest">Newest first</option>
+                    <option value="match">Best match for me</option>
+                  </select>
 
                   <button
                     type="button"
@@ -1850,57 +1992,70 @@ const CandidateDashboard = () => {
                     : isApplied
                       ? "Applied"
                       : job.canApply === false
-                        ? "Apply unavailable"
+                        ? "Closed"
                         : "Apply now";
+                // Hide placeholders instead of rendering them as data (audit P2-2).
+                const company = job.companyName?.trim() || job.sourceLabel || "";
+                const location = job.jobLocation?.trim() !== PLACEHOLDER_LOCATION ? job.jobLocation?.trim() : "";
+                const salary =
+                  job.maxCtcLpa > 0
+                    ? job.minCtcLpa > 0 && job.minCtcLpa !== job.maxCtcLpa
+                      ? `${job.minCtcLpa}–${job.maxCtcLpa} LPA`
+                      : `${job.maxCtcLpa} LPA`
+                    : "";
+                const chips = [job.department, job.experienceRequired, job.qualification].filter((value) => value?.trim());
+                const meta = [location, job.employmentType !== "Not specified" ? job.employmentType : ""].filter(Boolean);
 
                     return (
-                      <div
+                      <article
                         key={job._id}
-                        className="group rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all hover:-translate-y-0.5 hover:border-[#264a7f]/25 hover:shadow-md sm:p-5"
+                        aria-labelledby={`job-${job._id}-title`}
+                        className="group rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all hover:-translate-y-0.5 hover:border-[#264a7f]/25 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-5"
                       >
                       <div className="flex items-start gap-3.5">
                         <div
+                          aria-hidden="true"
                           className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-extrabold text-white shadow-sm"
                           style={{ background: JOBS_HERO_GRADIENT }}
                         >
-                          {(job.companyName || job.jobTitle || "?").charAt(0).toUpperCase()}
+                          {(company || job.jobTitle || "?").charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="line-clamp-1 text-[15px] font-bold text-slate-900">
+                            <h3 id={`job-${job._id}-title`} className="line-clamp-1 text-[15px] font-bold text-slate-900">
                               {job.jobTitle || "Job Opening"}
                             </h3>
-                            <span className="shrink-0 rounded-full bg-[#69a44f]/10 px-2.5 py-0.5 text-xs font-bold text-[#4d7a38]">
-                              {job.minCtcLpa || 0}–{job.maxCtcLpa || 0} LPA
-                            </span>
+                            {salary && (
+                              <span className="shrink-0 rounded-full bg-[#69a44f]/10 px-2.5 py-0.5 text-xs font-bold text-[#4d7a38]">
+                                {salary}
+                              </span>
+                            )}
                           </div>
-                          <p className="mt-0.5 truncate text-sm font-medium text-slate-600">
-                            {job.companyName || "Company not shared"}
-                          </p>
-                          <p className="mt-0.5 flex items-center gap-1.5 truncate text-[13px] text-slate-500">
-                            <MapPin size={13} className="shrink-0" />
-                            {job.jobLocation || "Location not shared"} • {job.employmentType || "Job type pending"}
-                          </p>
+                          {company && <p className="mt-0.5 truncate text-sm font-medium text-slate-600">{company}</p>}
+                          {meta.length > 0 && (
+                            <p className="mt-0.5 flex items-center gap-1.5 truncate text-[13px] text-slate-500">
+                              <MapPin size={13} className="shrink-0" aria-hidden="true" />
+                              {meta.join(" • ")}
+                            </p>
+                          )}
                         </div>
                       </div>
 
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-                        <span className="rounded-full bg-slate-100 px-3 py-1">
-                          {job.department || "Department pending"}
-                        </span>
-                        <span className="rounded-full bg-slate-100 px-3 py-1">
-                          {job.experienceRequired || "Experience pending"}
-                        </span>
-                        <span className="rounded-full bg-slate-100 px-3 py-1">
-                          {job.qualification || "Qualification pending"}
-                        </span>
-                      </div>
+                      {chips.length > 0 && (
+                        <ul className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600" aria-label="Requirements">
+                          {chips.map((chip) => (
+                            <li key={chip} className="rounded-full bg-slate-100 px-3 py-1">
+                              {chip}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
 
-                      <p className="mt-3 text-sm leading-6 text-slate-600">
-                        <span className={isExpanded ? "" : "line-clamp-2"}>
-                          {job.description || "No detailed description shared for this opening."}
-                        </span>
-                      </p>
+                      {job.description?.trim() && (
+                        <p className="mt-3 text-sm leading-6 text-slate-600">
+                          <span className={isExpanded ? "" : "line-clamp-2"}>{job.description}</span>
+                        </p>
+                      )}
 
                       {isExpanded && (
                         <div className="mt-3 grid gap-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
@@ -1932,7 +2087,8 @@ const CandidateDashboard = () => {
                           <button
                             type="button"
                             onClick={() => {
-                              void applyToJob(job._id);
+                              setApplyError("");
+                              setReviewJob(job);
                             }}
                             disabled={job.canApply === false || Boolean(applyLoadingJobId)}
                             aria-busy={isApplying}
@@ -1944,7 +2100,7 @@ const CandidateDashboard = () => {
                           </button>
                         )}
                       </div>
-                  </div>
+                  </article>
                 );
                   })}
                 </div>
@@ -2152,7 +2308,7 @@ const CandidateDashboard = () => {
 
 
 
-        {tab === "profile" && (
+        {tab === "preview" && (
           <section className="w-full">
             <div className="w-full">
               <div className="space-y-5 sm:space-y-6">
@@ -2225,7 +2381,7 @@ const CandidateDashboard = () => {
                                 }
                                 onBlur={() => void commitInlineProfileField("fullName")}
                                 onKeyDown={(e) => handleInlineInputKeyDown(e, () => commitInlineProfileField("fullName"))}
-                                className="mt-2 w-full rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-center text-xl font-bold text-slate-900 outline-none ring-0 md:text-left"
+                                className="mt-2 w-full rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-center text-xl font-bold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f] ring-0 md:text-left"
                               />
                             ) : (
                               <p className="mt-2 break-words text-2xl font-bold text-slate-900 md:truncate">
@@ -2233,7 +2389,7 @@ const CandidateDashboard = () => {
                               </p>
                             )}
                           </div>
-                          <Pencil size={16} className="hidden shrink-0 text-slate-400 opacity-0 transition group-hover:opacity-100 md:mt-6 md:block" />
+                          <button type="button" aria-label="Edit name" onClick={(e) => { e.stopPropagation(); setActiveProfileField("fullName"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                         </div>
                       </div>
 
@@ -2244,7 +2400,7 @@ const CandidateDashboard = () => {
                         </p>
                       </div>
 
-                      <p className="mt-3 text-sm text-slate-500">Upload a profile photo from the Resume tab.</p>
+                      <p className="mt-3 text-sm text-slate-500">This is how employers see you. Edit it in the Profile tab.</p>
                     </div>
                   </div>
                 </div>
@@ -2272,7 +2428,7 @@ const CandidateDashboard = () => {
                                   onKeyDown={(e) =>
                                     handleInlineInputKeyDown(e, () => commitResumeField("highestQualification"))
                                   }
-                                  className="mt-2 w-full rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none"
+                                  className="mt-2 w-full rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"
                                 />
                               ) : (
                                 <p className="mt-2 text-base font-semibold text-slate-900">
@@ -2280,7 +2436,7 @@ const CandidateDashboard = () => {
                                 </p>
                               )}
                             </div>
-                            <Pencil size={15} className="shrink-0 text-slate-400 opacity-0 transition group-hover:opacity-100" />
+                            <button type="button" aria-label="Edit qualification" onClick={(e) => { e.stopPropagation(); setActiveProfileField("highestQualification"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                           </div>
                         </div>
 
@@ -2306,7 +2462,7 @@ const CandidateDashboard = () => {
                                     onKeyDown={(e) =>
                                       handleInlineInputKeyDown(e, () => commitResumeField("experienceStatus"))
                                     }
-                                    className="w-full appearance-none rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold capitalize text-slate-900 outline-none"
+                                    className="w-full appearance-none rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold capitalize text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"
                                   >
                                     <option value="fresher">Fresher</option>
                                     <option value="experienced">Experienced</option>
@@ -2319,7 +2475,7 @@ const CandidateDashboard = () => {
                                 </p>
                               )}
                             </div>
-                            <Pencil size={15} className="shrink-0 text-slate-400 opacity-0 transition group-hover:opacity-100" />
+                            <button type="button" aria-label="Edit experience status" onClick={(e) => { e.stopPropagation(); setActiveProfileField("experienceStatus"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                           </div>
                         </div>
 
@@ -2342,7 +2498,7 @@ const CandidateDashboard = () => {
                                   }
                                   onBlur={() => void commitResumeField("preferredRole")}
                                   onKeyDown={(e) => handleInlineInputKeyDown(e, () => commitResumeField("preferredRole"))}
-                                  className="mt-2 w-full rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none"
+                                  className="mt-2 w-full rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"
                                 />
                               ) : (
                                 <p className="mt-2 text-base font-semibold text-slate-900">
@@ -2350,7 +2506,7 @@ const CandidateDashboard = () => {
                                 </p>
                               )}
                             </div>
-                            <Pencil size={15} className="shrink-0 text-slate-400 opacity-0 transition group-hover:opacity-100" />
+                            <button type="button" aria-label="Edit preferred role" onClick={(e) => { e.stopPropagation(); setActiveProfileField("preferredRole"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                           </div>
                         </div>
 
@@ -2375,7 +2531,7 @@ const CandidateDashboard = () => {
                                   onKeyDown={(e) =>
                                     handleInlineInputKeyDown(e, () => commitResumeField("preferredLocation"))
                                   }
-                                  className="mt-2 w-full rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none"
+                                  className="mt-2 w-full rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"
                                 />
                               ) : (
                                 <p className="mt-2 text-base font-semibold text-slate-900">
@@ -2385,7 +2541,7 @@ const CandidateDashboard = () => {
                                 </p>
                               )}
                             </div>
-                            <Pencil size={15} className="shrink-0 text-slate-400 opacity-0 transition group-hover:opacity-100" />
+                            <button type="button" aria-label="Edit preferred location" onClick={(e) => { e.stopPropagation(); setActiveProfileField("preferredLocation"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                           </div>
                         </div>
 
@@ -2403,7 +2559,7 @@ const CandidateDashboard = () => {
                                   value={resumeForm.summary}
                                   onChange={(e) => setResumeForm((p) => ({ ...p, summary: e.target.value }))}
                                   onBlur={() => void commitResumeField("summary")}
-                                  className="mt-2 w-full rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-sm leading-6 text-slate-700 outline-none"
+                                  className="mt-2 w-full rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-sm leading-6 text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"
                                 />
                               ) : (
                                 <p className="mt-2 text-sm leading-6 text-slate-700">
@@ -2411,7 +2567,7 @@ const CandidateDashboard = () => {
                                 </p>
                               )}
                             </div>
-                            <Pencil size={15} className="mt-0.5 shrink-0 text-slate-400 opacity-0 transition group-hover:opacity-100" />
+                            <button type="button" aria-label="Edit summary" onClick={(e) => { e.stopPropagation(); setActiveProfileField("summary"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                           </div>
                         </div>
                       </div>
@@ -2443,7 +2599,7 @@ const CandidateDashboard = () => {
                                   }
                                   onBlur={() => void commitInlineProfileField("linkedinUrl")}
                                   onKeyDown={(e) => handleInlineInputKeyDown(e, () => commitInlineProfileField("linkedinUrl"))}
-                                  className="mt-2 w-full rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none"
+                                  className="mt-2 w-full rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"
                                 />
                               ) : (
                                 <p className="mt-2 break-all text-base font-semibold text-slate-900">
@@ -2451,7 +2607,7 @@ const CandidateDashboard = () => {
                                 </p>
                               )}
                             </div>
-                            <Pencil size={15} className="shrink-0 text-slate-400 opacity-0 transition group-hover:opacity-100" />
+                            <button type="button" aria-label="Edit LinkedIn URL" onClick={(e) => { e.stopPropagation(); setActiveProfileField("linkedinUrl"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                           </div>
                         </div>
 
@@ -2471,7 +2627,7 @@ const CandidateDashboard = () => {
                                   }
                                   onBlur={() => void commitInlineProfileField("portfolioUrl")}
                                   onKeyDown={(e) => handleInlineInputKeyDown(e, () => commitInlineProfileField("portfolioUrl"))}
-                                  className="mt-2 w-full rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none"
+                                  className="mt-2 w-full rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"
                                 />
                               ) : (
                                 <p className="mt-2 break-all text-base font-semibold text-slate-900">
@@ -2479,7 +2635,7 @@ const CandidateDashboard = () => {
                                 </p>
                               )}
                             </div>
-                            <Pencil size={15} className="shrink-0 text-slate-400 opacity-0 transition group-hover:opacity-100" />
+                            <button type="button" aria-label="Edit portfolio URL" onClick={(e) => { e.stopPropagation(); setActiveProfileField("portfolioUrl"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                           </div>
                         </div>
                       </div>
@@ -2510,7 +2666,7 @@ const CandidateDashboard = () => {
                                   }
                                   onBlur={() => void commitResumeField("workModes")}
                                   onKeyDown={(e) => handleInlineInputKeyDown(e, () => commitResumeField("workModes"))}
-                                  className="w-full appearance-none rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none"
+                                  className="w-full appearance-none rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"
                                 >
                                   <option value="">Select work mode</option>
                                   <option value="On-site">On-site</option>
@@ -2527,7 +2683,7 @@ const CandidateDashboard = () => {
                               </p>
                             )}
                           </div>
-                          <Pencil size={15} className="shrink-0 text-slate-400 opacity-0 transition group-hover:opacity-100" />
+                          <button type="button" aria-label="Edit work mode" onClick={(e) => { e.stopPropagation(); setActiveProfileField("workModes"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                         </div>
                       </div>
                     </div>
@@ -2577,9 +2733,20 @@ const CandidateDashboard = () => {
           </section>
         )}
 
-        {tab === "resume" && (
+        {tab === "profile" && (
           <div className="space-y-4">
-            <CandidateVideos />
+            {liveCompletion && (
+              <ProfileCompletionCard
+                {...liveCompletion}
+                live
+                headingId="editor-completion"
+                onSelectField={focusProfileField}
+                onBrowseJobs={() => setTab("jobs")}
+              />
+            )}
+            <div id="cp-videos" tabIndex={-1} className="rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]">
+              <CandidateVideos />
+            </div>
             <form
               aria-labelledby="cp-heading"
               className="space-y-4"
@@ -2591,7 +2758,7 @@ const CandidateDashboard = () => {
             <div className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-[0_1px_2px_rgba(16,24,40,0.05)] sm:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 id="cp-heading" className="font-heading text-xl font-bold">Resume Editor</h2>
+                  <h2 id="cp-heading" className="font-heading text-xl font-bold">Edit your profile</h2>
                   <p className="text-sm text-muted-foreground">
                     Fill only what you have; empty sections will be hidden in the PDF.{" "}
                     Fields marked <span aria-hidden="true" className="text-red-500">*</span>
@@ -2605,9 +2772,14 @@ const CandidateDashboard = () => {
                       Current file: {resumeMeta.fileName}
                     </p>
                   ) : null}
-                  <p role="status" aria-live="polite" className="mt-2 text-sm text-green-600">
+                  <p role="status" aria-live="polite" className="mt-2 text-sm text-green-700">
                     {resumeNotice}
                   </p>
+                  {saveError && (
+                    <p role="alert" className="mt-2 text-sm font-medium text-red-700">
+                      {saveError}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <button
@@ -2628,52 +2800,6 @@ const CandidateDashboard = () => {
                   </button>
                 </div>
               </div>
-
-              {gateStatus && (
-                <div
-                  role="status"
-                  aria-live="polite"
-                  className={`rounded-lg border p-4 text-sm ${
-                    gateStatus.canApply
-                      ? "border-green-200 bg-green-50 text-green-900"
-                      : "border-amber-200 bg-amber-50 text-amber-900"
-                  }`}
-                >
-                  {gateStatus.canApply ? (
-                    <p className="font-semibold">
-                      You&apos;re at {gateStatus.score}% — you can now apply to jobs.{" "}
-                      <button type="button" className="underline" onClick={() => { setGateNotice(null); setTab("jobs"); }}>
-                        Back to jobs
-                      </button>
-                    </p>
-                  ) : (
-                    <>
-                      <p className="font-semibold">
-                        Your profile is at {gateStatus.score}%. You need {gateStatus.threshold}% and every required field to
-                        apply.
-                      </p>
-                      {gateStatus.missingRequired.length > 0 && (
-                        <>
-                          <p className="mt-2">Still required:</p>
-                          <ul className="mt-1 list-disc space-y-0.5 pl-5">
-                            {gateStatus.missingRequired.map((item) => (
-                              <li key={item.key}>
-                                {item.label} <span className="text-amber-700">· +{item.weight}%</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </>
-                      )}
-                      {gateStatus.missingRequired.length === 0 && (
-                        <p className="mt-2">
-                          All required fields are done — add a photo, summary, project, certificate or video to reach{" "}
-                          {gateStatus.threshold}%.
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
 
               <div className="rounded-lg border border-dashed border-border bg-background/60 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2949,6 +3075,7 @@ const CandidateDashboard = () => {
                       return (
                         <label key={mode} className="flex items-center gap-2 text-sm">
                           <input
+                            id={`cp-workmode-${mode}`}
                             type="checkbox"
                             name="workModes"
                             value={mode}
@@ -3111,6 +3238,7 @@ const CandidateDashboard = () => {
                   })}
 
                   <button
+                    id="cp-add-job"
                     type="button"
                     className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
                     onClick={() =>
@@ -3247,6 +3375,7 @@ const CandidateDashboard = () => {
               <div className="flex items-center justify-between">
                 <h3 className="font-heading font-semibold">Projects</h3>
                 <button
+                  id="cp-add-project"
                   type="button"
                   className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
                   onClick={() =>
@@ -3414,6 +3543,33 @@ const CandidateDashboard = () => {
           </div>
         )}
 
+        <ApplyReviewDialog
+          job={reviewJob}
+          snapshot={{
+            fullName: profile?.fullName || "",
+            phone: profile?.phone ? `+91 ${profile.phone}` : "",
+            email: sessionState?.user.email || "",
+            skills: profile?.skills || [],
+            resumeLabel:
+              resumeMeta?.resumeType === "uploaded"
+                ? `Uploaded PDF${resumeMeta.fileName ? `: ${resumeMeta.fileName}` : ""}`
+                : "Generated from your profile",
+          }}
+          submitting={Boolean(applyLoadingJobId)}
+          error={applyError}
+          onSubmit={({ note }) => {
+            if (reviewJob) void applyToJob(reviewJob, note);
+          }}
+          onClose={() => {
+            setReviewJob(null);
+            setApplyError("");
+          }}
+          onEditProfile={() => {
+            setReviewJob(null);
+            setTab("profile");
+          }}
+          onPreviewResume={() => void downloadResumePdf()}
+        />
     </DashboardLayout>
   );
 };

@@ -1076,7 +1076,7 @@ const readIdempotencyKey = (req) => {
 };
 
 export const applyToJob = asyncHandler(async (req, res) => {
-  const { jobId } = req.body;
+  const { jobId, note = '', declarationAccepted } = req.body;
   if (!mongoose.isValidObjectId(jobId)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid job id');
   }
@@ -1152,6 +1152,15 @@ export const applyToJob = asyncHandler(async (req, res) => {
     }
   }
 
+  // Consent given on the review sheet ("details are accurate; RecruitKr may share
+  // them with this employer") — previously never collected (audit P2-7).
+  if (declarationAccepted === true) {
+    await CandidateProfile.updateOne(
+      { userId: req.user.id },
+      { $set: { declarationAccepted: true, representationAuthorized: true } },
+    );
+  }
+
   const [candidateUser, candidateProfile] = await Promise.all([
     User.findById(req.user.id).select('email mobile').lean(),
     CandidateProfile.findOne({ userId: req.user.id }).lean(),
@@ -1209,7 +1218,7 @@ export const applyToJob = asyncHandler(async (req, res) => {
       resumeData: undefined,
       hasCustomResume: resume?.resumeType === 'uploaded',
       submittedAt: new Date(),
-      notes: '',
+      notes: note,
       appliedFor: jobTitle.trim() || undefined,
       statusUpdatedAt: new Date(),
       timeline: [

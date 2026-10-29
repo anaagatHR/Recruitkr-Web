@@ -6,8 +6,42 @@ import { apiGet, apiPost } from "@/lib/api";
  * lost response gets the original 201 back instead of a 409 — and since it is
  * deterministic, no retry can ever "forget" it. Never retried automatically.
  */
-export const applyToJobRequest = (jobId: string) =>
-  apiPost("/jobs/apply", { jobId }, { auth: true, headers: { "Idempotency-Key": `apply:${jobId}` } });
+/** Listing placeholder from the API that must not be shown or offered as a filter. */
+export const PLACEHOLDER_LOCATION = "Location not shared";
+
+const matchWords = (value?: string) =>
+  (value || "")
+    .toLowerCase()
+    .split(/[^a-z0-9+#]+/)
+    .filter((word) => word.length > 1);
+
+/**
+ * "Best match" ranking for the candidate dashboard (audit §6.5): words of the
+ * preferred role in the job title (3 each), the preferred location (2), and
+ * each overlapping skill (1). Pure; higher is better, 0 means no signal.
+ */
+export const scoreJobMatch = (
+  job: { jobTitle?: string; jobLocation?: string; skills?: string[] },
+  prefs: { preferredRole?: string; preferredLocation?: string; skills?: string[] },
+) => {
+  const title = new Set(matchWords(job.jobTitle));
+  let score = matchWords(prefs.preferredRole).filter((word) => title.has(word)).length * 3;
+  const location = (prefs.preferredLocation || "").trim().toLowerCase();
+  if (location && (job.jobLocation || "").toLowerCase().includes(location)) score += 2;
+  const mine = new Set((prefs.skills || []).map((skill) => skill.trim().toLowerCase()).filter(Boolean));
+  score += (job.skills || []).filter((skill) => mine.has(String(skill).trim().toLowerCase())).length;
+  return score;
+};
+
+export const applyToJobRequest = (
+  jobId: string,
+  extras: { note?: string; declarationAccepted?: true } = {},
+) =>
+  apiPost(
+    "/jobs/apply",
+    { jobId, ...(extras.note?.trim() ? { note: extras.note.trim() } : {}), ...(extras.declarationAccepted ? { declarationAccepted: true } : {}) },
+    { auth: true, headers: { "Idempotency-Key": `apply:${jobId}` } },
+  );
 
 export type JobType = "Full-time" | "Part-time" | "Contract" | "Internship" | "Remote";
 

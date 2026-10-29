@@ -55,6 +55,9 @@ const interviewDetailsSchema = z
 export const applyJobSchema = z
   .object({
     jobId: z.string().length(24),
+    // From the apply review sheet (audit §6.4). Optional so older clients keep working.
+    note: z.string().trim().max(300).optional(),
+    declarationAccepted: z.literal(true).optional(),
   })
   .strict();
 
