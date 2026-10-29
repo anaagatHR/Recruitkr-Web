@@ -85,7 +85,7 @@ export const ApplicationStepTracker = ({ status, timeline, className }: Applicat
                 />
               </div>
               <span
-                className={`mt-2 text-center text-[11px] leading-tight ${
+                className={`mt-2 text-center text-xs leading-tight ${
                   isCurrent ? "font-bold text-[#264a7f]" : isDone ? "font-medium text-slate-700" : "text-slate-400"
                 }`}
               >

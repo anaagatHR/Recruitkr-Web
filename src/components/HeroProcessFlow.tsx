@@ -73,7 +73,7 @@ const HeroProcessFlow = () => {
                   )}
                 </motion.div>
                 <span
-                  className={`whitespace-nowrap text-[11px] font-medium transition-colors duration-300 ${
+                  className={`whitespace-nowrap text-xs font-medium transition-colors duration-300 ${
                     isActive ? "text-slate-900" : "text-slate-500"
                   }`}
                 >

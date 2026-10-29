@@ -65,7 +65,7 @@ export default function DashboardLayout<K extends string>({
           />
         </div>
 
-        <p className="px-5 pb-2 pt-5 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#264a7f] dark:text-[#7da7df]">
+        <p className="px-5 pb-2 pt-5 text-xs font-semibold uppercase tracking-[0.28em] text-[#264a7f] dark:text-[#7da7df]">
           {eyebrow}
         </p>
 
@@ -157,6 +157,7 @@ export default function DashboardLayout<K extends string>({
         </header>
 
         <main
+          id="main"
           className={cn(
             // The shell is viewport-height (dvh); content scrolls inside main (not
             // the page) on every screen, so the embedded chat fits exactly.
@@ -191,7 +192,7 @@ export default function DashboardLayout<K extends string>({
                 onClick={() => onSelect(item.key)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2.5 text-[10px] font-semibold transition active:scale-95",
+                  "flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2.5 text-xs font-semibold transition active:scale-95",
                   active ? "text-primary" : "text-muted-foreground",
                 )}
               >

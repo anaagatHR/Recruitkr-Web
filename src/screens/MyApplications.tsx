@@ -71,7 +71,7 @@ const StatusBadge = ({ status }: { status: ApplicationStatus }) => {
   if (!status) return null;
   return (
     <span
-      className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
+      className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
         STATUS_CLASSES[status as Exclude<ApplicationStatus, "">] ||
         "border-slate-200 bg-slate-100 text-slate-700"
       }`}
@@ -162,7 +162,7 @@ const MyApplications = () => {
 <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
     <Navbar />
 
-    <main className="container mx-auto flex-1 px-4 pb-16 pt-24">
+    <main id="main" className="container mx-auto flex-1 px-4 pb-16 pt-24">
     <div className="mx-auto max-w-7xl">
 
         {/* Header */}
@@ -274,7 +274,7 @@ const MyApplications = () => {
                           {title}
                         </h3>
 
-                        <span className="shrink-0 text-[11px] text-muted-foreground">
+                        <span className="shrink-0 text-xs text-muted-foreground">
                           {formatTime(c.lastMessageAt)}
                         </span>
                       </div>
@@ -309,7 +309,7 @@ const MyApplications = () => {
                         <StatusBadge status={c.status} />
 
                         {c.online && (
-                     <span className="rounded-full bg-green-500/10 px-2 py-1 text-[11px] font-semibold text-green-500">
+                     <span className="rounded-full bg-green-500/10 px-2 py-1 text-xs font-semibold text-green-500">
                             Online
                           </span>
                         )}

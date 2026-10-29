@@ -125,8 +125,14 @@ export const metadata: Metadata = {
     images: ["/favicon.png"],
   },
 
+  // favicon.png is a 1600×1600, 40 KB image — fine as the social-card
+  // fallback above, far too heavy to pull on every page as the tab icon.
+  // Browsers get a real 32px icon (<1 KB); Android/PWA surfaces get 192px.
   icons: {
-    icon: "/favicon.png",
+    icon: [
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
     shortcut: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
@@ -174,6 +180,15 @@ export default function RootLayout({
           }}
         />
 
+        {/* Skip link: first focusable element on every page. Invisible until
+            it receives keyboard focus, then drops in over the navbar so a
+            keyboard / screen-reader user can jump past the nav to <main>. */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-[#264a7f] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-white"
+        >
+          Skip to content
+        </a>
         <ThemeProvider>
           <AnalyticsTracker />
           <ApiKeepAlive />
@@ -185,4 +200,4 @@ export default function RootLayout({
       </body>
     </html>
   );
-}
+}

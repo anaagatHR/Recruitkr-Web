@@ -3,28 +3,35 @@
 import { useEffect, useRef, useState } from "react";
 import { Users, Building2, GraduationCap, Smile, type LucideIcon } from "lucide-react";
 
-const stats: { value: string; label: string; color: string; icon: LucideIcon }[] = [
-  { value: "100+", label: "Candidates Placed", color: "#264a7f", icon: Users },
-  { value: "50", label: "Hiring Companies", color: "#69a44f", icon: Building2 },
-  { value: "200+", label: "Interns Trained", color: "#e59f56", icon: GraduationCap },
-  { value: "100+", label: "Placement Satisfaction", color: "#264a7f", icon: Smile },
+/**
+ * Each figure carries its own suffix, so "Placement Satisfaction" reads
+ * "100%" rather than the "100+" that the shared-suffix version produced —
+ * a satisfaction score with a plus sign means nothing. These are company
+ * track-record numbers (placements made over time), not the live board
+ * count, which lives in the hero and comes from /api/v1/stats.
+ */
+type Stat = { value: number; suffix: string; label: string; color: string; icon: LucideIcon };
+
+const stats: Stat[] = [
+  { value: 100, suffix: "+", label: "Candidates Placed", color: "#264a7f", icon: Users },
+  { value: 50, suffix: "", label: "Hiring Companies", color: "#69a44f", icon: Building2 },
+  { value: 200, suffix: "+", label: "Interns Trained", color: "#e59f56", icon: GraduationCap },
+  { value: 100, suffix: "%", label: "Placement Satisfaction", color: "#264a7f", icon: Smile },
 ];
 
-// Splits "10,000+" -> { target: 10000, suffix: "+" }, "94%" -> { target: 94, suffix: "%" }
-function parseStat(value: string) {
-  const match = value.match(/^([\d.,]+)(.*)$/);
-  const numberPart = match ? match[1] : value;
-  const suffix = match ? match[2] : "";
-  const target = Number(numberPart.replace(/,/g, "")) || 0;
-  return { target, suffix };
-}
-
-function AnimatedCounter({ value, start }: { value: string; start: boolean }) {
-  const { target, suffix } = parseStat(value);
-  const [count, setCount] = useState(0);
+/**
+ * Server-renders the FINAL value and only animates on the client once the
+ * section scrolls into view. The old version initialised at 0, so the HTML
+ * Google (and anyone without JS) received said "0+", "0", "0+", "0+" across
+ * the credibility section.
+ */
+function AnimatedCounter({ target, suffix, start }: { target: number; suffix: string; start: boolean }) {
+  const [count, setCount] = useState(target);
+  const prefersReducedMotion =
+    typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
   useEffect(() => {
-    if (!start) return;
+    if (!start || prefersReducedMotion) return;
 
     const duration = 1600; // ms
     let frame: number;
@@ -39,13 +46,14 @@ function AnimatedCounter({ value, start }: { value: string; start: boolean }) {
       if (progress < 1) frame = requestAnimationFrame(tick);
     };
 
+    setCount(0);
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [start, target]);
+  }, [start, target, prefersReducedMotion]);
 
   return (
     <span>
-      {count.toLocaleString("en-US")}
+      {count.toLocaleString("en-IN")}
       {suffix}
     </span>
   );
@@ -81,7 +89,7 @@ function Placement() {
         {/* Same eyebrow → heading → subtitle header as the other sections, so
             the page reads as one system rather than four different designs. */}
         <div className="mx-auto mb-8 max-w-2xl text-center sm:mb-14">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#e59f56]/25 bg-[#e59f56]/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#c07c33]">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#e59f56]/25 bg-[#e59f56]/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#c07c33]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#e59f56]" />
             By the numbers
           </span>
@@ -125,9 +133,9 @@ function Placement() {
                   className="text-xl font-extrabold tracking-tight sm:text-3xl md:text-4xl"
                   style={{ color: stat.color }}
                 >
-                  <AnimatedCounter value={stat.value} start={started} />
+                  <AnimatedCounter target={stat.value} suffix={stat.suffix} start={started} />
                 </div>
-                <div className="mt-1 text-[11px] font-medium leading-tight text-muted-foreground sm:text-sm">
+                <div className="mt-1 text-xs font-medium leading-tight text-muted-foreground sm:text-sm">
                   {stat.label}
                 </div>
 

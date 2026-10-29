@@ -175,7 +175,7 @@ export default function CandidateSearch({ onOpenChat, className }: CandidateSear
                 type="button"
                 onClick={() => toggleSkill(f.value)}
                 className={cn(
-                  "rounded-full border px-2.5 py-1 text-[11px] font-medium transition",
+                  "rounded-full border px-2.5 py-1 text-xs font-medium transition",
                   skills.includes(f.value)
                     ? "border-transparent bg-primary/15 text-primary"
                     : "border-border bg-muted/30 text-muted-foreground hover:text-foreground",

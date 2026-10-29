@@ -18,18 +18,22 @@ import {
 } from "lucide-react";
 
 import Image from "next/image";
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { Link } from "@/compat/router";
 import { Reveal, RevealGroup, RevealItem } from "@/components/motion/Reveal";
+import { countFor, formatJobCount, useSiteStats, type SiteStats } from "@/lib/stats";
 
 type RatingCard = {
   title: string;
   subtitle: string;
-  jobCount: string;
+  /** Live count label ("12 jobs"); undefined while stats are loading. */
+  jobCount?: string;
   icon: LucideIcon;
   accent: string;
   href: string;
   image: string;
+  /** How to derive this card's count from /stats. */
+  count: (stats: SiteStats) => number;
 };
 
 // Only the three logo colours are used here (navy, green, amber).
@@ -39,13 +43,18 @@ const AMBER = "#e59f56";
 
 // Each card lands on the jobs list already filtered for its category — the
 // `type` / `mode` params are read by JobsScreen, same as `search`.
+//
+// Counts are LIVE (from /api/v1/stats). They used to be literals — "120+ jobs"
+// on a board where that filter returned five — and the mismatch between the
+// badge and the page it opened was the single most trust-damaging thing in the
+// site audit. The badge is simply omitted until the number is known.
 const jobProfiles: RatingCard[] = [
-  { title: "Corporate Jobs / Internship", subtitle: "Find office roles and paid internships", jobCount: "120+ jobs", icon: Building2, accent: NAVY, href: "/jobs?type=Full-time", image: "/assets/hero-team-1.jpg" },
-  { title: "Work From Home", subtitle: "Remote roles for flexible schedules", jobCount: "80+ jobs", icon: Laptop, accent: GREEN, href: "/jobs?mode=Remote", image: "/assets/hero-team-2.jpg" },
-  { title: "Freelance Opportunities", subtitle: "Project-based work for self-starters", jobCount: "60+ jobs", icon: Rocket, accent: AMBER, href: "/jobs?type=Contract", image: "/assets/hero-team-3.jpg" },
-  { title: "Internship", subtitle: "Paid internships to kick-start your career", jobCount: "40+ jobs", icon: GraduationCap, accent: NAVY, href: "/jobs?type=Internship", image: "/assets/hero-team-4.jpg" },
-  { title: "Gig / Part-time", subtitle: "Short-term and side-hustle roles", jobCount: "40+ jobs", icon: Clock, accent: GREEN, href: "/jobs?type=Part-time", image: "/assets/hero-bg.jpg" },
-  { title: "Other", subtitle: "Explore more ways to work", jobCount: "40+ jobs", icon: Sparkles, accent: AMBER, href: "/jobs", image: "/assets/hero-team-2.jpg" },
+  { title: "Corporate Jobs", subtitle: "Full-time office roles across sectors", icon: Building2, accent: NAVY, href: "/jobs?type=Full-time", image: "/assets/hero-team-1.jpg", count: (s) => countFor(s.byType, "full") },
+  { title: "Work From Home", subtitle: "Remote roles for flexible schedules", icon: Laptop, accent: GREEN, href: "/jobs?mode=Remote", image: "/assets/hero-team-2.jpg", count: (s) => countFor(s.byMode, "remote") },
+  { title: "Freelance / Contract", subtitle: "Project-based work for self-starters", icon: Rocket, accent: AMBER, href: "/jobs?type=Contract", image: "/assets/hero-team-3.jpg", count: (s) => countFor(s.byType, "contract", "freelance") },
+  { title: "Internship", subtitle: "Paid internships to kick-start your career", icon: GraduationCap, accent: NAVY, href: "/jobs?type=Internship", image: "/assets/hero-team-4.jpg", count: (s) => countFor(s.byType, "intern") },
+  { title: "Gig / Part-time", subtitle: "Short-term and side-hustle roles", icon: Clock, accent: GREEN, href: "/jobs?type=Part-time", image: "/assets/hero-bg.jpg", count: (s) => countFor(s.byType, "part") },
+  { title: "All openings", subtitle: "Every live role on the board", icon: Sparkles, accent: AMBER, href: "/jobs", image: "/assets/hero-team-2.jpg", count: (s) => s.activeJobs },
 ];
 
 // `short` is the phone copy. The four stages have to fit one viewport there, so
@@ -109,7 +118,7 @@ function CategoryCard({ card }: { card: RatingCard }) {
   return (
     <Link
       to={card.href}
-      aria-label={`${card.title} — ${card.jobCount}`}
+      aria-label={card.jobCount ? `${card.title} — ${card.jobCount}` : card.title}
       style={{ "--accent": card.accent } as CSSProperties}
       className="group/card relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-1.5 hover:border-[color:var(--accent)] hover:shadow-[0_20px_45px_-20px_var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 sm:rounded-3xl"
     >
@@ -138,9 +147,11 @@ function CategoryCard({ card }: { card: RatingCard }) {
           style={{ backgroundColor: card.accent }}
         />
 
-        <div className="absolute right-3 top-3">
-          <JobCountBadge jobCount={card.jobCount} accent={card.accent} />
-        </div>
+        {card.jobCount ? (
+          <div className="absolute right-3 top-3">
+            <JobCountBadge jobCount={card.jobCount} accent={card.accent} />
+          </div>
+        ) : null}
 
         {/* Icon badge straddles the photo edge and ties the header to the body. */}
         <span
@@ -302,7 +313,7 @@ function CategoryRail({ cards }: { cards: RatingCard[] }) {
           type="button"
           onClick={() => scrollByCard(-1)}
           aria-label="Previous categories"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-[#264a7f] hover:text-[#264a7f]"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-[#264a7f] hover:text-[#264a7f]"
         >
           <ChevronLeft size={18} />
         </button>
@@ -310,7 +321,7 @@ function CategoryRail({ cards }: { cards: RatingCard[] }) {
           type="button"
           onClick={() => scrollByCard(1)}
           aria-label="Next categories"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-[#264a7f] hover:text-[#264a7f]"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-[#264a7f] hover:text-[#264a7f]"
         >
           <ChevronRight size={18} />
         </button>
@@ -320,6 +331,18 @@ function CategoryRail({ cards }: { cards: RatingCard[] }) {
 }
 
 export default function JobShowcase() {
+  const { stats } = useSiteStats();
+  const cards = useMemo<RatingCard[]>(
+    () =>
+      jobProfiles.map((card) => {
+        if (!stats) return card;
+        const n = card.count(stats);
+        // A category with nothing live shows no badge rather than "No jobs
+        // yet" shouting from the photo corner — the card still links through.
+        return { ...card, jobCount: n > 0 ? formatJobCount(n) : undefined };
+      }),
+    [stats],
+  );
   return (
     <section className="bg-white py-14 sm:py-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -343,7 +366,7 @@ export default function JobShowcase() {
         </div>
 
         <div className="mb-12 sm:mb-14">
-          <CategoryRail cards={jobProfiles} />
+          <CategoryRail cards={cards} />
         </div>
 
         {/* Access → Train → Recruit → Manage is a sequence, not four unrelated
@@ -416,7 +439,7 @@ export default function JobShowcase() {
                       {card.title}
                     </h4>
 
-                    <p className="mt-1 text-[11.5px] leading-[1.45] text-slate-600 sm:hidden">
+                    <p className="mt-1 text-xs leading-[1.45] text-slate-600 sm:hidden">
                       {card.short}
                     </p>
                     <p className="mt-1.5 hidden text-sm leading-6 text-slate-600 sm:block">
@@ -427,14 +450,14 @@ export default function JobShowcase() {
                         a phone, where three chips in a half-width column would
                         wrap to three rows, and chips from `sm` up where they
                         fit. */}
-                    <p className="mt-2 text-[10.5px] leading-[1.5] text-slate-400 sm:hidden">
+                    <p className="mt-2 text-xs leading-[1.5] text-slate-400 sm:hidden">
                       {card.bullets.join(" · ")}
                     </p>
                     <ul className="mt-auto hidden flex-wrap gap-1.5 pt-3 sm:flex">
                       {card.bullets.map((item) => (
                         <li
                           key={item}
-                          className="rounded-full border px-2.5 py-1 text-[11px] font-medium text-slate-700"
+                          className="rounded-full border px-2.5 py-1 text-xs font-medium text-slate-700"
                           style={{ borderColor: `${card.accent}33`, backgroundColor: `${card.accent}0f` }}
                         >
                           {item}
@@ -450,4 +473,4 @@ export default function JobShowcase() {
       </div>
     </section>
   );
-}
+}

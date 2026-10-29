@@ -446,27 +446,119 @@ const deriveInterviewDetailsFromRecord = (record = {}) =>
 const deriveStatusNoteFromRecord = (record = {}) =>
   String(record.statusNote || record.candidateResponse || record.clientNote || record.note || record.notes || '').trim();
 
-const normalizePublicJob = (job, overrides = {}) => {
+/**
+ * Legacy `jobs` / `openings` documents were written by the Business OS CRM
+ * and by imports, and they do not share one field vocabulary. The public API
+ * used to read only `job.company`, so 49 of 50 live listings came back with an
+ * empty companyName (and empty description / salary / experience) even where
+ * the document carried the value under another key. These pickers try every
+ * spelling we have seen before giving up.
+ */
+const firstString = (...values) => {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  }
+  return '';
+};
+
+const firstNumber = (...values) => {
+  for (const value of values) {
+    if (value === null || value === undefined || value === '') continue;
+    const parsed = Number(String(value).replace(/[^\d.]/g, ''));
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return undefined;
+};
+
+const pickCompanyName = (job) => {
+  const name = firstString(
+    job.company,
+    job.companyName,
+    job.company_name,
+    job.employer,
+    job.employerName,
+    job.employer_name,
+    job.clientName,
+    job.client_name,
+    job.hiringCompany,
+    job.organisation,
+    job.organization,
+    job.company?.name,
+    job.client?.companyName,
+    job.client?.name,
+    job.employer?.name,
+  );
+  // The literal placeholder "Company" was stored on some imports.
+  return /^company$/i.test(name) ? '' : name;
+};
+
+const pickDescription = (job) =>
+  firstString(
+    job.jobDescription,
+    job.description,
+    job.job_description,
+    job.details,
+    job.summary,
+    job.about,
+    Array.isArray(job.responsibilities) && job.responsibilities.length
+      ? job.responsibilities.map((line) => `• ${line}`).join('\n')
+      : '',
+  );
+
+const pickExperience = (job) =>
+  firstString(
+    job.experienceRequired,
+    job.experience,
+    job.experience_required,
+    job.exp,
+    job.minExperience !== undefined && job.maxExperience !== undefined
+      ? `${job.minExperience}-${job.maxExperience} years`
+      : '',
+  );
+
+/** Minimum a candidate needs to decide whether to apply. */
+const MIN_COMPLETE_DESCRIPTION = 40;
+
+const isListingComplete = ({ companyName, description }) =>
+  Boolean(companyName) && String(description || '').trim().length >= MIN_COMPLETE_DESCRIPTION;
+
+const isPastDeadline = (deadline) => {
+  if (!deadline) return false;
+  const ts = new Date(deadline).getTime();
+  return Number.isFinite(ts) && ts < Date.now();
+};
+
+export const normalizePublicJob = (job, overrides = {}) => {
   const sourceCollection = overrides.sourceCollection || (job.sourceCollection ? String(job.sourceCollection) : 'jobRequirements');
   const ownerId = overrides.ownerId || resolveJobOwnerId(job, sourceCollection);
   const ownerRole = resolveJobOwnerRole({ sourceCollection, ownerId, ownerRole: overrides.ownerRole });
   const isLegacy = Boolean(!ownerId && (job.title || job.location || job.type));
   const isActive = isActiveStatus(overrides.status ?? job.status ?? 'active');
-  const isApplyable = overrides.canApply ?? (Boolean(ownerId) && isActive);
+  const applicationDeadline = toISOStringSafe(job.applicationDeadline ?? job.deadline ?? job.lastDate, '');
+  // A listing whose deadline has passed must never show a live Apply button,
+  // whatever the status field says — candidates applied and never heard back.
+  const expired = isPastDeadline(applicationDeadline);
+  const isApplyable = !expired && (overrides.canApply ?? (Boolean(ownerId) && isActive));
+
+  const companyName = pickCompanyName(job);
+  const description = pickDescription(job);
+  const minCtcLpa = firstNumber(job.minCtcLpa, job.salary?.min, job.salaryMin, job.salary_min, job.minSalary, job.ctcMin);
+  const maxCtcLpa = firstNumber(job.maxCtcLpa, job.salary?.max, job.salaryMax, job.salary_max, job.maxSalary, job.ctcMax);
 
   return {
     _id: overrides._id || String(job._id),
-    jobTitle: job.jobTitle || job.title || 'Job Opening',
-    jobLocation: job.jobLocation || job.location || 'Location not shared',
-    employmentType: job.employmentType || job.type || 'Not specified',
-    minCtcLpa: job.minCtcLpa,
-    maxCtcLpa: job.maxCtcLpa,
-    companyName: job.company || '',
+    jobTitle: firstString(job.jobTitle, job.title, job.role, job.position) || 'Job Opening',
+    jobLocation: firstString(job.jobLocation, job.location, job.city, job.job_location) || 'Location not shared',
+    employmentType: firstString(job.employmentType, job.type, job.jobType, job.employment_type) || 'Not specified',
+    minCtcLpa,
+    maxCtcLpa,
+    companyName,
     openings: job.openings,
-    description: job.jobDescription || job.description || '',
-    department: job.department || job.category || '',
-    experienceRequired: job.experienceRequired || job.experience || '',
-    qualification: job.qualification || '',
+    description,
+    department: firstString(job.department, job.category, job.sector, job.industry),
+    experienceRequired: pickExperience(job),
+    qualification: firstString(job.qualification, job.education),
     preferredIndustryBackground: job.preferredIndustryBackground || '',
     workModes: Array.isArray(job.workModes) ? job.workModes : [],
     urgencyLevel: job.urgencyLevel || '',
@@ -475,7 +567,7 @@ const normalizePublicJob = (job, overrides = {}) => {
     skills: Array.isArray(job.skills) ? job.skills : [],
     genderRequirement: job.genderRequirement || job.genderPreference || '',
     salary: job.salary || undefined,
-    applicationDeadline: toISOStringSafe(job.applicationDeadline, ''),
+    applicationDeadline,
     createdAt: toISOStringSafe(job.createdAt, new Date().toISOString()),
     sourceCollection,
     sourceLabel: getSourceCollectionLabel(sourceCollection),
@@ -483,12 +575,16 @@ const normalizePublicJob = (job, overrides = {}) => {
     canApply: isApplyable,
     applyDisabledReason: isApplyable
       ? undefined
+      : expired
+        ? 'The application deadline for this opening has passed.'
       : !isActive
         ? 'This opening is not active right now, so new applications are paused.'
       : isLegacy
         ? 'This opening is visible from older data and cannot accept new applications yet.'
         : 'This opening is visible, but the employer account is not linked yet so applications are temporarily disabled.',
     isLegacy,
+    isExpired: expired,
+    isComplete: isListingComplete({ companyName, description }),
   };
 };
 
@@ -649,11 +745,29 @@ const syncJobToSolr = (jobDoc, sourceCollection = 'jobRequirements') => {
   }
 };
 
-export const listPublicJobs = asyncHandler(async (req, res) => {
-  const { q, page = 1, limit = 10, location, type, minSalary, maxSalary } = req.query;
+/**
+ * Public read endpoints are safe to cache at the CDN: the data changes a few
+ * times a day and every hit used to go to MongoDB (the audit measured ~545 ms
+ * per listing request with `max-age=0, must-revalidate`). Cloudflare / Vercel
+ * honour s-maxage; browsers keep a short private copy. Writes call
+ * invalidateJobsCache(), and a 5-minute edge window is the agreed staleness.
+ */
+export const PUBLIC_CACHE_HEADER = 'public, max-age=60, s-maxage=300, stale-while-revalidate=600';
 
-  // Fast path: Apache Solr (when configured and healthy).
-  if (isSolrConfigured() && (await pingSolr())) {
+const setPublicCache = (res) => {
+  res.set('Cache-Control', PUBLIC_CACHE_HEADER);
+  res.set('Vary', 'Accept-Encoding');
+};
+
+export const listPublicJobs = asyncHandler(async (req, res) => {
+  const { q, page = 1, limit = 10, location, type, minSalary, maxSalary, complete } = req.query;
+  const onlyComplete = complete === true || complete === 'true' || complete === '1';
+  setPublicCache(res);
+
+  // Fast path: Apache Solr (when configured and healthy). The `complete`
+  // filter is only used by the homepage strips and is served from the
+  // in-memory Mongo cache, where the flag is always current.
+  if (!onlyComplete && isSolrConfigured() && (await pingSolr())) {
     try {
       const { jobs, total } = await searchJobsViaSolr({ q, location, type, minSalary, maxSalary, page, limit });
       const currentPage = Math.max(1, Number(page));
@@ -675,9 +789,70 @@ export const listPublicJobs = asyncHandler(async (req, res) => {
   }
 
   // Fallback path: cached MongoDB normalization + in-memory filter/paginate.
-  const jobs = await getActiveNormalizedJobs(loadActiveNormalizedJobs);
+  const allJobs = await getActiveNormalizedJobs(loadActiveNormalizedJobs);
+  // Expired listings are dropped from the public board entirely; the detail
+  // page still resolves them (with Apply disabled) so old links don't 404.
+  const jobs = allJobs.filter((job) => !job.isExpired && (!onlyComplete || job.isComplete));
   const { data, meta } = filterSortPaginateJobs(jobs, { q, location, type, minSalary, maxSalary, page, limit });
   res.json({ success: true, data, meta, source: 'mongo' });
+});
+
+/**
+ * GET /api/v1/stats — the real numbers behind the homepage.
+ *
+ * The hero used to say "500+ Active openings" and "100+ Trusted companies"
+ * and the category cards "120+ jobs" while the board held 68 listings from a
+ * handful of employers. Those were string literals in the components. This
+ * endpoint derives every figure from the same normalized job list the board
+ * renders, so the headline can never again disagree with what a click shows.
+ */
+const normalizeTypeKey = (value) => String(value || '').trim().toLowerCase();
+
+export const getPublicStats = asyncHandler(async (_req, res) => {
+  setPublicCache(res);
+  const jobs = (await getActiveNormalizedJobs(loadActiveNormalizedJobs)).filter((job) => !job.isExpired);
+
+  const companies = new Set();
+  const byType = {};
+  const byMode = {};
+  const byLocation = {};
+  let openings = 0;
+  let complete = 0;
+
+  for (const job of jobs) {
+    if (job.companyName) companies.add(job.companyName.toLowerCase());
+    if (job.isComplete) complete += 1;
+    openings += Number.isFinite(Number(job.openings)) && Number(job.openings) > 0 ? Number(job.openings) : 1;
+
+    const type = normalizeTypeKey(job.employmentType);
+    if (type && type !== 'not specified') byType[type] = (byType[type] || 0) + 1;
+
+    const modes = (job.workModes || []).map(normalizeTypeKey);
+    if (modes.includes('remote') || /remote|work from home|wfh/.test(normalizeTypeKey(job.jobLocation))) {
+      byMode.remote = (byMode.remote || 0) + 1;
+    } else if (modes.includes('hybrid')) {
+      byMode.hybrid = (byMode.hybrid || 0) + 1;
+    } else {
+      byMode['on-site'] = (byMode['on-site'] || 0) + 1;
+    }
+
+    const city = normalizeTypeKey(job.jobLocation).split(/[,/|]/)[0].trim();
+    if (city && city !== 'location not shared') byLocation[city] = (byLocation[city] || 0) + 1;
+  }
+
+  res.json({
+    success: true,
+    data: {
+      activeJobs: jobs.length,
+      completeJobs: complete,
+      openings,
+      companies: companies.size,
+      byType,
+      byMode,
+      byLocation,
+      generatedAt: new Date().toISOString(),
+    },
+  });
 });
 
 export const getPublicJob = asyncHandler(async (req, res) => {
@@ -685,6 +860,7 @@ export const getPublicJob = asyncHandler(async (req, res) => {
   if (!mongoose.isValidObjectId(jobId)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid job id');
   }
+  setPublicCache(res);
 
   const jobRequirement = await JobRequirement.findOne({
     _id: jobId,

@@ -8,6 +8,7 @@ import {
   updateMyJob,
   getClientApplicationDetails,
   getPublicJob,
+  getPublicStats,
   listCandidateApplications,
   listClientApplications,
   listMyJobs,
@@ -26,6 +27,8 @@ import { createJobSchema, listJobsQuerySchema, updateJobSchema, updateJobStatusS
 const router = Router();
 
 router.get('/', validate(listJobsQuerySchema, 'query'), listPublicJobs);
+// Aggregate counts for the homepage (active jobs, companies, by type/mode/city).
+router.get('/stats', getPublicStats);
 
 router.post('/', requireAuth, requireRole('client'), validate(createJobSchema), createJob);
 router.get('/mine', requireAuth, requireRole('client'), listMyJobs);

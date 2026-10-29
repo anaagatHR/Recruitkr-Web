@@ -1,10 +1,9 @@
 "use client";
 
-import { Link, useNavigate } from "@/compat/router";
-import { Briefcase, MapPin, Users } from "lucide-react";
-import type { Job } from "@/lib/jobs";
+import { Link } from "@/compat/router";
+import { Briefcase, CalendarClock, MapPin, Users } from "lucide-react";
+import { daysUntilDeadline, displayCompany, pluralize, type Job } from "@/lib/jobs";
 import { isFresh, relativeTime, salaryLabel } from "@/lib/format";
-import { getSession } from "@/lib/auth";
 import StarRating from "@/components/job/StarRating";
 
 const displayInitial = (value?: string) => (value?.trim().charAt(0) || "?").toUpperCase();
@@ -47,10 +46,14 @@ export default function JobCard({
   headingLevel?: 2 | 3;
 }) {
   const Heading = (headingLevel === 2 ? "h2" : "h3") as "h2" | "h3";
-  const navigate = useNavigate();
   const fresh = isFresh(job.postedAt);
   const hot = (job.applicants ?? 0) >= 40;
   const skills = job.skills ?? [];
+  const company = displayCompany(job);
+  const hasCompany = Boolean(job.company?.trim());
+  const closesIn = daysUntilDeadline(job);
+  // "Closes in 3 days" is only worth a badge when it's actually soon.
+  const closingSoon = closesIn !== undefined && closesIn >= 0 && closesIn <= 7;
   const key = String(job.id ?? job.title ?? "");
   const accent = brandColor(key);
   const accentOnWhiteText = ON_ACCENT_SAFE[accent] ?? accent;
@@ -64,13 +67,15 @@ export default function JobCard({
   // bg-orange-100 is a fixed light tint in both themes, so its text stays dark.
   // bg-secondary/15 tracks the theme, so the hardcoded dark green is scoped to
   // light mode and dark mode keeps the token.
-  const ribbon = hot
-    ? { label: "High demand", className: "bg-orange-100 text-orange-700" }
-    : job.featured
-      ? { label: "Featured", className: "bg-primary/10 text-primary" }
-      : fresh
-        ? { label: "New today", className: "bg-secondary/15 text-[#4d783a] dark:text-secondary" }
-        : null;
+  const ribbon = closingSoon
+    ? { label: closesIn === 0 ? "Closes today" : `Closes in ${pluralize(closesIn as number, "day")}`, className: "bg-rose-100 text-rose-700" }
+    : hot
+      ? { label: "High demand", className: "bg-orange-100 text-orange-700" }
+      : job.featured
+        ? { label: "Featured", className: "bg-primary/10 text-primary" }
+        : fresh
+          ? { label: "New today", className: "bg-secondary/15 text-[#4d783a] dark:text-secondary" }
+          : null;
 
   return (
     <Link
@@ -92,7 +97,7 @@ export default function JobCard({
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
           style={{ backgroundColor: accentOnWhiteText }}
         >
-          {displayInitial(job.company)}
+          {hasCompany ? displayInitial(job.company) : "?"}
         </div>
         <div className="min-w-0 flex-1">
           <Heading className="truncate text-sm font-bold leading-tight text-foreground group-hover:text-primary">
@@ -103,12 +108,12 @@ export default function JobCard({
                 have to repeat the card's entire visible text or trip
                 label-content-name-mismatch. */}
             <span className="sr-only">
-              {job.company ? ` at ${job.company}` : ""}
+              {` at ${company}`}
               {job.location ? `, ${job.location}` : ""}
             </span>
           </Heading>
           <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-            <p className="truncate text-[11px] text-muted-foreground">{job.company}</p>
+            <p className={`truncate text-xs ${hasCompany ? "text-muted-foreground" : "italic text-muted-foreground/80"}`}>{company}</p>
             {job.companyRating != null && (
               <StarRating value={job.companyRating} size={10} className="shrink-0" />
             )}
@@ -116,7 +121,7 @@ export default function JobCard({
         </div>
         {ribbon && (
           <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${ribbon.className}`}
+            className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${ribbon.className}`}
           >
             {ribbon.label}
           </span>
@@ -125,10 +130,15 @@ export default function JobCard({
 
       {/* Location / experience / openings on one line — `truncate` rather than
           wrapping, so a long location can't push the card taller. */}
-      <div className="flex items-center gap-2 truncate text-[11px] text-muted-foreground">
-        <span className="inline-flex shrink-0 items-center gap-1"><MapPin size={11} /> {job.location}</span>
-        <span className="inline-flex shrink-0 items-center gap-1"><Briefcase size={11} /> {job.experience}</span>
-        <span className="inline-flex shrink-0 items-center gap-1"><Users size={11} /> {job.openings}</span>
+      <div className="flex items-center gap-2 truncate text-xs text-muted-foreground">
+        <span className="inline-flex shrink-0 items-center gap-1"><MapPin size={12} /> {job.location}</span>
+        <span className="inline-flex shrink-0 items-center gap-1"><Briefcase size={12} /> {job.experience}</span>
+        <span className="inline-flex shrink-0 items-center gap-1" title={pluralize(job.openings, "opening")}>
+          <Users size={12} /> {pluralize(job.openings, "opening")}
+        </span>
+        {closesIn !== undefined && closesIn > 7 && (
+          <span className="inline-flex shrink-0 items-center gap-1"><CalendarClock size={12} /> {closesIn}d left</span>
+        )}
       </div>
 
       {skills.length > 0 && (
@@ -136,7 +146,7 @@ export default function JobCard({
           {skills.slice(0, 3).map((skill) => (
             <span
               key={skill}
-              className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-foreground/80"
+              className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-foreground/80"
             >
               {skill}
             </span>
@@ -152,26 +162,20 @@ export default function JobCard({
           <span className="block truncate text-xs font-semibold text-foreground">
             {salaryLabel(job.salaryMin, job.salaryMax)}
           </span>
-          <span className="block text-[10px] text-muted-foreground">{relativeTime(job.postedAt)}</span>
+          <span className="block text-xs text-muted-foreground">{relativeTime(job.postedAt)}</span>
         </span>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const target = `/jobs/${job.id}`;
-            // Applying requires login — send guests to login first, then back here.
-            if (!getSession()) {
-              navigate(`/login?redirect=${encodeURIComponent(target)}`);
-              return;
-            }
-            navigate(target);
-          }}
-          className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+        {/* The whole card is already the link to the job page, so this is a
+            visual affordance, not a second control. It used to be a <button>
+            that sent logged-out visitors straight to /login — a hard login
+            wall before they had even read the role, and the single biggest
+            drop-off the audit found. Now: read first, apply on the job page. */}
+        <span
+          aria-hidden="true"
+          className="inline-flex min-h-[36px] shrink-0 items-center rounded-lg px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-all duration-300 group-hover:-translate-y-0.5 group-hover:shadow-lg"
           style={{ backgroundColor: accentOnWhiteText }}
         >
-          Apply
-        </button>
+          View &amp; apply
+        </span>
       </div>
     </Link>
   );

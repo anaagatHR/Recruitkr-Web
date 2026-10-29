@@ -1,4 +1,4 @@
-import type { Job } from "@/lib/jobs";
+import { displayCompany, formatExperience, type Job } from "@/lib/jobs";
 import { HOME_CITY, HOME_REGION } from "@/lib/locations";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
@@ -61,9 +61,15 @@ export function jobPostingJsonLd(job: Job): Record<string, unknown> {
     "@context": "https://schema.org/",
     "@type": "JobPosting",
     title: job.title,
-    description: job.description || `${job.title} at ${job.company} in ${job.location}. ${job.experience} experience.`,
+    description:
+      job.description ||
+      `${job.title} at ${displayCompany(job)} in ${job.location}.${formatExperience(job.experience) ? ` ${formatExperience(job.experience)}.` : ""}`,
     datePosted: job.postedAt,
-    validThrough: expiryDate(job.postedAt),
+    // A real employer deadline wins; otherwise the derived 45-day window.
+    validThrough:
+      job.applicationDeadline && Date.parse(job.applicationDeadline) > Date.now()
+        ? job.applicationDeadline
+        : expiryDate(job.postedAt),
     employmentType: EMPLOYMENT_TYPE[job.type] ?? "FULL_TIME",
     industry: job.sector,
     url: `${SITE_URL}/jobs/${job.id}`,
@@ -75,7 +81,7 @@ export function jobPostingJsonLd(job: Job): Record<string, unknown> {
     },
     hiringOrganization: {
       "@type": "Organization",
-      name: job.company,
+      name: displayCompany(job),
       sameAs: job.companyId ? `${SITE_URL}/companies/${job.companyId}` : SITE_URL,
       ...(job.companyLogo ? { logo: job.companyLogo } : {}),
     },

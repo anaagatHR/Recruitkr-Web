@@ -32,12 +32,14 @@ export default function CompanyDetailScreen() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
+        <main id="main">
         <div className="container mx-auto px-4 pb-20 pt-32 text-center">
           <h1 className="font-heading text-2xl font-bold">Company not found</h1>
           <Link to="/jobs" className="mt-4 inline-block text-primary hover:underline">
             Browse all jobs
           </Link>
         </div>
+        </main>
         <Footer />
       </div>
     );
@@ -46,6 +48,7 @@ export default function CompanyDetailScreen() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <main id="main">
       <div className="container mx-auto max-w-5xl px-4 pb-20 pt-24">
         {/* See JobDetailScreen: 44px touch target, margin reduced to absorb it. */}
         <Link
@@ -99,6 +102,7 @@ export default function CompanyDetailScreen() {
           </>
         )}
       </div>
+      </main>
       <Footer />
     </div>
   );

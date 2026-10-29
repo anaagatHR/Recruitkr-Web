@@ -177,7 +177,7 @@ const WhyRecruitkrSection = () => {
                   <h3 className="text-[13px] font-bold leading-tight text-foreground sm:mb-1.5 sm:text-lg">
                     {usp.title}
                   </h3>
-                  <p className="mt-0.5 line-clamp-1 text-[11px] leading-[1.45] text-muted-foreground sm:mt-0 sm:line-clamp-none sm:text-sm sm:leading-relaxed">
+                  <p className="mt-0.5 line-clamp-1 text-xs leading-[1.45] text-muted-foreground sm:mt-0 sm:line-clamp-none sm:text-sm sm:leading-relaxed">
                     {usp.desc}
                   </p>
                 </div>

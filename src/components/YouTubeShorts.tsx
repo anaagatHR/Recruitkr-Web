@@ -181,7 +181,7 @@ const ShortCard = ({
             type="button"
             onClick={() => onPlay(null)}
             aria-label="Stop video"
-            className="absolute right-1.5 top-1.5 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/80"
+            className="absolute right-1.5 top-1.5 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/80"
           >
             <X size={15} />
           </button>
@@ -350,7 +350,7 @@ export default function YouTubeShorts({
   return (
     <section className="overflow-hidden py-14 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF0000] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white shadow-sm">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF0000] px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-white shadow-sm">
           <Youtube size={14} /> {eyebrow}
         </span>
         <h2 className="text-gradient-teal mt-5 font-heading text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-4xl">

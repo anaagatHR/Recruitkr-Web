@@ -161,7 +161,7 @@ const StatusPipeline = ({ status }: { status: ApplicationStatus }) => {
             <div className="flex w-full items-center">
               <span className={`h-0.5 flex-1 ${idx === 0 ? "opacity-0" : done ? "bg-primary" : "bg-border"}`} />
               <span
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition ${done ? "bg-primary text-white" : "border border-border bg-card text-muted-foreground"
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold transition ${done ? "bg-primary text-white" : "border border-border bg-card text-muted-foreground"
                   }`}
               >
                 {idx + 1}
@@ -170,7 +170,7 @@ const StatusPipeline = ({ status }: { status: ApplicationStatus }) => {
                 className={`h-0.5 flex-1 ${idx === PIPELINE_STEPS.length - 1 ? "opacity-0" : idx < current ? "bg-primary" : "bg-border"}`}
               />
             </div>
-            <span className={`mt-1 text-[9px] font-medium ${done ? "text-foreground" : "text-muted-foreground"}`}>
+            <span className={`mt-1 text-xs font-medium ${done ? "text-foreground" : "text-muted-foreground"}`}>
               {label}
             </span>
           </div>
@@ -716,18 +716,18 @@ const Messages = ({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate font-semibold text-foreground">{conv.withName}</span>
-                        <span className="shrink-0 text-[11px] text-muted-foreground">
+                        <span className="shrink-0 text-xs text-muted-foreground">
                           {formatListTime(conv.lastMessageAt)}
                         </span>
                       </div>
-                      {conv.jobTitle && <div className="truncate text-[11px] text-primary">{conv.jobTitle}</div>}
+                      {conv.jobTitle && <div className="truncate text-xs text-primary">{conv.jobTitle}</div>}
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate text-xs text-muted-foreground">
                           {conv.lastSenderRole === "system" ? "📋 " : ""}
                           {conv.lastMessage || "Start the conversation"}
                         </span>
                         {conv.unread > 0 && (
-                          <span className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-white">
+                          <span className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-bold text-white">
                             {conv.unread}
                           </span>
                         )}
@@ -912,7 +912,7 @@ const Messages = ({
                             <div key={msg.id}>
                               {showDate && (
                                 <div className="my-3 flex justify-center">
-                                  <span className="rounded-full bg-card px-3 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">
+                                  <span className="rounded-full bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
                                     {formatDateLabel(msg.createdAt)}
                                   </span>
                                 </div>
@@ -933,7 +933,7 @@ const Messages = ({
                             <div key={msg.id}>
                               {showDate && (
                                 <div className="my-3 flex justify-center">
-                                  <span className="rounded-full bg-card px-3 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">
+                                  <span className="rounded-full bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
                                     {formatDateLabel(msg.createdAt)}
                                   </span>
                                 </div>
@@ -970,7 +970,7 @@ const Messages = ({
                                       <Video size={15} /> Join meeting
                                     </a>
                                   )}
-                                  <div className="mt-1.5 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
+                                  <div className="mt-1.5 flex items-center justify-end gap-1 text-xs text-muted-foreground">
                                     {formatTime(msg.createdAt)}
                                     {msg.mine && <Ticks status={msg.status} />}
                                   </div>
@@ -988,7 +988,7 @@ const Messages = ({
                           <div key={msg.id}>
                             {showDate && (
                               <div className="my-3 flex justify-center">
-                                <span className="rounded-full bg-card px-3 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">
+                                <span className="rounded-full bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
                                   {formatDateLabel(msg.createdAt)}
                                 </span>
                               </div>
@@ -1035,7 +1035,7 @@ const Messages = ({
                                 )}
                                 {msg.body && <p className="whitespace-pre-wrap break-words">{msg.body}</p>}
                                 <div
-                                  className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${msg.mine ? "text-white/70" : "text-muted-foreground"
+                                  className={`mt-0.5 flex items-center justify-end gap-1 text-xs ${msg.mine ? "text-white/70" : "text-muted-foreground"
                                     }`}
                                 >
                                   {formatTime(msg.createdAt)}

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/compat/router";
 import JobCard from "@/components/job/JobCard";
-import { fetchJobs, type Job } from "@/lib/jobs";
+import { fetchJobs, homepageEligible, type Job } from "@/lib/jobs";
 
 /**
  * A four-job strip in two flavours: "featured" (employer-flagged roles, used on
@@ -14,15 +14,23 @@ import { fetchJobs, type Job } from "@/lib/jobs";
 
 const COUNT = 4;
 
-/** Featured jobs, or the first four if none are flagged. */
+/** Featured jobs, or the first four complete ones if none are flagged. */
 function featuredPicks(all: Job[]): Job[] {
-  const featured = all.filter((job) => job.featured);
-  return (featured.length ? featured : all).slice(0, COUNT);
+  const featured = all.filter((job) => job.featured && homepageEligible(job));
+  const complete = all.filter(homepageEligible);
+  return (featured.length ? featured : complete.length ? complete : all).slice(0, COUNT);
 }
 
-/** The four most recently posted. */
+/**
+ * The four most recently posted that are actually worth headlining: a named
+ * employer, a real description, not past deadline. Listings missing those
+ * stay on /jobs but don't get the "Fresh on the board" spotlight — the audit
+ * saw this strip full of "Company · Not disclosed · Not specified" cards.
+ */
 function latestPicks(all: Job[]): Job[] {
-  return all
+  const eligible = all.filter(homepageEligible);
+  const pool = eligible.length >= COUNT ? eligible : eligible.length ? eligible : all;
+  return pool
     .slice()
     .sort((a, b) => Date.parse(b.postedAt) - Date.parse(a.postedAt))
     .slice(0, COUNT);
@@ -89,7 +97,7 @@ export default function FeaturedJobsSection({ variant = "featured" }: { variant?
     <section id={copy.id} className="border-y border-slate-100 bg-slate-50 py-14 sm:py-20">
       <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto mb-10 max-w-2xl text-center sm:mb-12">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#e59f56]/25 bg-[#e59f56]/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#c07c33] sm:tracking-[0.22em]">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#e59f56]/25 bg-[#e59f56]/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#c07c33] sm:tracking-[0.22em]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#e59f56]" />
             {copy.eyebrow}
           </span>

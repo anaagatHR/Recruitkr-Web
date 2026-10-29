@@ -18,7 +18,7 @@ import {
   signRefreshToken,
   verifyRefreshToken,
 } from '../utils/jwt.js';
-import { hashPassword, verifyPassword } from '../utils/security.js';
+import { hashPassword, sanitizeRedirectPath, verifyPassword } from '../utils/security.js';
 
 const parseDurationToMs = (input) => {
   const match = /^(\d+)([smhd])$/.exec(input);
@@ -163,7 +163,7 @@ const parseOAuthState = (state) => {
     const parsed = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
     return {
       role: parsed?.role === 'client' || parsed?.role === 'candidate' ? parsed.role : undefined,
-      redirect: typeof parsed?.redirect === 'string' ? parsed.redirect : undefined,
+      redirect: sanitizeRedirectPath(parsed?.redirect) || undefined,
     };
   } catch {
     return {};
@@ -553,7 +553,7 @@ export const oauthExchange = asyncHandler(async (req, res) => {
 
 export const googleStart = asyncHandler(async (req, res) => {
   const role = req.query.role === "client" ? "client" : "candidate";
-  const redirect = typeof req.query.redirect === "string" ? req.query.redirect : "";
+  const redirect = sanitizeRedirectPath(req.query.redirect);
 
   const oauthUrl = buildGoogleOAuthUrl({ role, redirect });
 
@@ -573,8 +573,7 @@ export const googleCallback = asyncHandler(async (req, res) => {
   );
 
   const resolvedRole = role || "candidate";
-  const safeRedirect =
-    typeof redirect === "string" && redirect ? redirect : undefined;
+  const safeRedirect = sanitizeRedirectPath(redirect) || undefined;
 
   const googleError =
     typeof req.query.error === "string" ? req.query.error : "";

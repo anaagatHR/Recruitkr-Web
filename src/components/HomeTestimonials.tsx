@@ -22,7 +22,7 @@ export default function HomeTestimonials() {
   return (
     <section className="overflow-hidden border-y border-slate-100 bg-slate-50 py-14 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF0000] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white shadow-sm">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF0000] px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-white shadow-sm">
           <Youtube size={14} /> In their own words
         </span>
         <h2 className="mt-4 font-heading text-2xl font-extrabold tracking-tight text-slate-900 sm:mt-5 sm:text-3xl lg:text-4xl">

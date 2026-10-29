@@ -32,7 +32,7 @@ const ProfilePreview = () => (
       </div>
     </div>
     <div className="mt-3">
-      <div className="mb-1 flex justify-between text-[10px] font-medium text-muted-foreground">
+      <div className="mb-1 flex justify-between text-xs font-medium text-muted-foreground">
         <span>Profile strength</span>
         <span className="font-bold text-[#69a44f]">85%</span>
       </div>
@@ -42,7 +42,7 @@ const ProfilePreview = () => (
     </div>
     <div className="mt-3 flex flex-wrap gap-1.5">
       {["React", "Sales", "Design", "+4"].map((s) => (
-        <span key={s} className="rounded-full bg-[#264a7f]/10 px-2 py-0.5 text-[10px] font-semibold text-[#264a7f]">
+        <span key={s} className="rounded-full bg-[#264a7f]/10 px-2 py-0.5 text-xs font-semibold text-[#264a7f]">
           {s}
         </span>
       ))}
@@ -58,8 +58,8 @@ const VideoPreview = () => (
         <Play size={18} className="ml-0.5 fill-current" />
       </span>
     </div>
-    <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">0:45</span>
-    <span className="absolute left-2 top-2 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-[#264a7f]">Intro</span>
+    <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-xs font-semibold text-white">0:45</span>
+    <span className="absolute left-2 top-2 rounded bg-white/90 px-1.5 py-0.5 text-xs font-bold text-[#264a7f]">Intro</span>
   </div>
 );
 
@@ -71,7 +71,7 @@ const ResumePreview = () => (
       <Line w="70%" />
       <Line w="90%" />
       <Line w="55%" />
-      <span className="mt-1 inline-block text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Before</span>
+      <span className="mt-1 inline-block text-xs font-bold uppercase tracking-wide text-muted-foreground">Before</span>
     </div>
     <ArrowRight size={16} className="shrink-0 text-[#69a44f]" />
     <div className="relative flex-1 space-y-1.5 rounded-xl border-2 border-[#69a44f]/40 bg-white p-2.5 shadow-sm">
@@ -81,7 +81,7 @@ const ResumePreview = () => (
       <Line w="85%" />
       <Line w="65%" />
       <Line w="95%" />
-      <span className="mt-1 inline-block text-[9px] font-bold uppercase tracking-wide text-[#69a44f]">After</span>
+      <span className="mt-1 inline-block text-xs font-bold uppercase tracking-wide text-[#69a44f]">After</span>
     </div>
   </div>
 );
@@ -89,12 +89,12 @@ const ResumePreview = () => (
 const MatchRow = ({ title, pct, info }: { title: string; pct: number; info: string }) => (
   <div className="flex items-center justify-between rounded-xl border border-border/60 bg-white p-2.5 shadow-sm">
     <div className="min-w-0">
-      <div className="truncate text-[11px] font-bold text-foreground">{title}</div>
-      <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+      <div className="truncate text-xs font-bold text-foreground">{title}</div>
+      <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
         <MapPin size={10} /> {info}
       </div>
     </div>
-    <span className="shrink-0 rounded-full bg-[#69a44f]/15 px-2 py-0.5 text-[10px] font-bold text-[#4e8a36]">{pct}% match</span>
+    <span className="shrink-0 rounded-full bg-[#69a44f]/15 px-2 py-0.5 text-xs font-bold text-[#4e8a36]">{pct}% match</span>
   </div>
 );
 
@@ -107,8 +107,8 @@ const DiscoveryPreview = () => (
 
 const StatusRow = ({ title, status, color }: { title: string; status: string; color: string }) => (
   <div className="flex items-center justify-between rounded-xl border border-border/60 bg-white p-2.5 shadow-sm">
-    <span className="truncate text-[11px] font-semibold text-foreground">{title}</span>
-    <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: `${color}1a`, color }}>
+    <span className="truncate text-xs font-semibold text-foreground">{title}</span>
+    <span className="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold" style={{ backgroundColor: `${color}1a`, color }}>
       {status}
     </span>
   </div>
@@ -126,12 +126,12 @@ const InterviewPreview = () => (
   <div className="rounded-2xl border border-border/60 bg-white p-3 shadow-sm">
     <ul className="space-y-1.5">
       {["Mock interview booked", "Top questions ready", "Profile tips reviewed"].map((t) => (
-        <li key={t} className="flex items-center gap-2 text-[11px] font-medium text-foreground">
+        <li key={t} className="flex items-center gap-2 text-xs font-medium text-foreground">
           <CheckCircle2 size={13} className="shrink-0 text-[#69a44f]" /> {t}
         </li>
       ))}
     </ul>
-    <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-[#264a7f]/10 px-2 py-0.5 text-[10px] font-bold text-[#264a7f]">
+    <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-[#264a7f]/10 px-2 py-0.5 text-xs font-bold text-[#264a7f]">
       <Wallet size={10} /> Career support
     </span>
   </div>
@@ -144,8 +144,8 @@ const HiredPreview = () => (
         <Trophy size={16} />
       </span>
       <div className="flex-1">
-        <div className="text-[11px] font-bold text-foreground">Offer Letter</div>
-        <div className="text-[10px] text-muted-foreground">Congratulations — you&apos;re hired!</div>
+        <div className="text-xs font-bold text-foreground">Offer Letter</div>
+        <div className="text-xs text-muted-foreground">Congratulations — you&apos;re hired!</div>
       </div>
       <CheckCircle2 size={18} className="text-[#69a44f]" />
     </div>
@@ -216,7 +216,7 @@ export default function CandidateJourneySection() {
     <section className="relative overflow-hidden bg-[radial-gradient(circle_at_top,rgba(38,74,127,0.08),transparent_45%),linear-gradient(180deg,#ffffff_0%,#f6faff_100%)] py-16 sm:py-24">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal as="div" className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#264a7f]/10 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#264a7f]">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#264a7f]/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-[#264a7f]">
             Career Journey
           </span>
           <h2 className="mt-4 font-heading text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
@@ -243,14 +243,14 @@ export default function CandidateJourneySection() {
                   <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-md" style={{ backgroundColor: NAVY }}>
                     <Icon size={20} />
                     <span
-                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ring-2 ring-white"
+                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold text-white ring-2 ring-white"
                       style={{ backgroundColor: GREEN }}
                     >
                       {i + 1}
                     </span>
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#69a44f]">Step {i + 1}</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#69a44f]">Step {i + 1}</p>
                     <h3 className="font-heading text-base font-bold leading-snug text-foreground sm:text-lg">{step.title}</h3>
                   </div>
                 </div>

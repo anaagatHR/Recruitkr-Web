@@ -51,7 +51,7 @@ const WhoWeHelpSection = () => {
                 <h3 className="text-[15px] font-bold leading-tight text-foreground md:mb-3 md:text-2xl">
                   {panel.title}
                 </h3>
-                <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-[1.45] text-muted-foreground md:mt-0 md:line-clamp-none md:text-sm md:leading-relaxed">
+                <p className="mt-0.5 line-clamp-2 text-xs leading-[1.45] text-muted-foreground md:mt-0 md:line-clamp-none md:text-sm md:leading-relaxed">
                   {panel.description}
                 </p>
               </div>

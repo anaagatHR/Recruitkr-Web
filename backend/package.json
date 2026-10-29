@@ -14,7 +14,10 @@
     "solr:reindex": "node scripts/reindexSolr.js",
     "solr:reindex:candidates": "node scripts/reindexCandidatesSolr.js",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "jobs:backfill-companies": "node scripts/backfillJobCompanies.js",
+    "jobs:backfill-companies:apply": "node scripts/backfillJobCompanies.js --apply",
+    "test": "node --test \"tests/**/*.test.js\""
   },
   "dependencies": {
     "argon2": "^0.44.0",

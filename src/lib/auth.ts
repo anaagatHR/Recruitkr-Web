@@ -51,3 +51,10 @@ export const updateSessionTokens = (accessToken: string, refreshToken?: string) 
     refreshToken: refreshToken ?? current.refreshToken,
   });
 };
+
+/** Where a signed-in user's "Profile" lives. */
+export const dashboardPathForRole = (role: UserRole | undefined): string => {
+  if (role === 'client') return '/dashboard/client';
+  if (role === 'admin') return '/dashboard/admin/departments';
+  return '/dashboard/candidate';
+};

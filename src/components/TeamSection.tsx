@@ -137,7 +137,7 @@ const TeamCard = ({ member }: { member: TeamMember }) => (
     <h3 className="mt-2.5 line-clamp-2 text-[13px] font-bold leading-tight text-white sm:mt-3 sm:text-sm">
       {member.name}
     </h3>
-    <p className="mt-1 line-clamp-2 text-[10px] font-semibold uppercase leading-tight tracking-[0.1em] text-[#a9d68d] sm:text-[11px]">
+    <p className="mt-1 line-clamp-2 text-xs font-semibold uppercase leading-tight tracking-[0.1em] text-[#a9d68d] sm:text-xs">
       {member.role || "RecruitKr Team"}
     </p>
     {/* Summary is desktop-only: at two cards across on a phone it pushed each
@@ -161,13 +161,13 @@ const TeamLeadCard = ({ member }: { member: TeamMember }) => (
   <article className="group flex flex-col items-center gap-4 rounded-3xl border border-white/15 bg-white/[0.09] p-4 text-center backdrop-blur transition-all duration-300 hover:border-[#69a44f]/60 hover:bg-white/[0.13] sm:flex-row sm:gap-7 sm:p-7 sm:text-left">
     <Avatar member={member} size="lg" />
     <div className="min-w-0 flex-1">
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-[#69a44f]/40 bg-[#69a44f]/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#a9d68d]">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-[#69a44f]/40 bg-[#69a44f]/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#a9d68d]">
         Leadership
       </span>
       <h3 className="mt-2.5 font-heading text-lg font-extrabold leading-tight text-white sm:text-2xl">
         {member.name}
       </h3>
-      <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#a9d68d] sm:text-xs">
+      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#a9d68d] sm:text-xs">
         {member.role || "RecruitKr Team"}
       </p>
       <p className="mt-2.5 text-xs leading-[1.6] text-white/75 sm:text-sm">
@@ -234,7 +234,7 @@ const TeamSection = () => {
       <div className="container relative mx-auto px-4 sm:px-6">
         {/* Header */}
         <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white backdrop-blur">
             <Sparkles size={13} /> RecruitKr Team
           </span>
           {/* h1: this section is the main content of /our-team, its only consumer. */}

@@ -1,9 +1,73 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Mail, Phone, Send, Sparkles, CheckCircle2, Clock } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { apiPost } from "@/lib/api";
+
+// Cloudflare Turnstile (free CAPTCHA). Optional: without a site key the form
+// relies on the honeypot field + the backend's per-IP rate limit.
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
+const TURNSTILE_SCRIPT = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+
+type TurnstileApi = {
+  render: (el: HTMLElement, opts: Record<string, unknown>) => string;
+  reset: (id?: string) => void;
+};
+declare global {
+  interface Window {
+    turnstile?: TurnstileApi;
+  }
+}
+
+/**
+ * Mounts the Turnstile widget lazily — the script is only requested when the
+ * contact page renders and a site key is configured, never site-wide.
+ */
+function TurnstileWidget({ onToken }: { onToken: (token: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const widgetId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY || !ref.current) return;
+    let cancelled = false;
+
+    const mount = () => {
+      if (cancelled || !ref.current || !window.turnstile || widgetId.current) return;
+      widgetId.current = window.turnstile.render(ref.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        theme: "auto",
+        callback: (token: string) => onToken(token),
+        "expired-callback": () => onToken(""),
+        "error-callback": () => onToken(""),
+      });
+    };
+
+    if (window.turnstile) {
+      mount();
+    } else {
+      const existing = document.querySelector<HTMLScriptElement>(`script[src^="${TURNSTILE_SCRIPT}"]`);
+      const script = existing ?? document.createElement("script");
+      if (!existing) {
+        script.src = TURNSTILE_SCRIPT;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      }
+      script.addEventListener("load", mount);
+      return () => {
+        cancelled = true;
+        script.removeEventListener("load", mount);
+      };
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [onToken]);
+
+  if (!TURNSTILE_SITE_KEY) return null;
+  return <div ref={ref} className="min-h-[65px]" />;
+}
 
 // Brand palette (navy / green / amber).
 const NAVY = "#264a7f";
@@ -14,8 +78,8 @@ const contactCards = [
   {
     icon: Mail,
     title: "Email us",
-    lines: ["Careers@recruitkr.com", "Connect@recruitkr.com"],
-    href: "mailto:Connect@recruitkr.com",
+    lines: ["careers@recruitkr.com", "connect@recruitkr.com"],
+    href: "mailto:connect@recruitkr.com",
     color: NAVY,
   },
   {
@@ -38,6 +102,9 @@ const Contact = () => {
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [message, setMessage] = useState("");
+  // Honeypot — hidden from people, irresistible to form-filling bots.
+  const [website, setWebsite] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -48,18 +115,34 @@ const Contact = () => {
     setSuccess("");
     setError("");
 
+    const digits = mobile.replace(/\D/g, "");
+    if (digits && !/^[6-9]\d{9}$/.test(digits)) {
+      setError("Please enter a valid 10-digit Indian mobile number.");
+      setSubmitting(false);
+      return;
+    }
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setError("Please complete the verification step.");
+      setSubmitting(false);
+      return;
+    }
+
     try {
       await apiPost("/contact", {
         name: name.trim(),
         email: email.trim().toLowerCase(),
-        mobile: mobile.trim(),
+        mobile: digits,
         message: message.trim(),
+        website,
+        ...(turnstileToken ? { turnstileToken } : {}),
       });
       setSuccess("Message submitted successfully. Our team will reach out soon.");
       setName("");
       setEmail("");
       setMobile("");
       setMessage("");
+      setTurnstileToken("");
+      window.turnstile?.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit");
     } finally {
@@ -67,14 +150,16 @@ const Contact = () => {
     }
   };
 
+  // text-base on phones: anything under 16px makes iOS Safari zoom the page
+  // when the field is focused.
   const inputClass =
-    "w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
+    "w-full rounded-xl border border-border bg-background px-4 py-3 text-base text-foreground placeholder-muted-foreground transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 sm:text-sm";
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="relative overflow-hidden pt-28 pb-20">
+      <main id="main" className="relative overflow-hidden pt-28 pb-20">
         {/* Decorative brand blobs */}
         <span
           aria-hidden="true"
@@ -157,25 +242,89 @@ const Contact = () => {
                 Fill in the form and we&apos;ll respond within one business day.
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Every input has a name (so browser autofill and password
+                  managers work), an id tied to its <label htmlFor>, and the
+                  right type/inputMode so phones open the matching keyboard. */}
+              <form onSubmit={handleSubmit} className="space-y-4" noValidate={false}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium">Name *</label>
-                    <input required className={inputClass} placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
+                    <label htmlFor="contact-name" className="mb-1.5 block text-sm font-medium">Name *</label>
+                    <input
+                      id="contact-name"
+                      name="name"
+                      required
+                      minLength={2}
+                      autoComplete="name"
+                      className={inputClass}
+                      placeholder="Your name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium">Mobile</label>
-                    <input className={inputClass} placeholder="10-digit number" value={mobile} onChange={(e) => setMobile(e.target.value)} maxLength={10} />
+                    <label htmlFor="contact-mobile" className="mb-1.5 block text-sm font-medium">Mobile</label>
+                    <input
+                      id="contact-mobile"
+                      name="mobile"
+                      type="tel"
+                      inputMode="numeric"
+                      pattern="[6-9][0-9]{9}"
+                      title="10-digit Indian mobile number"
+                      autoComplete="tel-national"
+                      className={inputClass}
+                      placeholder="10-digit number"
+                      value={mobile}
+                      onChange={(e) => setMobile(e.target.value.replace(/[^\d]/g, "").slice(0, 10))}
+                      maxLength={10}
+                    />
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium">Email *</label>
-                  <input required type="email" className={inputClass} placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <label htmlFor="contact-email" className="mb-1.5 block text-sm font-medium">Email *</label>
+                  <input
+                    id="contact-email"
+                    name="email"
+                    required
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    className={inputClass}
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium">Message *</label>
-                  <textarea required rows={5} className={inputClass} placeholder="How can we help?" value={message} onChange={(e) => setMessage(e.target.value)} />
+                  <label htmlFor="contact-message" className="mb-1.5 block text-sm font-medium">Message *</label>
+                  <textarea
+                    id="contact-message"
+                    name="message"
+                    required
+                    minLength={10}
+                    rows={5}
+                    className={inputClass}
+                    placeholder="How can we help?"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                  />
                 </div>
+
+                {/* Honeypot. Off-screen and excluded from the tab order and
+                    from assistive tech; a human never sees or fills it. */}
+                <div aria-hidden="true" className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden">
+                  <label htmlFor="contact-website">Website</label>
+                  <input
+                    id="contact-website"
+                    name="website"
+                    type="text"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                  />
+                </div>
+
+                <TurnstileWidget onToken={setTurnstileToken} />
 
                 {success && (
                   <p className="flex items-center gap-2 rounded-xl bg-secondary/10 px-4 py-3 text-sm font-medium text-secondary">
@@ -183,7 +332,7 @@ const Contact = () => {
                   </p>
                 )}
                 {error && (
-                  <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>
+                  <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>
                 )}
 
                 <button

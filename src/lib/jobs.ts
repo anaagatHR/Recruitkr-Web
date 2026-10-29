@@ -22,7 +22,57 @@ export type Job = {
   openings: number;
   featured?: boolean;
   companyRating?: number;
+  /** ISO date after which the employer no longer accepts applications. */
+  applicationDeadline?: string;
+  /** Backend verdict on whether the Apply button should be live. */
+  canApply?: boolean;
+  /**
+   * True when the listing carries the minimum a candidate needs to decide:
+   * a real company name and a description. Incomplete listings are kept on
+   * the full board but hidden from the homepage strips so the first thing a
+   * visitor sees is never "Company · Not disclosed · Not specified".
+   */
+  isComplete: boolean;
 };
+
+/** Label shown wherever a job has no employer name. Never "Company". */
+export const CONFIDENTIAL_EMPLOYER = "Confidential Employer";
+
+/** Employer name for display: the real one, or an honest placeholder. */
+export const displayCompany = (job: Pick<Job, "company">) => job.company?.trim() || CONFIDENTIAL_EMPLOYER;
+
+/** Days until the deadline (negative when past); undefined when none is set. */
+export const daysUntilDeadline = (job: Pick<Job, "applicationDeadline">): number | undefined => {
+  if (!job.applicationDeadline) return undefined;
+  const ts = Date.parse(job.applicationDeadline);
+  if (!Number.isFinite(ts)) return undefined;
+  return Math.ceil((ts - Date.now()) / 86_400_000);
+};
+
+export const isExpired = (job: Pick<Job, "applicationDeadline">) => {
+  const days = daysUntilDeadline(job);
+  return days !== undefined && days < 0;
+};
+
+/**
+ * "2-4" → "2–4 years experience", "Fresher" → "Fresher", "Not specified" → "".
+ * The meta description used to read "2-4 experience" with the unit missing.
+ */
+export const formatExperience = (experience: string | undefined): string => {
+  const raw = (experience ?? "").trim();
+  if (!raw || /^not specified$/i.test(raw)) return "";
+  if (/fresher|entry/i.test(raw)) return raw;
+  if (/year|yr/i.test(raw)) return raw.replace(/\s*yrs?\b/i, " years").replace(/-/g, "–") + (/experience/i.test(raw) ? "" : " experience");
+  const range = raw.match(/^(\d+)\s*(?:-|–|to)\s*(\d+)\+?$/);
+  if (range) return `${range[1]}–${range[2]} years experience`;
+  const single = raw.match(/^(\d+)\+?$/);
+  if (single) return `${single[1]}+ years experience`;
+  return raw;
+};
+
+/** "1 opening" / "3 openings" — never "1 openings". */
+export const pluralize = (count: number, singular: string, plural = `${singular}s`) =>
+  `${count.toLocaleString("en-IN")} ${count === 1 ? singular : plural}`;
 
 export type Company = {
   id: string;
@@ -80,7 +130,7 @@ const normalizeWorkMode = (value: unknown, workModes?: unknown): Job["workMode"]
 /** Maps Express /jobs payloads (jobTitle, companyName, _id, …) to the UI Job shape. */
 export function normalizeApiJob(raw: unknown): Job | null {
   if (!raw || typeof raw !== "object") return null;
-  if (isSeedJob(raw)) return raw;
+  if (isSeedJob(raw)) return { ...raw, isComplete: raw.isComplete ?? true };
 
   const record = raw as Record<string, unknown>;
   const salary = record.salary && typeof record.salary === "object" ? (record.salary as Record<string, unknown>) : null;
@@ -92,11 +142,20 @@ export function normalizeApiJob(raw: unknown): Job | null {
   const salaryMin = asNumber(record.salaryMin ?? record.minCtcLpa ?? salary?.min);
   const salaryMax = asNumber(record.salaryMax ?? record.maxCtcLpa ?? salary?.max);
   const createdAt = asString(record.postedAt ?? record.createdAt, new Date().toISOString());
+  // Legacy records had the literal placeholder "Company" saved as a name.
+  const rawCompany = asString(record.company ?? record.companyName);
+  const company = /^company$/i.test(rawCompany) ? "" : rawCompany;
+  const description = asString(record.description ?? record.jobDescription, "");
+  const deadline = asString(record.applicationDeadline);
+  const isComplete =
+    typeof record.isComplete === "boolean" ? record.isComplete : Boolean(company) && description.length >= 40;
 
   return {
     id,
-    title,
-    company: asString(record.company ?? record.companyName, "Company") || "Company",
+    // Titles were saved with trailing spaces ("store manager "), which showed
+    // up in <title> and in the URL slug.
+    title: title.replace(/\s+/g, " ").trim(),
+    company,
     companyId: asString(record.companyId) || undefined,
     companyLogo: asString(record.companyLogo) || undefined,
     location: asString(record.location ?? record.jobLocation, "Location not shared") || "Location not shared",
@@ -109,12 +168,15 @@ export function normalizeApiJob(raw: unknown): Job | null {
     skills: Array.isArray(record.skills)
       ? record.skills.map((skill) => asString(skill)).filter(Boolean)
       : [],
-    description: asString(record.description ?? record.jobDescription, ""),
+    description,
     postedAt: createdAt,
     applicants: asNumber(record.applicants) ?? 0,
     openings: Math.max(1, asNumber(record.openings) ?? 1),
     featured: Boolean(record.featured),
     companyRating: asNumber(record.companyRating),
+    applicationDeadline: deadline && Number.isFinite(Date.parse(deadline)) ? deadline : undefined,
+    canApply: typeof record.canApply === "boolean" ? record.canApply : undefined,
+    isComplete,
   };
 };
 
@@ -166,14 +228,14 @@ const now = Date.now();
 const hoursAgo = (h: number) => new Date(now - h * 3600 * 1000).toISOString();
 
 const seedJobs: Job[] = [
-  { id: "j1", title: "Corporate Jobs", company: "Nimbus Technologies", companyId: "c1", location: "Bengaluru", type: "Full-time", workMode: "Hybrid", salaryMin: 18, salaryMax: 32, experience: "4-7 yrs", sector: "Information Technology", skills: ["React", "TypeScript", "Next.js"], description: "Build delightful, high-performance web apps used by millions.", postedAt: hoursAgo(3), applicants: 47, openings: 2, featured: true, companyRating: 4.6 },
-  { id: "j2", title: "Staff Nurse - ICU", company: "MediCare Health", companyId: "c2", location: "Mumbai", type: "Full-time", workMode: "On-site", salaryMin: 4, salaryMax: 7, experience: "2-5 yrs", sector: "Healthcare", skills: ["Critical Care", "Patient Care"], description: "Provide compassionate, expert care in our ICU.", postedAt: hoursAgo(8), applicants: 31, openings: 5, companyRating: 4.3 },
-  { id: "j3", title: "Internship", company: "FinEdge Capital", companyId: "c3", location: "Gurugram", type: "Full-time", workMode: "On-site", salaryMin: 9, salaryMax: 15, experience: "3-6 yrs", sector: "Banking & Finance", skills: ["Risk", "SQL", "Excel"], description: "Own credit-risk models for our digital lending book.", postedAt: hoursAgo(20), applicants: 18, openings: 1, featured: true, companyRating: 4.1 },
-  { id: "j4", title: "Store Manager", company: "RetailNova", companyId: "c4", location: "Delhi", type: "Full-time", workMode: "On-site", salaryMin: 5, salaryMax: 9, experience: "3-8 yrs", sector: "Retail", skills: ["Operations", "Team Lead"], description: "Run a flagship store and lead a 20-person team.", postedAt: hoursAgo(30), applicants: 64, openings: 3, companyRating: 3.9 },
-  { id: "j5", title: "Production Engineer", company: "BuildWorks Manufacturing", companyId: "c5", location: "Pune", type: "Full-time", workMode: "On-site", salaryMin: 6, salaryMax: 11, experience: "2-5 yrs", sector: "Manufacturing", skills: ["CNC", "Lean", "Quality"], description: "Optimise precision manufacturing lines.", postedAt: hoursAgo(46), applicants: 12, openings: 4, companyRating: 4.0 },
-  { id: "j6", title: "Logistics Coordinator", company: "SwiftLogix", companyId: "c6", location: "Hyderabad", type: "Full-time", workMode: "Hybrid", salaryMin: 4, salaryMax: 8, experience: "1-4 yrs", sector: "Logistics", skills: ["Supply Chain", "ERP"], description: "Coordinate last-mile delivery across the south zone.", postedAt: hoursAgo(5), applicants: 22, openings: 6, companyRating: 4.2 },
-  { id: "j7", title: "Workfrom Home", company: "Nimbus Technologies", companyId: "c1", location: "Remote", type: "Internship", workMode: "Remote", salaryMin: 0.3, salaryMax: 0.5, experience: "0-1 yrs", sector: "Information Technology", skills: ["Content", "SEO"], description: "Learn product marketing with a world-class team.", postedAt: hoursAgo(2), applicants: 88, openings: 2, featured: true, companyRating: 4.6 },
-  { id: "j8", title: "Backend Engineer (Node.js)", company: "SwiftLogix", companyId: "c6", location: "Hyderabad", type: "Full-time", workMode: "Remote", salaryMin: 14, salaryMax: 26, experience: "3-6 yrs", sector: "Information Technology", skills: ["Node.js", "Postgres", "AWS"], description: "Scale our delivery platform to 10x volume.", postedAt: hoursAgo(11), applicants: 39, openings: 3, companyRating: 4.2 },
+  { id: "j1", title: "Corporate Jobs", company: "Nimbus Technologies", companyId: "c1", location: "Bengaluru", type: "Full-time", workMode: "Hybrid", salaryMin: 18, salaryMax: 32, experience: "4-7 yrs", sector: "Information Technology", skills: ["React", "TypeScript", "Next.js"], description: "Build delightful, high-performance web apps used by millions.", postedAt: hoursAgo(3), applicants: 47, openings: 2, featured: true, companyRating: 4.6, isComplete: true },
+  { id: "j2", title: "Staff Nurse - ICU", company: "MediCare Health", companyId: "c2", location: "Mumbai", type: "Full-time", workMode: "On-site", salaryMin: 4, salaryMax: 7, experience: "2-5 yrs", sector: "Healthcare", skills: ["Critical Care", "Patient Care"], description: "Provide compassionate, expert care in our ICU.", postedAt: hoursAgo(8), applicants: 31, openings: 5, companyRating: 4.3, isComplete: true },
+  { id: "j3", title: "Internship", company: "FinEdge Capital", companyId: "c3", location: "Gurugram", type: "Full-time", workMode: "On-site", salaryMin: 9, salaryMax: 15, experience: "3-6 yrs", sector: "Banking & Finance", skills: ["Risk", "SQL", "Excel"], description: "Own credit-risk models for our digital lending book.", postedAt: hoursAgo(20), applicants: 18, openings: 1, featured: true, companyRating: 4.1, isComplete: true },
+  { id: "j4", title: "Store Manager", company: "RetailNova", companyId: "c4", location: "Delhi", type: "Full-time", workMode: "On-site", salaryMin: 5, salaryMax: 9, experience: "3-8 yrs", sector: "Retail", skills: ["Operations", "Team Lead"], description: "Run a flagship store and lead a 20-person team.", postedAt: hoursAgo(30), applicants: 64, openings: 3, companyRating: 3.9, isComplete: true },
+  { id: "j5", title: "Production Engineer", company: "BuildWorks Manufacturing", companyId: "c5", location: "Pune", type: "Full-time", workMode: "On-site", salaryMin: 6, salaryMax: 11, experience: "2-5 yrs", sector: "Manufacturing", skills: ["CNC", "Lean", "Quality"], description: "Optimise precision manufacturing lines.", postedAt: hoursAgo(46), applicants: 12, openings: 4, companyRating: 4.0, isComplete: true },
+  { id: "j6", title: "Logistics Coordinator", company: "SwiftLogix", companyId: "c6", location: "Hyderabad", type: "Full-time", workMode: "Hybrid", salaryMin: 4, salaryMax: 8, experience: "1-4 yrs", sector: "Logistics", skills: ["Supply Chain", "ERP"], description: "Coordinate last-mile delivery across the south zone.", postedAt: hoursAgo(5), applicants: 22, openings: 6, companyRating: 4.2, isComplete: true },
+  { id: "j7", title: "Workfrom Home", company: "Nimbus Technologies", companyId: "c1", location: "Remote", type: "Internship", workMode: "Remote", salaryMin: 0.3, salaryMax: 0.5, experience: "0-1 yrs", sector: "Information Technology", skills: ["Content", "SEO"], description: "Learn product marketing with a world-class team.", postedAt: hoursAgo(2), applicants: 88, openings: 2, featured: true, companyRating: 4.6, isComplete: true },
+  { id: "j8", title: "Backend Engineer (Node.js)", company: "SwiftLogix", companyId: "c6", location: "Hyderabad", type: "Full-time", workMode: "Remote", salaryMin: 14, salaryMax: 26, experience: "3-6 yrs", sector: "Information Technology", skills: ["Node.js", "Postgres", "AWS"], description: "Scale our delivery platform to 10x volume.", postedAt: hoursAgo(11), applicants: 39, openings: 3, companyRating: 4.2, isComplete: true },
 ];
 
 type JobsResponse = { success?: boolean; data?: unknown[] | { jobs?: unknown[] } };
@@ -230,7 +292,17 @@ export async function fetchJobsPage(page = 1, limit = 12): Promise<JobsPage> {
     : { jobs: [], total: 0, hasMore: false, live: true };
 }
 
-export async function fetchJobs(): Promise<{ jobs: Job[]; live: boolean }> {
+/**
+ * The home page has several sections that each need "the jobs" (latest strip,
+ * companies-hiring grid, FOMO ticker). Without this they each fired their own
+ * `/jobs?limit=50` on mount — the audit saw the identical request twice in the
+ * network tab. One in-flight promise is shared and the result is kept for a
+ * short window, so a page renders from a single request.
+ */
+const JOBS_MEMO_TTL_MS = 60_000;
+let jobsMemo: { promise: Promise<{ jobs: Job[]; live: boolean }>; expiresAt: number } | null = null;
+
+async function loadJobsUncached(): Promise<{ jobs: Job[]; live: boolean }> {
   try {
     const res = await apiGet<JobsResponse>("/jobs?limit=50", { retries: 0 });
     const jobs = normalizeJobs(unwrap(res, "jobs"));
@@ -240,6 +312,28 @@ export async function fetchJobs(): Promise<{ jobs: Job[]; live: boolean }> {
   }
   return { jobs: seedJobs, live: false };
 }
+
+export async function fetchJobs(): Promise<{ jobs: Job[]; live: boolean }> {
+  const now = Date.now();
+  if (jobsMemo && now < jobsMemo.expiresAt) return jobsMemo.promise;
+
+  const promise = loadJobsUncached().then((result) => {
+    // A failed request (seed fallback) must not be memoised for a minute —
+    // the next section to mount should get a fresh attempt.
+    if (!result.live) jobsMemo = null;
+    return result;
+  });
+  jobsMemo = { promise, expiresAt: now + JOBS_MEMO_TTL_MS };
+  return promise;
+}
+
+/** Drop the memoised list — call after anything that changes the board. */
+export function invalidateJobsMemo() {
+  jobsMemo = null;
+}
+
+/** Jobs fit to headline the homepage: complete, live, not past deadline. */
+export const homepageEligible = (job: Job) => job.isComplete && !isExpired(job) && job.canApply !== false;
 
 /**
  * Every live job, paged until the backend says there are no more.

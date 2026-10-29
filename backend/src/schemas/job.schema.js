@@ -49,6 +49,9 @@ export const listJobsQuerySchema = z
     // Desired annual salary band in LPA; a job matches when its range overlaps.
     minSalary: z.coerce.number().nonnegative().optional(),
     maxSalary: z.coerce.number().nonnegative().optional(),
+    // "1" / "true": only listings with a company name and a real description
+    // (homepage strips). The full board shows everything that isn't expired.
+    complete: z.enum(['1', '0', 'true', 'false']).optional(),
   })
-   .strict();
+  .strict();
 

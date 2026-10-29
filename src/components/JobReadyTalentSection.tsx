@@ -92,7 +92,7 @@ export default function JobReadyTalentSection() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* Heading */}
         <Reveal as="div" className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-[#264a7f]">
+          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-bold uppercase tracking-[0.22em] text-[#264a7f]">
             <Users size={13} /> Candidate Journey
           </span>
           <h2 className="mt-4 font-heading text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl md:text-4xl">
@@ -132,7 +132,7 @@ export default function JobReadyTalentSection() {
                 <h3 className="text-[13px] font-bold leading-tight text-foreground sm:mt-4 sm:text-base">
                   {step.title}
                 </h3>
-                <p className="mt-0.5 line-clamp-1 text-[11px] leading-[1.45] text-muted-foreground sm:mt-1.5 sm:line-clamp-none sm:flex-1 sm:text-sm sm:leading-relaxed">
+                <p className="mt-0.5 line-clamp-1 text-xs leading-[1.45] text-muted-foreground sm:mt-1.5 sm:line-clamp-none sm:flex-1 sm:text-sm sm:leading-relaxed">
                   {step.description}
                 </p>
               </span>

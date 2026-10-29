@@ -23,3 +23,13 @@ srv.err.log
 !.env.example
 !.env*.example
 backend/.env
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# AI / local outputs
+Claude outputs/
+.claude/

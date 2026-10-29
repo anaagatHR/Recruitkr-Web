@@ -8,6 +8,7 @@ import AuthHero from "@/components/auth/AuthHero";
 import { apiPost } from "@/lib/api";
 import { getSession, setSession } from "@/lib/auth";
 import { tryAutoLogin } from "@/lib/autoLogin";
+import { safeRedirectPath } from "@/lib/url";
 
 // Brand palette (navy / green).
 const NAVY = "#264a7f";
@@ -56,8 +57,7 @@ const Login = () => {
     if (!session?.accessToken) return;
 
     const params = new URLSearchParams(location.search);
-    const redirect = params.get("redirect");
-    const dest = redirect || dashboardPathForRole(session.user.role);
+    const dest = safeRedirectPath(params.get("redirect"), dashboardPathForRole(session.user.role));
     navigate(dest, { replace: true });
   }, [location.search, navigate]);
 
@@ -129,7 +129,7 @@ useEffect(() => {
         throw new Error("Unable to complete Google sign-in");
       }
 
-      const destination = redirect || dashboardPathForRole(session.user.role);
+      const destination = safeRedirectPath(redirect, dashboardPathForRole(session.user.role));
 
       // router.replace lands on the clean destination URL (no oauth query
       // params) and keeps Next's history state in sync. Do NOT also call
@@ -192,7 +192,7 @@ useEffect(() => {
       const redirect = new URLSearchParams(location.search).get("redirect");
       // replace (not push) so /login leaves the history stack — pressing Back
       // from the dashboard won't return to the login page.
-      navigate(redirect || dashboardPathForRole(userType), {
+      navigate(safeRedirectPath(redirect, dashboardPathForRole(userType)), {
         replace: true,
       });
     } catch (err) {
@@ -232,6 +232,7 @@ useEffect(() => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <main id="main">
       <div className="relative overflow-hidden pt-28 pb-20">
         {/* Decorative brand blobs */}
         <span
@@ -411,6 +412,7 @@ useEffect(() => {
           </motion.div>
         </div>
       </div>
+      </main>
       <Footer />
     </div>
   );

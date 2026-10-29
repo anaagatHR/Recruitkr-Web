@@ -15,7 +15,7 @@ export default function FreeCost() {
       </div>
       {/* 11px floor for readability. Staying at 4 columns on phones is
           deliberate — the connector lines assume a single row of branches. */}
-      <h3 className="text-[11px] font-semibold uppercase leading-tight text-[#264a7f] sm:text-sm">
+      <h3 className="text-xs font-semibold uppercase leading-tight text-[#264a7f] sm:text-sm">
         {title}
       </h3>
     </div>

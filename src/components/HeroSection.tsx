@@ -1,9 +1,10 @@
 "use client";
 import { ArrowRight, BriefcaseBusiness, Search } from "lucide-react";
-import { useNavigate } from "@/compat/router";
+import { Link, useNavigate } from "@/compat/router";
 import TypingText from "@/components/TypingText";
 import HeroProcessFlow from "@/components/HeroProcessFlow";
 import HeroPhotoSlider from "@/components/HeroPhotoSlider";
+import { formatCount, useSiteStats } from "@/lib/stats";
 import { useState } from "react";
 
 const heroPhrases = [
@@ -13,15 +14,30 @@ const heroPhrases = [
   "Your next Job is here",
 ];
 
-const quickStats = [
-  { label: "Active openings", value: "500+" },
-  { label: "Trusted companies", value: "100+" },
-  { label: "Career support", value: "24/7" },
-];
+/**
+ * The three tiles under the search bar. Openings and companies are live —
+ * they used to be the literals "500+" and "100+" against a board of 68 jobs,
+ * which is the first thing the audit flagged. While the stats request is in
+ * flight (or if it fails) the tile shows a short claim instead of a number,
+ * never a fake one and never "0+".
+ */
+type QuickStat = { label: string; value: string };
+
+function useQuickStats(): QuickStat[] {
+  const { stats, loading } = useSiteStats();
+  const openings = stats && stats.activeJobs > 0 ? formatCount(stats.activeJobs) : loading ? "…" : "Live";
+  const companies = stats && stats.companies > 0 ? formatCount(stats.companies) : loading ? "…" : "Verified";
+  return [
+    { label: stats && stats.activeJobs > 0 ? "Verified openings" : "Openings updated daily", value: openings },
+    { label: stats && stats.companies > 0 ? "Hiring companies" : "Employers only", value: companies },
+    { label: "Free for job seekers", value: "₹0" },
+  ];
+}
 
 const HeroSection = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
+  const quickStats = useQuickStats();
 
   const goSearch = () => {
     navigate(query.trim() ? `/jobs?search=${encodeURIComponent(query.trim())}` : "/jobs");
@@ -58,7 +74,7 @@ const HeroSection = () => {
                 and these hold their contrast on every slide. */}
             <span className="block">
               <span className="text-[#264a7f]">Find Your Dream </span>
-              <span className="text-[#69a44f]">Job ?</span>
+              <span className="text-[#69a44f]">Job?</span>
             </span>
           </h1>
 
@@ -66,8 +82,8 @@ const HeroSection = () => {
               at 40-50% scrim the photos read through, so the text has to carry
               its own contrast rather than lean on a flat white backdrop. */}
           <p className="mx-auto mt-3 max-w-2xl text-sm font-medium leading-6 text-slate-800 [text-shadow:0_1px_3px_rgba(255,255,255,0.95)] sm:mt-5 sm:text-lg sm:leading-8">
-            Connect directly with Recruiters, track live updates, get instant updates and scroll
-            down to apply for verified jobs.
+            Verified jobs across Rajasthan &amp; India. Chat directly with recruiters and track every
+            application &mdash; free for job seekers.
           </p>
 
           {/* Search comes after the copy and is the primary action of the hero, so
@@ -107,21 +123,22 @@ const HeroSection = () => {
               target at this width, and one row instead of two keeps the stats
               on screen. Both stay ~44px tall for tap accessibility. */}
           <div className="mt-4 flex flex-row items-center justify-center gap-2.5 sm:mt-6 sm:flex-wrap sm:gap-3">
-            <button
-              type="button"
-              onClick={goSearch}
+            {/* Real anchors, not buttons with router.push: crawlers follow
+                them, middle-click / "open in new tab" works, and assistive
+                tech announces them as links. */}
+            <Link
+              to={query.trim() ? `/jobs?search=${encodeURIComponent(query.trim())}` : "/jobs"}
               className="sheen glow-green group inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#69a44f] to-[#5a8d3d] px-5 py-3 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-1 sm:flex-none sm:px-7 sm:py-3.5"
             >
               Explore jobs{" "}
               <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" />
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/contact")}
+            </Link>
+            <Link
+              to="/contact"
               className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-slate-300 bg-white/90 px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-slate-400 hover:bg-white sm:flex-none sm:px-7 sm:py-3.5"
             >
               Talk to us
-            </button>
+            </Link>
           </div>
 
           {/* Three across even on the narrowest phone — the labels are short
@@ -135,14 +152,13 @@ const HeroSection = () => {
                 <p className="text-lg font-bold text-slate-900 sm:text-2xl">{stat.value}</p>
                 {/* 11px floor: 10px labels measured as the smallest text on the
                     site and were the hardest thing on the page to read. */}
-                <p className="mt-0.5 text-[11px] leading-tight text-slate-600 sm:mt-1 sm:text-xs">{stat.label}</p>
+                <p className="mt-0.5 text-xs leading-tight text-slate-600 sm:mt-1 sm:text-xs">{stat.label}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {}
       <HeroPhotoSlider
         className="absolute inset-0 z-0"
         overlayClassName="bg-white/55 sm:bg-white/40"

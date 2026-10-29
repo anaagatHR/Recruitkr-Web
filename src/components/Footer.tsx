@@ -35,7 +35,9 @@ const linkSections = [
       { label: "Success Stories", to: "/success-stories" },
       { label: "Blog", to: "/blog" },
       { label: "Contact", to: "/contact" },
-      { label: "Admin", to: "https://recruitkr-business-os.vercel.app/", external: true },
+      // The internal admin console is deliberately NOT linked from the public
+      // footer: it exposed the admin URL to every visitor and confused
+      // candidates. Staff reach it directly.
     ],
   },
   {
@@ -69,7 +71,8 @@ const linkSections = [
   },
 ];
 
-const contactEmails = ["Careers@recruitkr.com", "Connect@recruitkr.com"];
+// Lowercase: mixed-case addresses look like typos and copy badly.
+const contactEmails = ["careers@recruitkr.com", "connect@recruitkr.com"];
 const contactPhones = [
   { label: "Recruiters / Employers", display: "+91 90019 65072", tel: "+919001965072" },
   { label: "Candidates / Job Seekers", display: "+91 96363 15150", tel: "+919636315150" },
@@ -90,7 +93,7 @@ const FooterNavLink = ({ item }: { item: FooterLinkItem }) =>
       <span>{item.label}</span>
     </a>
   ) : (
-    <Link to={item.to} className={footerLinkClass}>
+    <Link to={item.to} prefetch={false} className={footerLinkClass}>
       <span>{item.label}</span>
     </Link>
   );
@@ -129,7 +132,7 @@ const Footer = () => {
                   target="_blank"
                   rel="noreferrer"
                   aria-label={label}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-slate-200 transition duration-200 hover:-translate-y-1 hover:scale-110 hover:border-[#69a44f]/60 hover:bg-[#69a44f]/15 hover:text-white hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c1c38]"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-slate-200 transition duration-200 hover:-translate-y-1 hover:scale-110 hover:border-[#69a44f]/60 hover:bg-[#69a44f]/15 hover:text-white hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c1c38]"
                 >
                   <Icon size={18} />
                 </a>
@@ -164,7 +167,7 @@ const Footer = () => {
                       {contactEmails.map((email) => (
                         <a key={email} href={`mailto:${email}`} className={contactLinkClass}>
                           <Mail size={16} className="mt-0.5 shrink-0 opacity-90" />
-                          <span className="min-w-0 break-words">{email}</span>
+                          <span className="min-w-0 whitespace-nowrap">{email}</span>
                         </a>
                       ))}
                     </div>
@@ -187,7 +190,7 @@ const Footer = () => {
               </Accordion>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-[repeat(4,minmax(0,1fr))_minmax(240px,1.25fr)]">
               {linkSections.map((section) => (
                 <div key={section.title}>
                   <h2 className="heading-plain mb-3 text-xs font-semibold uppercase tracking-widest text-[#8fc46f] flex items-center gap-1.5">
@@ -208,7 +211,7 @@ const Footer = () => {
                   {contactEmails.map((email) => (
                     <a key={email} href={`mailto:${email}`} className={contactLinkClass}>
                       <Mail size={16} className="mt-0.5 shrink-0 opacity-90" />
-                      <span className="min-w-0 break-words">{email}</span>
+                      <span className="min-w-0 whitespace-nowrap">{email}</span>
                     </a>
                   ))}
                 </div>

@@ -99,7 +99,7 @@ export default function HomeWhyUs() {
               stacked above the cards, and pinning it there would eat the
               viewport the cards need. */}
           <Reveal as="div" className="text-center lg:sticky lg:top-28 lg:text-left">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#264a7f]/20 bg-[#264a7f]/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#264a7f]">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#264a7f]/20 bg-[#264a7f]/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#264a7f]">
               <span className="h-1.5 w-1.5 rounded-full bg-[#264a7f]" />
               Why RecruitKr
             </span>
@@ -171,7 +171,7 @@ export default function HomeWhyUs() {
                         {usp.title}
                       </h3>
                       {/* One line on a phone, full text from `sm` up. */}
-                      <p className="mt-0.5 line-clamp-1 text-[11px] leading-[1.45] text-slate-600 sm:mt-1.5 sm:line-clamp-none sm:text-sm sm:leading-6">
+                      <p className="mt-0.5 line-clamp-1 text-xs leading-[1.45] text-slate-600 sm:mt-1.5 sm:line-clamp-none sm:text-sm sm:leading-6">
                         {usp.desc}
                       </p>
                     </span>

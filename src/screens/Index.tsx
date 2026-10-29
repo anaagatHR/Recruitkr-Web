@@ -1,72 +1,75 @@
 ﻿"use client";
 
+import dynamic from "next/dynamic";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import Footer from "@/components/Footer";
-import Placement from "@/components/placement";
-import PartnerCompanies from  "@/components/company";
-import JobShowcase from "@/components/JobShowcase";
 import FeaturedJobsSection from "@/components/FeaturedJobsSection";
-import TopCompanies from "@/components/TopCompanies";
-import HomeWhyUs from "@/components/HomeWhyUs";
-import HomeTestimonials from "@/components/HomeTestimonials";
-import HomeReviews from "@/components/HomeReviews";
-import HomeFaq from "@/components/HomeFaq";
-import HomeClosingCta from "@/components/HomeClosingCta";
 
 /**
- * Home page order, and why:
- *   hero → which employers → who hires here → what kind of work → why us →
- *   the numbers → the voices → the ratings → the questions → act → jobs
+ * Below-the-fold sections are code-split. Everything on the home page used to
+ * ship in one client bundle (~745 KB of JS for the route, per the audit); the
+ * hero and the job strip are what a visitor sees first, so only those are in
+ * the initial chunk. The rest still server-renders (ssr: true is the default)
+ * — this changes how the JS is delivered, not what crawlers get.
+ */
+const JobShowcase = dynamic(() => import("@/components/JobShowcase"), {
+  loading: () => <SectionSkeleton className="h-[520px]" />,
+});
+const HomeWhyUs = dynamic(() => import("@/components/HomeWhyUs"), {
+  loading: () => <SectionSkeleton className="h-[480px]" />,
+});
+const Placement = dynamic(() => import("@/components/placement"), {
+  loading: () => <SectionSkeleton className="h-[360px]" />,
+});
+const HomeTestimonials = dynamic(() => import("@/components/HomeTestimonials"), {
+  loading: () => <SectionSkeleton className="h-[520px]" />,
+});
+const HomeClosingCta = dynamic(() => import("@/components/HomeClosingCta"), {
+  loading: () => <SectionSkeleton className="h-[320px]" />,
+});
+
+/** Reserves the section's height so nothing jumps while a chunk loads. */
+function SectionSkeleton({ className }: { className: string }) {
+  return <div aria-hidden className={`w-full animate-pulse bg-slate-50 ${className}`} />;
+}
+
+/**
+ * Home page: seven sections, and why these seven.
  *
- * The page opens on who is hiring and closes on the openings themselves, so a
- * visitor who read the whole thing lands back on real jobs rather than on the
- * footer.
+ * The audit measured the previous page at ~7,700 px across 15+ sections —
+ * jobs, categories, process, stats, why-us, testimonials, employers, FAQ,
+ * CTA, partners, fresh jobs — and found that the one action that matters
+ * (search → read a job → apply) was buried under them. This cut keeps the
+ * sections that move a visitor towards a job and drops the ones that
+ * duplicate a dedicated page:
  *
- * Surfaces alternate white / slate-50 the whole way down, which keeps every
- * neighbouring pair of sections distinct without extra dividers. Two sections
- * can render nothing (TopCompanies with an empty board, HomeReviews until it
- * has real reviews), so the pairs around them use a border rather than relying
- * on the tint alternating — see the comments below.
+ *   1. Hero + search          — the action
+ *   2. Fresh on the board     — real jobs, immediately (was the LAST section)
+ *   3. Categories             — a second way in, with live counts
+ *   4. Why RecruitKr          — three reasons, once the jobs have been seen
+ *   5. By the numbers         — track record
+ *   6. Success stories        — people, in their own words
+ *   7. Closing CTA
+ *
+ * Removed from the home page (still live elsewhere): the FAQ (→ /faqs), the
+ * partner-logo marquee (→ /partners), "companies hiring" (two employers made
+ * it look thin; it returns when the board has depth), and written reviews
+ * (rendered nothing until reviews exist).
  */
 const Index = () => {
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
-      <HeroSection />
-      {/* Who is hiring right now, grouped from the live job data — the logo
-          marquee below is decoration, this is clickable: each tile filters the
-          board to that employer. Renders nothing on an empty board. (white) */}
-      <JobShowcase />
-      <Placement />
-      <HomeWhyUs />
-      <HomeTestimonials />
-      <TopCompanies />
-      {/* Partner logos: the broader trust signal, after the employers who are
-          actually hiring right now. (tinted band) */}
-      {/* What kind of work is on offer, for a visitor who didn't find their
-          role in the strip above. (white) */}
-      {/* Why go through RecruitKr at all. Sits after the visitor has seen real
-          jobs and real employers, so it reads as substantiation rather than a
-          pitch made before anything was shown. (tinted band) */}
-      {/* Proof in numbers, moved up from the foot of the page: it backs the
-          jobs above while the visitor is still deciding. (white) */}
-      {/* Proof in people's own words. Replaces three stacked video rails —
-          two of which were both headed "Success Stories" — with one tabbed
-          section over the same videos. (tinted band) */}
-      {/* Written ratings alongside the video stories. Renders nothing until
-          real reviews are added — see the note at the top of the file. (white
-          when present) */}
-      <HomeReviews />
-      {/* Objection handling right before the ask: fees, guarantees, coverage.
-          Carries its own top border because the section before it is white
-          whenever HomeReviews is showing. (white) */}
-      <HomeFaq />
-      {/* The ask. (white, with a dark brand band inside) */}
-      <HomeClosingCta />
-      {}
-      <PartnerCompanies />
-      <FeaturedJobsSection variant="latest" />
+      <main id="main">
+        <HeroSection />
+        <FeaturedJobsSection variant="latest" />
+        <JobShowcase />
+        <HomeWhyUs />
+        <Placement />
+        <HomeTestimonials />
+        <HomeClosingCta />
+      </main>
       <Footer />
     </div>
   );

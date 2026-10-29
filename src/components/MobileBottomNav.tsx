@@ -1,9 +1,11 @@
 "use client";
 
-import { Handshake, Home, Search, User, type LucideIcon } from "lucide-react";
+import { Handshake, Home, LogIn, Search, User, type LucideIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { memo } from "react";
 import { Link } from "@/compat/router";
+import { useSession } from "@/hooks/useSession";
+import { dashboardPathForRole } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 type BottomNavItem = {
@@ -14,12 +16,19 @@ type BottomNavItem = {
   match: (pathname: string) => boolean;
 };
 
-const items: BottomNavItem[] = [
-  { label: "Home", path: "/", icon: Home, match: (p) => p === "/" },
+const baseItems: BottomNavItem[] = [
+  { label: "Home", path: "/", icon: Home, match: (p) => p === "/" || p === "/home" },
   { label: "Jobs", path: "/jobs", icon: Search, match: (p) => p.startsWith("/jobs") },
   { label: "Partner", path: "/partners", icon: Handshake, match: (p) => p.startsWith("/partners") },
-  { label: "Profile", path: "/login", icon: User, match: (p) => p.startsWith("/login") || p.startsWith("/signup") },
 ];
+
+// Last tab reflects auth state: "Login" for visitors, "Profile" once signed in.
+const loginItem: BottomNavItem = {
+  label: "Login",
+  path: "/login",
+  icon: LogIn,
+  match: (p) => p.startsWith("/login") || p.startsWith("/signup"),
+};
 
 /**
  * Routes that own their full-height chrome (their own headers / chat composer /
@@ -35,6 +44,19 @@ const HIDDEN_PREFIXES = ["/dashboard", "/messages", "/forgot-password", "/reset-
  */
 const MobileBottomNav = memo(function MobileBottomNav() {
   const pathname = usePathname() || "/";
+  const session = useSession();
+
+  const items: BottomNavItem[] = [
+    ...baseItems,
+    session
+      ? {
+          label: "Profile",
+          path: dashboardPathForRole(session.user.role),
+          icon: User,
+          match: (p) => p.startsWith("/dashboard"),
+        }
+      : loginItem,
+  ];
 
   if (HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
     return null;
@@ -59,10 +81,11 @@ const MobileBottomNav = memo(function MobileBottomNav() {
               <li key={label} className="flex-1">
                 <Link
                   to={path}
+                  prefetch={false}
                   aria-label={label}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 px-1 pt-1.5 pb-1 text-[0.6875rem] font-medium transition-colors",
+                    "flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 px-1 pt-1.5 pb-1 text-xs font-medium transition-colors",
                     active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                   )}
                 >

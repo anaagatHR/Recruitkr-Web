@@ -7,7 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import JobCard from "@/components/job/JobCard";
 import FomoTicker from "@/components/job/FomoTicker";
-import { fetchJobsPage, type Job } from "@/lib/jobs";
+import { fetchJobsPage, pluralize, type Job } from "@/lib/jobs";
 
 const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship", "Remote"];
 const WORK_MODES = ["On-site", "Hybrid", "Remote"];
@@ -16,9 +16,12 @@ const PAGE_SIZE = 12;
 export default function JobsScreen({
   initialJobs = [],
   initialHasMore = true,
+  initialTotal,
 }: {
   initialJobs?: Job[];
   initialHasMore?: boolean;
+  /** Board-wide total from the API, so the count line can say "68 jobs" not "12+ jobs". */
+  initialTotal?: number;
 }) {
   const routeLocation = useLocation();
   const initialSearch = new URLSearchParams(routeLocation.search).get("search") ?? "";
@@ -42,6 +45,7 @@ export default function JobsScreen({
   // pieces of state the IntersectionObserver callback needs, so the observer
   // never acts on a stale closure.
   const [hasMore, setHasMore] = useState(initialJobs.length > 0 ? initialHasMore : true);
+  const [total, setTotal] = useState<number | undefined>(initialTotal);
   const [loadingMore, setLoadingMore] = useState(false);
   const pageRef = useRef(1);
   const hasMoreRef = useRef(initialJobs.length > 0 ? initialHasMore : true);
@@ -58,9 +62,10 @@ export default function JobsScreen({
     // Server already provided page 1 — render it instantly, no client refetch.
     if (initialJobs.length > 0) return;
     let active = true;
-    fetchJobsPage(1, PAGE_SIZE).then(({ jobs, hasMore, live }) => {
+    fetchJobsPage(1, PAGE_SIZE).then(({ jobs, hasMore, live, total: apiTotal }) => {
       if (!active) return;
       setJobs(jobs);
+      setTotal(live ? apiTotal : jobs.length);
       setLoading(false);
       const more = live && hasMore;
       setHasMore(more);
@@ -78,8 +83,9 @@ export default function JobsScreen({
     setLoadingMore(true);
     try {
       const next = pageRef.current + 1;
-      const { jobs: more, hasMore: moreLeft } = await fetchJobsPage(next, PAGE_SIZE);
+      const { jobs: more, hasMore: moreLeft, total: apiTotal } = await fetchJobsPage(next, PAGE_SIZE);
       pageRef.current = next;
+      if (apiTotal) setTotal(apiTotal);
       setJobs((prev) => {
         const seen = new Set(prev.map((job) => job.id));
         return [...prev, ...more.filter((job) => !seen.has(job.id))];
@@ -105,6 +111,8 @@ export default function JobsScreen({
     observer.observe(el);
     return () => observer.disconnect();
   }, [loadMore, loading, hasMore]);
+
+  const isFiltering = Boolean(query.trim() || location.trim() || activeTypes.length || activeModes.length);
 
   const toggle = (list: string[], setList: (v: string[]) => void, value: string) =>
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -141,10 +149,10 @@ export default function JobsScreen({
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* <main>: the page had no main landmark, so screen-reader users had no
+      {/* <main id="main">: the page had no main landmark, so screen-reader users had no
           way to skip the nav and jump to the board. It wraps the hero and the
           results but not the Navbar/Footer, which are their own landmarks. */}
-      <main>
+      <main id="main">
       {/* Search hero */}
       <section className="border-b border-border bg-muted/40 pt-24 pb-8">
         <div className="container mx-auto px-4">
@@ -161,7 +169,10 @@ export default function JobsScreen({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Job title, company or skill"
-                className="w-full bg-transparent py-3 text-sm outline-none"
+                aria-label="Search by job title, company or skill"
+                type="search"
+                enterKeyHint="search"
+                className="w-full bg-transparent py-3 text-base outline-none sm:text-sm"
               />
             </div>
             <div className="flex flex-1 items-center gap-2 rounded-xl border border-border bg-background px-3">
@@ -170,7 +181,9 @@ export default function JobsScreen({
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="Location"
-                className="w-full bg-transparent py-3 text-sm outline-none"
+                aria-label="Filter by location"
+                autoComplete="address-level2"
+                className="w-full bg-transparent py-3 text-base outline-none sm:text-sm"
               />
             </div>
           </div>
@@ -188,7 +201,7 @@ export default function JobsScreen({
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Job type</p>
               <div className="flex flex-wrap gap-2">
                 {JOB_TYPES.map((t) => (
-                  <button key={t} onClick={() => toggle(activeTypes, setActiveTypes, t)} className={chip(activeTypes.includes(t))}>
+                  <button key={t} type="button" aria-pressed={activeTypes.includes(t)} onClick={() => toggle(activeTypes, setActiveTypes, t)} className={chip(activeTypes.includes(t))}>
                     {t}
                   </button>
                 ))}
@@ -198,7 +211,7 @@ export default function JobsScreen({
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Work mode</p>
               <div className="flex flex-wrap gap-2">
                 {WORK_MODES.map((m) => (
-                  <button key={m} onClick={() => toggle(activeModes, setActiveModes, m)} className={chip(activeModes.includes(m))}>
+                  <button key={m} type="button" aria-pressed={activeModes.includes(m)} onClick={() => toggle(activeModes, setActiveModes, m)} className={chip(activeModes.includes(m))}>
                     {m}
                   </button>
                 ))}
@@ -209,10 +222,18 @@ export default function JobsScreen({
           {/* Results */}
           <div>
             <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
+              {/* Exact counts. This used to read "1+ job found" — the "+" was a
+                  guess about pages not yet loaded. Now: "12 of 68 jobs" while
+                  more are available, "68 jobs found" once they're all in, and
+                  the plain filtered count when the visitor has narrowed it. */}
+              <p className="text-sm text-muted-foreground" aria-live="polite">
                 {loading
                   ? "Loading jobs..."
-                  : `${filtered.length}${hasMore ? "+" : ""} job${filtered.length === 1 ? "" : "s"} found`}
+                  : isFiltering
+                    ? `${pluralize(filtered.length, "job")} match your filters`
+                    : hasMore && total && total > filtered.length
+                      ? `Showing ${filtered.length} of ${pluralize(total, "job")}`
+                      : `${pluralize(filtered.length, "job")} found`}
               </p>
               <select
                 // The control has no visible <label> — its meaning comes from
@@ -249,19 +270,30 @@ export default function JobsScreen({
             )}
 
             {/* Infinite-scroll sentinel: when this row nears the viewport the
-                next page is fetched and appended. */}
+                next page is fetched and appended. The explicit button is the
+                keyboard / reduced-data fallback — and the thing that makes
+                the remaining pages reachable at all when IntersectionObserver
+                never fires (print, some in-app browsers). */}
             {!loading && hasMore && (
               <div ref={sentinelRef} className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-                {loadingMore && (
+                {loadingMore ? (
                   <>
                     <Loader2 size={16} className="animate-spin" /> Loading more jobs…
                   </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void loadMore()}
+                    className="inline-flex min-h-[44px] items-center rounded-full border border-border bg-card px-6 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
+                  >
+                    Load more jobs
+                  </button>
                 )}
               </div>
             )}
             {!loading && !hasMore && filtered.length > 0 && (
               <p className="py-8 text-center text-xs text-muted-foreground">
-                You&apos;ve seen all {filtered.length} job{filtered.length === 1 ? "" : "s"}.
+                You&apos;ve seen all {pluralize(filtered.length, "job")}.
               </p>
             )}
           </div>

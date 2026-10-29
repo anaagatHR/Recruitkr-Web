@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { getPublicStats } from '../controllers/job.controller.js';
 import { downloadResumeById } from '../controllers/resume.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.js';
 
@@ -29,6 +30,9 @@ router.get(
   requireRole('candidate', 'client', 'admin'),
   downloadResumeById,
 );
+
+// Public homepage numbers — same data as /jobs/stats, friendlier path.
+router.get('/stats', getPublicStats);
 
 router.use('/auth', authRoutes);
 router.use('/blogs', blogRoutes);

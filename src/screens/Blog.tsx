@@ -130,7 +130,7 @@ const Blog = () => {
       />
       <Navbar />
 
-      <main className="pt-28 pb-20">
+      <main id="main" className="pt-28 pb-20">
         <div className="container mx-auto px-4 sm:px-6">
           <header className="mx-auto max-w-3xl text-center">
             <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-primary">

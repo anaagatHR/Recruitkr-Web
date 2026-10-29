@@ -1,3 +1,57 @@
+// Where the browser is allowed to talk. Kept explicit so a new third party is
+// a deliberate one-line change here, not something that silently works.
+const API_ORIGIN = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000/api/v1").origin;
+  } catch {
+    return "";
+  }
+})();
+const CRM_ORIGIN = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_CRM_URL || "http://localhost:8080").origin;
+  } catch {
+    return "";
+  }
+})();
+const wsOrigin = (origin) => origin.replace(/^http/, "ws");
+
+/**
+ * Content-Security-Policy. 'unsafe-inline' for scripts is required by Next's
+ * own bootstrap scripts and the JSON-LD blocks without a nonce pipeline;
+ * everything else is a named origin. frame-ancestors 'none' is the modern
+ * X-Frame-Options: DENY. No 'unsafe-eval' in production.
+ */
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  `script-src 'self' 'unsafe-inline' ${process.env.NODE_ENV === "development" ? "'unsafe-eval'" : ""} https://www.googletagmanager.com https://challenges.cloudflare.com`,
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' blob: https:",
+  `connect-src 'self' ${API_ORIGIN} ${API_ORIGIN ? wsOrigin(API_ORIGIN) : ""} ${CRM_ORIGIN} https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://upload.imagekit.io https://challenges.cloudflare.com`,
+  "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://www.google.com https://challenges.cloudflare.com",
+  "worker-src 'self' blob:",
+  "upgrade-insecure-requests",
+]
+  .map((directive) => directive.replace(/\s+/g, " ").trim())
+  .join("; ");
+
+const securityHeaders = [
+  // Two years, subdomains, preload-list eligible.
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "X-DNS-Prefetch-Control", value: "on" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" },
+  { key: "Content-Security-Policy", value: contentSecurityPolicy },
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -24,6 +78,20 @@ const nextConfig = {
       { protocol: "https", hostname: "ik.imagekit.io" },
       { protocol: "https", hostname: "www.recruitkr.com" },
     ],
+  },
+  async headers() {
+    return [
+      {
+        // Every route, including the proxied /api/v1 rewrites.
+        source: "/:path*",
+        headers: securityHeaders,
+      },
+      {
+        // Static assets are content-addressed; cache them for a year.
+        source: "/assets/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+    ];
   },
   async redirects() {
     return [

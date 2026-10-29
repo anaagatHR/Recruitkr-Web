@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AuthHero from "@/components/auth/AuthHero";
 import { apiPost } from "@/lib/api";
+import { safeRedirectPath } from "@/lib/url";
 import { setSession } from "@/lib/auth";
 
 type SignupRole = "candidate" | "client";
@@ -77,7 +78,7 @@ export default function SignupScreen({ role = "candidate" }: { role?: SignupRole
   const [done, setDone] = useState(false);
 
   const redirectParam = new URLSearchParams(location.search).get("redirect");
-  const redirect = redirectParam || c.dashboard;
+  const redirect = safeRedirectPath(redirectParam, c.dashboard);
   const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED !== "false";
 
   const handleGoogle = () => {
@@ -168,6 +169,7 @@ export default function SignupScreen({ role = "candidate" }: { role?: SignupRole
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <main id="main">
       <div className="relative overflow-hidden pb-20 pt-28">
         {/* Decorative brand blobs */}
         <span
@@ -265,6 +267,7 @@ export default function SignupScreen({ role = "candidate" }: { role?: SignupRole
         </div>
         </div>
       </div>
+      </main>
       <Footer />
     </div>
   );

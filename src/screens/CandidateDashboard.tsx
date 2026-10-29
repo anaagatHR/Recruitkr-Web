@@ -1511,7 +1511,7 @@ const CandidateDashboard = () => {
       userLabel={profile?.fullName || sessionState?.user.email}
       headerExtra={
         <span
-          className={`hidden rounded-full border px-3 py-1 text-[11px] font-semibold sm:inline-flex ${LIVE_STATUS_META[liveStatus].className}`}
+          className={`hidden rounded-full border px-3 py-1 text-xs font-semibold sm:inline-flex ${LIVE_STATUS_META[liveStatus].className}`}
         >
           {LIVE_STATUS_META[liveStatus].label}
         </span>
@@ -1552,7 +1552,7 @@ const CandidateDashboard = () => {
               />
               <div className="relative z-10 grid gap-6 lg:grid-cols-[1.25fr,0.75fr] lg:items-end">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/75 sm:text-xs">RecruitKr Candidate Space</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/75 sm:text-xs">RecruitKr Candidate Space</p>
                   <h1 className="mt-2 font-heading text-2xl font-bold text-white break-words sm:mt-3 sm:text-3xl md:text-4xl">
                     Welcome, {profile?.fullName || sessionState?.user.email}
                   </h1>
@@ -1663,7 +1663,7 @@ const CandidateDashboard = () => {
                         </p>
                         <p className="truncate text-[13px] text-slate-500 dark:text-muted-foreground">{u.message}</p>
                       </div>
-                      <span className="shrink-0 text-[11px] text-slate-400">
+                      <span className="shrink-0 text-xs text-slate-400">
                         {new Date(u.changedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                       </span>
                     </li>
@@ -1931,17 +1931,17 @@ const CandidateDashboard = () => {
                           </p>
                           <div className="mt-2 flex flex-wrap items-center gap-2">
                             <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                                 PROFILE_STATUS_BADGE_CLASSNAMES[application.status]
                               }`}
                             >
                               {PROFILE_STATUS_LABELS[application.status]}
                             </span>
-                            <span className="text-[11px] text-slate-400">
+                            <span className="text-xs text-slate-400">
                               {application.jobId?.jobLocation || "Location pending"}
                             </span>
                             {unreadCount ? (
-                              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#69A44F] px-1.5 text-[11px] font-bold text-white">
+                              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#69A44F] px-1.5 text-xs font-bold text-white">
                                 {unreadCount}
                               </span>
                             ) : null}
@@ -2044,7 +2044,7 @@ const CandidateDashboard = () => {
                 <div className="relative overflow-hidden rounded-2xl border border-[#264a7f]/15 bg-[#16305a] p-5 text-center shadow-sm sm:p-6 md:text-left">
                   <div aria-hidden className="hero-drift pointer-events-none absolute inset-0" />
                   <div className="relative">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/70">My Profile</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/70">My Profile</p>
                     <h2 className="mt-1 font-heading text-2xl font-bold text-white sm:text-3xl">Candidate Profile</h2>
                     <p className="mt-2 text-sm text-white/80">
                       Your basic profile details and job preferences in one place.

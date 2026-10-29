@@ -41,7 +41,7 @@ function BlogCardComponent({ blog, prioritizeImage = false }: BlogCardProps) {
       )}
 
       <div className="space-y-3 p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-3 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
+        <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase tracking-[0.14em] text-slate-500">
           <span className="truncate">{primaryCategory}</span>
           <span className="shrink-0 normal-case tracking-normal">{blog.readingTime}</span>
         </div>

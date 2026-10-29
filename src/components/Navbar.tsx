@@ -1,6 +1,7 @@
 "use client";
 import {
   Briefcase,
+  LogIn,
   Mail,
   Menu,
   Newspaper,
@@ -15,6 +16,8 @@ import Image from "next/image";
 import { memo, useCallback, useState } from "react";
 import logoImage from "@/assets/logo-tagline.png";
 import { Link, NavLink } from "@/compat/router";
+import { useSession } from "@/hooks/useSession";
+import { dashboardPathForRole } from "@/lib/auth";
 
 const navItems: { label: string; path: string; icon: LucideIcon }[] = [
   { label: "Candidate", path: "/candidates", icon: UserRound },
@@ -34,6 +37,15 @@ const Navbar = memo(function Navbar() {
   const [open, setOpen] = useState(false);
   const toggleMenu = useCallback(() => setOpen((prev) => !prev), []);
   const closeMenu = useCallback(() => setOpen(false), []);
+
+  // The account button said "Profile" to everyone — including visitors with
+  // no account, for whom it opened the login page. Logged out it now says
+  // what it does; logged in it goes straight to the user's dashboard.
+  const session = useSession();
+  const account = session
+    ? { label: "Profile", path: dashboardPathForRole(session.user.role), icon: User, aria: "Your profile" }
+    : { label: "Login / Sign up", path: "/login", icon: LogIn, aria: "Login or sign up" };
+  const AccountIcon = account.icon;
 
   return (
     <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/40 bg-white/95 shadow-soft-sm backdrop-blur-xl supports-[backdrop-filter]:bg-white/90 dark:border-white/10 dark:bg-[#0d1a30]/90">
@@ -67,6 +79,7 @@ const Navbar = memo(function Navbar() {
               <NavLink
                 key={item.label}
                 to={item.path}
+                prefetch={false}
                 className={({ isActive }) =>
                   `inline-flex items-center gap-1.5 whitespace-nowrap ${navLinkClass(isActive)}`
                 }
@@ -77,25 +90,27 @@ const Navbar = memo(function Navbar() {
             );
           })}
 
-          {/* Profile (right side, after Team) */}
+          {/* Account (right side, after Team) */}
           <NavLink
-            to="/login"
+            to={account.path}
+            prefetch={false}
             className="sheen glow-navy group ml-1 inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-gradient-to-r from-[#264a7f] to-[#69a44f] px-5 py-2.5 text-[0.9rem] font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5"
           >
-            <User size={16} />
-            Profile
+            <AccountIcon size={16} />
+            {account.label}
           </NavLink>
         </div>
 
         {/* Mobile actions: profile + menu */}
         <div className="flex items-center gap-1 lg:hidden">
           <Link
-            to="/login"
-            aria-label="Profile"
+            to={account.path}
+            prefetch={false}
+            aria-label={account.aria}
             className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[#264a7f] transition-colors hover:bg-muted hover:text-primary"
             onClick={closeMenu}
           >
-            <User size={22} />
+            <AccountIcon size={22} />
           </Link>
           <button
             type="button"
@@ -124,12 +139,13 @@ const Navbar = memo(function Navbar() {
             id="mobile-nav-menu"
             className="animate-pop-in relative z-50 max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-border/60 bg-white/90 px-3 py-3 shadow-soft-lg backdrop-blur-xl dark:bg-[#0d1a30]/90 lg:hidden"
           >
-            {[...navItems, { label: "Profile", path: "/login", icon: User }].map((item) => {
+            {[...navItems, { label: account.label, path: account.path, icon: account.icon }].map((item) => {
               const Icon = item.icon;
               return (
                 <NavLink
                   key={item.label}
                   to={item.path}
+                  prefetch={false}
                   className={({ isActive }) =>
                     `flex min-h-[3rem] items-center gap-3 rounded-xl px-3 text-[0.95rem] font-medium transition-colors hover:bg-muted hover:text-primary ${
                       isActive ? "bg-primary/5 text-primary" : "text-foreground/80"

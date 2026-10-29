@@ -69,7 +69,7 @@ const GoalSection = () => {
                 <h3 className="text-[13px] font-bold leading-tight text-foreground sm:mb-1 sm:text-lg">
                   {pillar.title}
                 </h3>
-                <p className="mt-0.5 line-clamp-1 text-[11px] leading-[1.45] text-muted-foreground sm:mt-0 sm:line-clamp-none sm:text-sm">
+                <p className="mt-0.5 line-clamp-1 text-xs leading-[1.45] text-muted-foreground sm:mt-0 sm:line-clamp-none sm:text-sm">
                   {pillar.desc}
                 </p>
               </div>

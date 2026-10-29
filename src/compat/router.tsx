@@ -27,15 +27,21 @@ type LinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & {
   to: To;
   href?: To;
   replace?: boolean;
+  /**
+   * next/link prefetches every link in the viewport on page load. The
+   * navbar alone put eight routes' RSC payloads + chunks on the wire before
+   * the visitor had done anything. `false` defers that to hover/focus.
+   */
+  prefetch?: boolean;
 };
 
 export const Link = forwardRef<HTMLAnchorElement, LinkProps>(function Link(
-  { to, href, replace, children, ...rest },
+  { to, href, replace, prefetch, children, ...rest },
   ref,
 ) {
   const target = to ?? href ?? "#";
   return (
-    <NextLink ref={ref} href={target} replace={replace} {...rest}>
+    <NextLink ref={ref} href={target} replace={replace} prefetch={prefetch} {...rest}>
       {children}
     </NextLink>
   );
@@ -47,6 +53,7 @@ type NavLinkChildren = ReactNode | ((state: { isActive: boolean; isPending: bool
 type NavLinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href" | "className" | "children"> & {
   to: To;
   end?: boolean;
+  prefetch?: boolean;
   className?: NavLinkClassName;
   activeClassName?: string;
   pendingClassName?: string;
@@ -54,7 +61,7 @@ type NavLinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href" | "clas
 };
 
 export const NavLink = forwardRef<HTMLAnchorElement, NavLinkProps>(function NavLink(
-  { to, end, className, activeClassName, pendingClassName, children, ...rest },
+  { to, end, className, activeClassName, pendingClassName, prefetch, children, ...rest },
   ref,
 ) {
   const pathname = usePathname() || "/";
@@ -67,7 +74,7 @@ export const NavLink = forwardRef<HTMLAnchorElement, NavLinkProps>(function NavL
       : cn(className, state.isActive && activeClassName, pendingClassName && undefined);
 
   return (
-    <NextLink ref={ref} href={to} className={resolvedClassName} {...rest}>
+    <NextLink ref={ref} href={to} prefetch={prefetch} className={resolvedClassName} {...rest}>
       {typeof children === "function" ? children(state) : children}
     </NextLink>
   );

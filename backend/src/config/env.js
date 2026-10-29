@@ -67,6 +67,11 @@ const envSchema = z.object({
   PASSWORD_RESET_EXPIRES_MIN: z.coerce.number().int().positive().default(30),
   BREVO_EMAIL: z.preprocess(emptyToUndefined, z.string().email().optional()),
   BREVO_SMTP_KEY: z.preprocess(emptyToUndefined, z.string().min(10).optional()),
+
+  // Cloudflare Turnstile (free CAPTCHA) for the public contact form. Optional:
+  // without a secret the form still works, protected by the honeypot field
+  // and the per-IP rate limit only.
+  TURNSTILE_SECRET_KEY: z.preprocess(emptyToUndefined, z.string().min(10).optional()),
 });
 
 const parsed = envSchema.safeParse(process.env);

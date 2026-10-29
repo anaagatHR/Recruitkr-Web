@@ -90,6 +90,7 @@ export default function MarketingPage({
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <main id="main">
 
       {/* Hero */}
       <section className="relative overflow-hidden bg-[#16305a] pt-20">
@@ -108,7 +109,7 @@ export default function MarketingPage({
           {/* Every line in the hero is solid white — no translucent tints. The
               eyebrow, subtitle and stat labels used to sit at 65–80% opacity,
               which greyed them against the navy. */}
-          <RevealItem className="text-[11px] font-bold uppercase tracking-[0.28em] text-white sm:text-xs">{eyebrow}</RevealItem>
+          <RevealItem className="text-xs font-bold uppercase tracking-[0.28em] text-white sm:text-xs">{eyebrow}</RevealItem>
           <RevealItem as="div" className="mt-3 font-heading text-3xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-4xl md:text-5xl">
             {/* `text-white` has to sit on the <h1> itself, not on the wrapper.
                 index.css paints every h1/h2 in the brand gradient via
@@ -135,7 +136,7 @@ export default function MarketingPage({
               {stats.map((s) => (
                 <div key={s.label}>
                   <div className="text-xl font-extrabold text-white sm:text-3xl">{s.value}</div>
-                  <div className="mt-1 text-[11px] font-medium text-white sm:text-sm">{s.label}</div>
+                  <div className="mt-1 text-xs font-medium text-white sm:text-sm">{s.label}</div>
                 </div>
               ))}
             </RevealItem>
@@ -201,7 +202,7 @@ export default function MarketingPage({
                         {f.title}
                       </h3>
                       {/* One line on a phone, full text from `sm` up. */}
-                      <p className="mt-0.5 line-clamp-1 text-[11px] leading-[1.45] text-slate-600 sm:mt-1.5 sm:line-clamp-none sm:text-sm sm:leading-6">
+                      <p className="mt-0.5 line-clamp-1 text-xs leading-[1.45] text-slate-600 sm:mt-1.5 sm:line-clamp-none sm:text-sm sm:leading-6">
                         {f.description}
                       </p>
                     </span>
@@ -245,7 +246,7 @@ export default function MarketingPage({
                         <h3 className="font-heading text-[13px] font-bold leading-tight text-slate-900 sm:mt-3.5 sm:text-base">
                           {step.title}
                         </h3>
-                        <p className="mt-0.5 line-clamp-1 text-[11px] leading-[1.45] text-slate-600 sm:mt-1.5 sm:line-clamp-none sm:text-sm sm:leading-6">
+                        <p className="mt-0.5 line-clamp-1 text-xs leading-[1.45] text-slate-600 sm:mt-1.5 sm:line-clamp-none sm:text-sm sm:leading-6">
                           {step.description}
                         </p>
                       </span>
@@ -278,6 +279,7 @@ export default function MarketingPage({
         </Reveal>
       </section>
 
+      </main>
       <Footer />
     </div>
   );

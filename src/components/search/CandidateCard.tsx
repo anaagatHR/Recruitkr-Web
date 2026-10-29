@@ -37,7 +37,7 @@ const ScoreRing = ({ score }: { score: number }) => {
           className={cn("transition-all", scoreTone(score))}
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-foreground">
+      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">
         {pct}
       </span>
     </div>
@@ -82,13 +82,13 @@ export default function CandidateCard({ candidate, onMessage, messaging }: Candi
         {candidate.skills.slice(0, 6).map((skill) => (
           <span
             key={skill}
-            className="rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground"
+            className="rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
           >
             {skill}
           </span>
         ))}
         {candidate.skills.length > 6 && (
-          <span className="rounded-full px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+          <span className="rounded-full px-2 py-0.5 text-xs font-medium text-muted-foreground">
             +{candidate.skills.length - 6}
           </span>
         )}

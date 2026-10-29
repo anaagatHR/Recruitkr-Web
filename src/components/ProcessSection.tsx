@@ -37,7 +37,7 @@ const ProcessSection = () => {
                 </div>
                 {/* 11px floor — these step labels were the smallest text on the
                     process page and the hardest to read on a phone. */}
-                <h3 className="text-[11px] font-bold leading-tight sm:text-xs md:text-sm">
+                <h3 className="text-xs font-bold leading-tight sm:text-xs md:text-sm">
                   {step.title}
                 </h3>
               </div>

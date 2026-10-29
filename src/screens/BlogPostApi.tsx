@@ -132,7 +132,7 @@ const BlogPostApi = () => {
       />
       <Navbar />
 
-      <main className="py-6 pt-28">
+      <main id="main" className="py-6 pt-28">
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
           {loading ? (
             <div className="rounded-xl border border-border bg-white p-8 text-center shadow-sm">

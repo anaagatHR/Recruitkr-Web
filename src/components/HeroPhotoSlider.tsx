@@ -36,6 +36,14 @@ const HeroPhotoSlider = ({
   // A photo that 404s would otherwise render as a broken box over the hero.
   // Failed slides fall back to a neutral brand gradient instead.
   const [failed, setFailed] = useState<Record<string, boolean>>({});
+  // Only the current slide and the one queued next are mounted. All four
+  // <Image>s used to render at once (stacked, opacity 0), and because they
+  // sat inside the viewport the browser fetched every one of them on load —
+  // ~700 KB of hero photos the visitor might never see.
+  const mounted = useCallback(
+    (i: number) => i === index || i === (index + 1) % slides.length,
+    [index],
+  );
 
   const go = useCallback(
     (next: number) => setIndex((next + slides.length) % slides.length),
@@ -69,22 +77,24 @@ const HeroPhotoSlider = ({
           }`}
           aria-hidden={i !== index}
         >
-       >
           {failed[slide.src] ? (
             <div className="h-full w-full bg-gradient-to-br from-[#264a7f] via-[#2f5b98] to-[#69a44f]" />
-          ) : (
+          ) : mounted(i) ? (
             <Image
               src={slide.src}
               alt={slide.alt}
               fill
               // Only the first slide is above the fold on load; the rest can wait.
               priority={i === 0}
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 1200px"
+              // The slide fills the full-bleed hero, so it is 100vw at every
+              // width. The old "1200px" cap meant a 1440px+ screen got a
+              // 1200px image stretched to fit — the soft hero the audit saw.
+              sizes="100vw"
               quality={75}
               className="object-cover object-center"
               onError={() => setFailed((f) => ({ ...f, [slide.src]: true }))}
             />
-          )}
+          ) : null}
         </div>
       ))}
 
@@ -125,7 +135,7 @@ const HeroPhotoSlider = ({
             onClick={() => go(i)}
             aria-label={`Go to photo ${i + 1}`}
             aria-current={i === index}
-            className="flex h-10 w-10 items-center justify-center"
+            className="flex h-11 w-11 items-center justify-center"
           >
             {/* White dots read well straight on a photo, but vanish against the
                 light scrim used in background mode — so follow the scrim. The

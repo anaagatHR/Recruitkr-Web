@@ -57,7 +57,7 @@ export default function VideoShowcase() {
     <section className="bg-[linear-gradient(180deg,#f6f9ff_0%,#ffffff_100%)] py-14 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#264a7f] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white shadow-sm">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#264a7f] px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-sm">
             <Video size={13} /> Candidate intros
           </span>
           <h2 className="mt-5 font-heading text-3xl font-extrabold tracking-tight text-[hsl(var(--navy-deep))] sm:text-4xl">

@@ -29,6 +29,6 @@ export const revalidate = 60;
 export default async function Page() {
   // Only the first page is server-rendered; the rest stream in via infinite
   // scroll on the client, so the initial payload stays small.
-  const { jobs, hasMore, live } = await fetchJobsPage(1, 12);
-  return <JobsScreen initialJobs={jobs} initialHasMore={live && hasMore} />;
+  const { jobs, hasMore, live, total } = await fetchJobsPage(1, 12);
+  return <JobsScreen initialJobs={jobs} initialHasMore={live && hasMore} initialTotal={live ? total : jobs.length} />;
 }

@@ -73,7 +73,7 @@ export default function HomeFaq() {
     <section className="border-t border-slate-100 bg-white py-14 sm:py-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal as="div" className="mx-auto mb-8 max-w-2xl text-center sm:mb-12">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#e59f56]/25 bg-[#e59f56]/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#c07c33]">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#e59f56]/25 bg-[#e59f56]/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#c07c33]">
             <HelpCircle size={13} />
             Questions
           </span>

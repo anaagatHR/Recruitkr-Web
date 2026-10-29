@@ -100,8 +100,7 @@ function CompanyTile({ company, accent }: { company: CompanySummary; accent: str
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={company.logo}
-            alt=""
-            aria-hidden
+            alt={`${company.name} logo`}
             loading="lazy"
             className="h-full w-full object-contain p-1.5"
           />
@@ -118,7 +117,7 @@ function CompanyTile({ company, accent }: { company: CompanySummary; accent: str
         {/* Sector and location only appear when the listing actually carried
             them — no "—" placeholders for missing fields. */}
         {(company.sector || company.location) && (
-          <span className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-slate-500 sm:text-xs">
+          <span className="mt-0.5 flex items-center gap-1 truncate text-xs text-slate-500 sm:text-xs">
             {company.location && <MapPin className="h-3 w-3 shrink-0" />}
             <span className="truncate">
               {[company.sector, company.location].filter(Boolean).join(" · ")}
@@ -127,7 +126,7 @@ function CompanyTile({ company, accent }: { company: CompanySummary; accent: str
         )}
 
         <span
-          className="mt-1.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold sm:text-[11px]"
+          className="mt-1.5 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold sm:text-xs"
           style={{ backgroundColor: `${accent}14`, color: accent }}
         >
           {company.listings} open {company.listings === 1 ? "role" : "roles"}
@@ -170,7 +169,7 @@ export default function TopCompanies() {
     <section className="bg-white py-14 sm:py-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal as="div" className="mx-auto mb-8 max-w-2xl text-center sm:mb-12">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#69a44f]/25 bg-[#69a44f]/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#4d7d38]">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#69a44f]/25 bg-[#69a44f]/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#4d7d38]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#69a44f]" />
             Who&apos;s hiring
           </span>

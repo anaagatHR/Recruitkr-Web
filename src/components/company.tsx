@@ -51,7 +51,7 @@ export default function PartnerCompanies() {
     <section className="border-y border-slate-100 bg-slate-50/70 py-12 sm:py-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#264a7f]/20 bg-[#264a7f]/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#264a7f]">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#264a7f]/20 bg-[#264a7f]/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#264a7f]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#264a7f]" />
             Hiring partners
           </span>
