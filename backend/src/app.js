@@ -8,6 +8,7 @@ import hpp from 'hpp';
 import morgan from 'morgan';
 
 import { env } from './config/env.js';
+import { allowedOrigins } from './config/origins.js';
 import { getDynamicSitemap } from './controllers/seo.controller.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 import { allQueueStats } from './utils/taskQueue.js';
@@ -20,21 +21,6 @@ import teamRoutes from "./routes/teamRoutes.js";
 import uploadRoutes from './routes/upload.routes.js';
 
 const app = express();
-const parseOrigins = (value = '') =>
-  value
-    .split(',')
-    .map((origin) => origin.trim().replace(/\/$/, ''))
-    .filter(Boolean);
-
-const configuredOrigins = parseOrigins(env.CORS_ORIGIN);
-const localDevOrigins = [
-  'http://localhost:3000',
-];
-const allowedOrigins = new Set([
-  ...configuredOrigins,
-  env.FRONTEND_URL.replace(/\/$/, ''),
-  ...(env.NODE_ENV === 'production' ? [] : localDevOrigins),
-]);
 
 const buildCorsError = (origin) => {
   const error = new Error('CORS origin not allowed');
@@ -68,7 +54,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'If-Match'],
   exposedHeaders: ['Idempotent-Replayed'],
   optionsSuccessStatus: 204,
 };

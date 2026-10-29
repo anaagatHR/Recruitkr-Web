@@ -18,6 +18,7 @@ import {
   updateMyJobStatus,
 } from '../controllers/job.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.js';
+import { applyLimiter } from '../middlewares/rateLimiter.js';
 import { validate } from '../middlewares/validate.js';
 import {
   applyJobSchema,
@@ -57,7 +58,7 @@ router.patch(
   updateMyJobStatus,
 );
 
-router.post('/apply', requireAuth, requireRole('candidate'), validate(applyJobSchema), applyToJob);
+router.post('/apply', requireAuth, requireRole('candidate'), applyLimiter, validate(applyJobSchema), applyToJob);
 router.get(
   '/applications/mine',
   requireAuth,

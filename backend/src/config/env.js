@@ -42,6 +42,9 @@ const envSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(2000),
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   CONTACT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
+  // Per candidate: applications per hour, profile writes per 15 minutes.
+  APPLY_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
+  PROFILE_WRITE_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
   BCRYPT_OR_ARGON2_PEPPER: z.string().min(16),
   OPENAI_API_KEY: z.preprocess(emptyToUndefined, z.string().min(20).optional()),
   OPENAI_MODEL: z.string().min(3).default('gpt-4o-mini'),

@@ -29,6 +29,30 @@ export const authLimiter = buildLimiter({
   message: 'Too many authentication attempts. Try again later.',
 });
 
+// Per signed-in user (mount after requireAuth): one account can't spray
+// applications or hammer profile saves from many IPs (audit Phase 8).
+const perUserLimiter = ({ max, windowMs, message }) =>
+  rateLimit({
+    windowMs,
+    max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => `user:${req.user.id}`,
+    message: { success: false, code: 'RATE_LIMITED', message },
+  });
+
+export const applyLimiter = perUserLimiter({
+  max: env.APPLY_RATE_LIMIT_MAX,
+  windowMs: 60 * 60 * 1000,
+  message: "You've sent a lot of applications in the last hour. Please try again a little later.",
+});
+
+export const profileWriteLimiter = perUserLimiter({
+  max: env.PROFILE_WRITE_RATE_LIMIT_MAX,
+  windowMs: 15 * 60 * 1000,
+  message: 'Too many profile updates in a short time. Please wait a few minutes and try again.',
+});
+
 export const contactLimiter = buildLimiter({
   max: env.CONTACT_RATE_LIMIT_MAX,
   windowMs: env.RATE_LIMIT_WINDOW_MS,

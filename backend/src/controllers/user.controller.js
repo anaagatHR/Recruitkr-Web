@@ -15,6 +15,13 @@ import { indexCandidate, isSolrConfigured } from '../services/solr.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
+// If-Match: "3" (or W/"3", or 3) -> 3. Absent or malformed -> null (no precondition).
+export const parseIfMatchRevision = (header) => {
+  if (typeof header !== 'string') return null;
+  const match = /^\s*(?:W\/)?"?(\d{1,9})"?\s*$/.exec(header);
+  return match ? Number(match[1]) : null;
+};
+
 const ensureCandidateProfile = async ({ reqUserId, user, body = {} }) => {
   const existingProfile = await CandidateProfile.findOne({ userId: reqUserId });
   if (existingProfile) {
@@ -182,6 +189,32 @@ export const updateCandidateProfile = asyncHandler(async (req, res) => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
   }
   const profile = await ensureCandidateProfile({ reqUserId: req.user.id, user, body });
+
+  // Optimistic concurrency (audit P1-4): atomically claim the next revision.
+  // With If-Match, only the revision the client last saw can claim it, so two
+  // tabs (or a stale form) can't silently overwrite each other — the loser gets
+  // 412. Without If-Match (older clients) the revision is still bumped so other
+  // tabs notice. Claimed before any side effect below.
+  const expectedRevision = parseIfMatchRevision(req.get('If-Match'));
+  const claimed = await CandidateProfile.findOneAndUpdate(
+    {
+      _id: profile._id,
+      ...(expectedRevision === null
+        ? {}
+        : { profileRevision: expectedRevision === 0 ? { $in: [0, null] } : expectedRevision }),
+    },
+    { $inc: { profileRevision: 1 } },
+    { new: true, projection: { profileRevision: 1 }, timestamps: false },
+  ).lean();
+  if (!claimed) {
+    throw new ApiError(
+      StatusCodes.PRECONDITION_FAILED,
+      'Your profile was changed in another tab or device. Reload to get the latest version, then make your edit again.',
+      null,
+      { code: 'PROFILE_VERSION_CONFLICT' },
+    );
+  }
+  profile.profileRevision = claimed.profileRevision;
 
   // Phone lives on the User (signup, apply snapshot and resume all read User.mobile).
   if (body.mobile !== undefined && body.mobile !== user.mobile) {

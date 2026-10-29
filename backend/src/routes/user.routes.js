@@ -23,6 +23,7 @@ import {
   updateCandidateProfile,
 } from '../controllers/user.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.js';
+import { profileWriteLimiter } from '../middlewares/rateLimiter.js';
 import { certificateUpload, profilePhotoUpload, videoUpload } from '../middlewares/upload.js';
 import { validate } from '../middlewares/validate.js';
 import { updateCandidateProfileSchema } from '../schemas/user.schema.js';
@@ -41,6 +42,7 @@ router.patch(
   '/candidate/me',
   requireAuth,
   requireRole('candidate'),
+  profileWriteLimiter,
   validate(updateCandidateProfileSchema),
   updateCandidateProfile,
 );

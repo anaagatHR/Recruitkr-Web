@@ -1,5 +1,6 @@
 import { StatusCodes } from 'http-status-codes';
 
+import { allowedOrigins } from '../config/origins.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
 import { verifyAccessToken } from '../utils/jwt.js';
@@ -105,9 +106,39 @@ const authenticateRequest = async (req, { allowQueryToken = false, context = 'ap
   authDebug(`[auth] ${context} authenticated userId=${user.id} role=${user.role} source=${source}`);
 };
 
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+const originOf = (value) => {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * CSRF guard (audit P1-6). Auth cookies are SameSite=None in production, so a
+ * third-party page can make the browser send them — and a multipart form POST
+ * needs no CORS preflight. A cookie-authenticated write must therefore come
+ * from one of our own origins (Origin header, or Referer when Origin is
+ * absent). Bearer-token clients (mobile, current web) are not affected: a
+ * cross-site page cannot attach an Authorization header.
+ */
+export const isTrustedCookieWrite = (req, origins = allowedOrigins) => {
+  if (SAFE_METHODS.has(req.method)) return true;
+  const source = originOf(req.get('origin')) || originOf(req.get('referer'));
+  return Boolean(source) && origins.has(source);
+};
+
 export const requireAuth = async (req, _res, next) => {
   try {
     await authenticateRequest(req, { allowQueryToken: false, context: 'api' });
+    if (req.auth.tokenSource === 'cookie' && !isTrustedCookieWrite(req)) {
+      console.warn(`[auth] cross-site cookie write blocked path=${req.originalUrl} origin=${req.get('origin') || 'none'}`);
+      throw new ApiError(StatusCodes.FORBIDDEN, 'This request was blocked for your security. Please retry from RecruitKr.', null, {
+        code: 'CSRF_ORIGIN_REJECTED',
+      });
+    }
     next();
   } catch (error) {
     next(

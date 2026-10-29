@@ -2,6 +2,12 @@ export type UserRole = 'candidate' | 'client' | 'admin';
 
 export type AuthSession = {
   accessToken: string;
+  /**
+   * Never persisted in the browser (audit P1-6): the long-lived refresh token
+   * lives only in the httpOnly `refreshToken` cookie, which /auth/refresh and
+   * /auth/logout read when the body omits it. Kept on the type because login
+   * responses still return it (the mobile app stores it natively).
+   */
   refreshToken?: string;
   user: {
     id: string;
@@ -11,6 +17,13 @@ export type AuthSession = {
 };
 
 const AUTH_STORAGE_KEY = 'recruitkr.auth.session';
+
+// shortcut: the 15-minute access token still lives in localStorage because the
+// socket.io handshake (direct to the backend origin, where the frontend's cookie
+// isn't sent) needs it; move it to memory once sockets authenticate by cookie.
+const persist = ({ refreshToken: _dropped, ...session }: AuthSession) => {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+};
 
 export const getSession = (): AuthSession | null => {
   // SSR-safe: localStorage only exists in the browser.
@@ -22,7 +35,10 @@ export const getSession = (): AuthSession | null => {
   try {
     const parsed = JSON.parse(raw) as AuthSession;
     if (!parsed?.accessToken || !parsed?.user?.id) return null;
-    return parsed;
+    // Sessions saved before this change still carry a refresh token: drop it.
+    if (parsed.refreshToken) persist(parsed);
+    const { refreshToken: _legacy, ...session } = parsed;
+    return session;
   } catch {
     return null;
   }
@@ -30,7 +46,7 @@ export const getSession = (): AuthSession | null => {
 
 export const setSession = (session: AuthSession) => {
   if (typeof window === "undefined") return;
-  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+  persist(session);
 };
 
 export const clearSession = () => {
@@ -41,15 +57,12 @@ export const clearSession = () => {
   void import("@/lib/socket").then(({ disconnectSocket }) => disconnectSocket()).catch(() => {});
 };
 
-export const updateSessionTokens = (accessToken: string, refreshToken?: string) => {
+// The rotated refresh token arrives as an httpOnly cookie; only the access token is kept.
+export const updateSessionTokens = (accessToken: string, _refreshToken?: string) => {
   const current = getSession();
   if (!current) return;
 
-  setSession({
-    ...current,
-    accessToken,
-    refreshToken: refreshToken ?? current.refreshToken,
-  });
+  setSession({ ...current, accessToken });
 };
 
 /** Where a signed-in user's "Profile" lives. */

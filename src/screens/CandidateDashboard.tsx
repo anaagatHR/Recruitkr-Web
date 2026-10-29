@@ -469,6 +469,7 @@ type CandidateProfileResponse = {
   success: boolean;
   data: {
     recruitkrId?: string;
+    profileRevision?: number;
     fullName?: string;
     dateOfBirth?: string;
     gender?: string;
@@ -611,6 +612,8 @@ const CandidateDashboard = () => {
   const [applyError, setApplyError] = useState("");
   // Save failures are shown next to the Save button, not in a global banner.
   const [saveError, setSaveError] = useState("");
+  // 412: the profile changed elsewhere since this form was filled.
+  const [profileConflict, setProfileConflict] = useState(false);
   // Starts true so SSR and first paint match; the real value is read after mount.
   const [gateIntroDismissed, setGateIntroDismissed] = useState(true);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
@@ -674,6 +677,22 @@ const CandidateDashboard = () => {
   const certificates = certificatesQuery.data ?? EMPTY_CERTIFICATES;
   const profilePhotoUrl = profile?.profilePhotoUrl || null;
   const loadErrorMessage = dashboardQuery.error?.message || jobsQuery.error?.message || "";
+
+  // Optimistic concurrency (audit P1-4). Every profile write sends If-Match with
+  // a revision; the server answers 412 if someone else saved in between.
+  // formRevisionRef is the revision the editor form was filled from — full-form
+  // saves must use it, not the latest cached profile (a background refetch can
+  // bring in another tab's change the form never saw).
+  const formRevisionRef = useRef<number | null>(null);
+  const patchProfile = async (payload: Record<string, unknown>, revision: number | null | undefined = profile?.profileRevision) => {
+    const res = await apiPatch<CandidateProfileResponse>("/users/candidate/me", payload, {
+      auth: true,
+      headers: typeof revision === "number" ? { "If-Match": `"${revision}"` } : {},
+    });
+    // This tab's own write: if the form was in sync before it, it still is.
+    if (formRevisionRef.current === revision) formRevisionRef.current = res.data?.profileRevision ?? null;
+    return res;
+  };
 
   // Cache writers/invalidators keep the existing save handlers unchanged.
   const setProfile = (data: CandidateProfileResponse["data"]) =>
@@ -744,6 +763,7 @@ const CandidateDashboard = () => {
 
   const syncResumeFormFromProfile = (profileData?: CandidateProfileResponse["data"] | null) => {
     if (!profileData) return;
+    formRevisionRef.current = typeof profileData.profileRevision === "number" ? profileData.profileRevision : null;
 
     setResumeForm((prev) => ({
       fullName: profileData?.fullName || "",
@@ -842,6 +862,15 @@ const CandidateDashboard = () => {
     syncResumeFormFromProfile(profile);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately once per mount, see above
   }, [profile]);
+
+  // After a 412: fetch the latest saved profile and refill the form from it.
+  const reloadProfileForm = async () => {
+    const latest = await queryClient.fetchQuery({ ...profileQueryOptions, staleTime: 0 });
+    syncResumeFormFromProfile(latest);
+    setProfileConflict(false);
+    setSaveError("");
+    setResumeNotice("Loaded your latest saved profile. Make your change again, then save.");
+  };
 
   // On an auth failure the API layer clears the dead session; rather than
   // showing a broken dashboard, send the user to login to sign in again.
@@ -1187,10 +1216,12 @@ const CandidateDashboard = () => {
         payload.resumeType = "generated";
       }
 
-      const res = await apiPatch<CandidateProfileResponse>("/users/candidate/me", payload, true);
+      // Full-form save: guard with the revision the form was filled from.
+      const res = await patchProfile(payload, formRevisionRef.current);
 
       setProfile(res.data);
       syncResumeFormFromProfile(res.data);
+      setProfileConflict(false);
       setResumeMeta((prev) =>
         resumeFile
             ? {
@@ -1219,6 +1250,7 @@ const CandidateDashboard = () => {
     } catch (err) {
       const message = err instanceof Error ? err.message : "We couldn't save your profile.";
       setSaveError(message);
+      setProfileConflict(err instanceof ApiClientError && err.code === "PROFILE_VERSION_CONFLICT");
       // Also called from the Preview tab's inline edits, where the inline error isn't visible.
       if (tab !== "profile") setError(message);
     } finally {
@@ -1258,7 +1290,7 @@ const CandidateDashboard = () => {
     setError("");
     setResumeNotice("");
     try {
-      const res = await apiPatch<CandidateProfileResponse>("/users/candidate/me", payload, true);
+      const res = await patchProfile(payload);
       setProfile(res.data);
       syncResumeFormFromProfile(res.data);
       setActiveProfileField(null);
@@ -1428,14 +1460,10 @@ const CandidateDashboard = () => {
     setProfilePhotoLoading(true);
     try {
       const asset = await uploadFile(file, "profiles");
-      const res = await apiPatch<CandidateProfileResponse>(
-        "/users/candidate/me",
-        {
+      const res = await patchProfile({
           profilePhotoUrl: asset.url,
           profilePhotoFileId: asset.fileId,
-        },
-        true,
-      );
+        });
       setProfile(res.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to upload photo");
@@ -1448,14 +1476,10 @@ const CandidateDashboard = () => {
     setError("");
     setProfilePhotoLoading(true);
     try {
-      const res = await apiPatch<CandidateProfileResponse>(
-        "/users/candidate/me",
-        {
+      const res = await patchProfile({
           profilePhotoUrl: "",
           profilePhotoFileId: "",
-        },
-        true,
-      );
+        });
       setProfile(res.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to remove photo");
@@ -2776,9 +2800,18 @@ const CandidateDashboard = () => {
                     {resumeNotice}
                   </p>
                   {saveError && (
-                    <p role="alert" className="mt-2 text-sm font-medium text-red-700">
-                      {saveError}
-                    </p>
+                    <div role="alert" className="mt-2 text-sm font-medium text-red-700">
+                      <p>{saveError}</p>
+                      {profileConflict && (
+                        <button
+                          type="button"
+                          onClick={() => void reloadProfileForm().catch(() => setSaveError("We couldn't reload your profile. Please refresh the page."))}
+                          className="mt-2 rounded-lg border border-red-300 bg-white px-3 py-1.5 font-semibold"
+                        >
+                          Reload latest profile
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">

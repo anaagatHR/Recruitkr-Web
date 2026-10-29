@@ -114,6 +114,9 @@ const candidateProfileSchema = new mongoose.Schema(
     profileCompletionVersion: { type: Number, default: 0 },
     profileCanApply: { type: Boolean, default: false },
     profileCompletionComputedAt: { type: Date },
+    // Bumped by every PATCH /users/candidate/me; the client echoes it in
+    // If-Match so a stale tab gets 412 instead of overwriting (audit P1-4).
+    profileRevision: { type: Number, default: 0 },
   },
   { timestamps: true },
 );
