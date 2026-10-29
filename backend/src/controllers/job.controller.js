@@ -1037,10 +1037,70 @@ export const deleteMyJob = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { _id: jobId } });
 });
 
+/**
+ * Apply idempotency (audit §4.4, P0-4/P0-5).
+ *
+ * The application document IS the claim: the unique (candidate, job) indexes
+ * let exactly one concurrent insert win, and the loser's E11000 is answered
+ * here instead of escaping as a 500. There is no separate in-flight state —
+ * the insert is the single atomic step; the chat thread and live updates
+ * after it are best-effort.
+ *
+ * An Idempotency-Key (client-minted, scoped per candidate) only decides how a
+ * duplicate is answered: the same key within 24h replays the original 201,
+ * anything else is 409 ALREADY_APPLIED. Reusing a key for a different job is
+ * 409 IDEMPOTENCY_KEY_REUSED.
+ */
+export const IDEMPOTENCY_REPLAY_WINDOW_MS = 24 * 60 * 60 * 1000;
+const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9:_-]{8,128}$/;
+
+export const isDuplicateKeyError = (error) => error?.code === 11000 || error?.cause?.code === 11000;
+
+export const resolveDuplicateApply = ({ existing, idempotencyKey, now = Date.now() }) =>
+  Boolean(idempotencyKey) &&
+  existing?.idempotencyKey === idempotencyKey &&
+  now - new Date(existing.createdAt).getTime() <= IDEMPOTENCY_REPLAY_WINDOW_MS
+    ? 'replay'
+    : 'conflict';
+
+const readIdempotencyKey = (req) => {
+  const raw = req.get('Idempotency-Key');
+  if (raw === undefined) return null;
+  const key = String(raw).trim();
+  if (!IDEMPOTENCY_KEY_PATTERN.test(key)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Idempotency-Key must be 8–128 characters of A–Z, a–z, 0–9, ":", "_" or "-"', null, {
+      code: 'INVALID_IDEMPOTENCY_KEY',
+    });
+  }
+  return key;
+};
+
 export const applyToJob = asyncHandler(async (req, res) => {
   const { jobId } = req.body;
   if (!mongoose.isValidObjectId(jobId)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid job id');
+  }
+  const idempotencyKey = readIdempotencyKey(req);
+
+  const answerDuplicate = (existing) => {
+    if (resolveDuplicateApply({ existing, idempotencyKey }) === 'replay') {
+      res.set('Idempotent-Replayed', 'true');
+      return res.status(StatusCodes.CREATED).json({ success: true, data: existing });
+    }
+    throw new ApiError(StatusCodes.CONFLICT, 'You have already applied to this job', null, { code: 'ALREADY_APPLIED' });
+  };
+  const keyReused = () =>
+    new ApiError(StatusCodes.CONFLICT, 'This Idempotency-Key was already used for a different job', null, {
+      code: 'IDEMPOTENCY_KEY_REUSED',
+    });
+
+  if (idempotencyKey) {
+    const keyOwner = await Application.findOne({ candidateId: req.user.id, idempotencyKey })
+      .select('jobId sourceJobId')
+      .lean();
+    if (keyOwner && String(keyOwner.jobId || keyOwner.sourceJobId) !== String(jobId)) {
+      throw keyReused();
+    }
   }
 
   const primaryJob = await JobRequirement.findOne({ _id: jobId, status: 'active' })
@@ -1070,9 +1130,10 @@ export const applyToJob = asyncHandler(async (req, res) => {
   const duplicateQuery = primaryJob
     ? { candidateId: req.user.id, jobId }
     : { candidateId: req.user.id, sourceCollection, sourceJobId: String(jobId) };
-  const exists = await Application.findOne(duplicateQuery);
+  // Fast path only; the unique index below is the real arbiter under concurrency.
+  const exists = await Application.findOne(duplicateQuery).lean();
   if (exists) {
-    throw new ApiError(StatusCodes.CONFLICT, 'You have already applied to this job', null, { code: 'ALREADY_APPLIED' });
+    return answerDuplicate(exists);
   }
 
   // Authoritative profile gate (audit P0-3): re-derived from the database on
@@ -1104,59 +1165,70 @@ export const applyToJob = asyncHandler(async (req, res) => {
     primaryJob?.employmentType || externalJob?.employmentType || externalJob?.type || '';
   const companyName = primaryJob?.company || externalJob?.company || '';
 
-  const application = await Application.create({
-    candidateId: req.user.id,
-    clientId: ownerId,
-    ...(primaryJob ? { jobId } : {}),
-    ...(!primaryJob
-      ? {
-          sourceCollection,
-          sourceJobId: String(jobId),
-          sourceJobSnapshot: {
-            jobTitle,
-            jobLocation,
-            employmentType,
-            companyName,
-          },
-        }
-      : {}),
-    fullName: candidateProfile?.fullName || '',
-    email: candidateUser?.email || '',
-    phone: candidateUser?.mobile || '',
-    qualification: candidateProfile?.highestQualification || '',
-    college: candidateProfile?.college || '',
-    currentCity: candidateProfile?.city || '',
-    profilePhotoUrl: candidateProfile?.profilePhotoUrl || '',
-    skills: Array.isArray(candidateProfile?.skills) ? candidateProfile.skills : [],
-    experienceLabel:
-      candidateProfile?.experienceStatus === 'experienced' ? 'Experienced' : 'Fresher',
-    preferredLocation: candidateProfile?.preferences?.preferredLocation || '',
-    portfolioUrl: candidateProfile?.portfolioUrl || '',
-    linkedinUrl: candidateProfile?.linkedinUrl || '',
-    // experience[0].jobProfile is read as the fresher/experienced flag
-    // (normalizeApplicationResponse and the legacy CRM) — keep it a label.
-    experience: [
-      {
-        jobProfile:
-          candidateProfile?.experienceStatus === 'experienced' ? 'Experienced' : 'Fresher',
-      },
-    ],
-    resumePath: resume?.resumeType === 'uploaded' ? resume.resumeUrl || '' : 'generated',
-    resumeData: undefined,
-    hasCustomResume: resume?.resumeType === 'uploaded',
-    submittedAt: new Date(),
-    notes: '',
-    appliedFor: jobTitle.trim() || undefined,
-    statusUpdatedAt: new Date(),
-    timeline: [
-      {
-        status: 'applied',
-        note: 'Application submitted successfully.',
-        changedByRole: 'candidate',
-        changedAt: new Date(),
-      },
-    ],
-  });
+  let application;
+  try {
+    application = await Application.create({
+      candidateId: req.user.id,
+      clientId: ownerId,
+      ...(idempotencyKey ? { idempotencyKey } : {}),
+      ...(primaryJob ? { jobId } : {}),
+      ...(!primaryJob
+        ? {
+            sourceCollection,
+            sourceJobId: String(jobId),
+            sourceJobSnapshot: {
+              jobTitle,
+              jobLocation,
+              employmentType,
+              companyName,
+            },
+          }
+        : {}),
+      fullName: candidateProfile?.fullName || '',
+      email: candidateUser?.email || '',
+      phone: candidateUser?.mobile || '',
+      qualification: candidateProfile?.highestQualification || '',
+      college: candidateProfile?.college || '',
+      currentCity: candidateProfile?.city || '',
+      profilePhotoUrl: candidateProfile?.profilePhotoUrl || '',
+      skills: Array.isArray(candidateProfile?.skills) ? candidateProfile.skills : [],
+      experienceLabel:
+        candidateProfile?.experienceStatus === 'experienced' ? 'Experienced' : 'Fresher',
+      preferredLocation: candidateProfile?.preferences?.preferredLocation || '',
+      portfolioUrl: candidateProfile?.portfolioUrl || '',
+      linkedinUrl: candidateProfile?.linkedinUrl || '',
+      // experience[0].jobProfile is read as the fresher/experienced flag
+      // (normalizeApplicationResponse and the legacy CRM) — keep it a label.
+      experience: [
+        {
+          jobProfile:
+            candidateProfile?.experienceStatus === 'experienced' ? 'Experienced' : 'Fresher',
+        },
+      ],
+      resumePath: resume?.resumeType === 'uploaded' ? resume.resumeUrl || '' : 'generated',
+      resumeData: undefined,
+      hasCustomResume: resume?.resumeType === 'uploaded',
+      submittedAt: new Date(),
+      notes: '',
+      appliedFor: jobTitle.trim() || undefined,
+      statusUpdatedAt: new Date(),
+      timeline: [
+        {
+          status: 'applied',
+          note: 'Application submitted successfully.',
+          changedByRole: 'candidate',
+          changedAt: new Date(),
+        },
+      ],
+    });
+  } catch (error) {
+    if (!isDuplicateKeyError(error)) throw error;
+    // Lost the race to a concurrent request: the unique index picked the winner.
+    const winner = await Application.findOne(duplicateQuery).lean();
+    if (winner) return answerDuplicate(winner);
+    // No application for this job, so the collision was on the key index.
+    throw keyReused();
+  }
 
   publishLiveUpdate({
     userId: req.user.id,

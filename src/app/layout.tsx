@@ -5,6 +5,7 @@ import AnalyticsTracker from "@/components/AnalyticsTracker";
 import ApiKeepAlive from "@/components/ApiKeepAlive";
 import JoinPrompt from "@/components/JoinPrompt";
 import MobileBottomNav from "@/components/MobileBottomNav";
+import QueryProvider from "@/components/QueryProvider";
 import ThemeProvider from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -125,13 +126,13 @@ export const metadata: Metadata = {
     images: ["/favicon.png"],
   },
 
-  // favicon.png is a 1600×1600, 40 KB image — fine as the social-card
-  // fallback above, far too heavy to pull on every page as the tab icon.
-  // Browsers get a real 32px icon (<1 KB); Android/PWA surfaces get 192px.
+  manifest: "/site.webmanifest",
   icons: {
     icon: [
-      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
     ],
     shortcut: "/favicon.ico",
     apple: "/apple-touch-icon.png",
@@ -190,14 +191,16 @@ export default function RootLayout({
           Skip to content
         </a>
         <ThemeProvider>
-          <AnalyticsTracker />
-          <ApiKeepAlive />
-          <JoinPrompt />
-          {children}
-          <MobileBottomNav />
-          <Toaster />
+          <QueryProvider>
+            <AnalyticsTracker />
+            <ApiKeepAlive />
+            <JoinPrompt />
+            {children}
+            <MobileBottomNav />
+            <Toaster />
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>
   );
-}
+}

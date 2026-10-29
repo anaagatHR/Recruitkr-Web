@@ -1,5 +1,6 @@
 ﻿"use client";
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { keepPreviousData, queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@/compat/router";
 import { ArrowLeft, BriefcaseBusiness, Building2, Camera, CheckCircle2, ChevronDown, Clock3, FileText, Filter, GraduationCap, Loader2, MapPin, MessageSquare, Pencil, Search, Sparkles, UserCircle2, X, XCircle } from "lucide-react";
 import OptimizedLogo from "@/components/OptimizedLogo";
@@ -9,6 +10,7 @@ import DashboardLayout, { type DashboardNavItem } from "@/components/DashboardLa
 import SearchBar from "@/components/search/SearchBar";
 import StatCard from "@/components/dashboard/StatCard";
 import { fetchJobSuggestions } from "@/lib/search";
+import { applyToJobRequest } from "@/lib/jobs";
 import { API_BASE, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { ApiClientError } from "@/lib/apiError";
 import { clearSession, getSession } from "@/lib/auth";
@@ -18,11 +20,80 @@ import { useTabHistory } from "@/hooks/useTabHistory";
 import { uploadFile, uploadRules, validateUploadFile } from "@/lib/uploadFile";
 import Messages from "./Messages";
 const JOBS_PAGE_LIMIT = 20;
-const LIVE_REFRESH_MS = 5000;
 // Personalised feed: applied jobs are excluded server-side before paginating,
 // so meta.total matches what the page shows (audit P1-2).
 const candidateJobsUrl = (page: number) => `/jobs/for-me?page=${page}&limit=${JOBS_PAGE_LIMIT}&excludeApplied=true`;
 const GATE_INTRO_DISMISSED_KEY = "rk-apply-gate-intro-dismissed-v1";
+
+// Stable empty values so memo/effect dependencies don't change every render.
+const EMPTY_APPLICATIONS: CandidateApplicationsResponse["data"] = [];
+const EMPTY_JOBS: JobsResponse["data"] = [];
+const EMPTY_CERTIFICATES: CandidateCertificatesResponse["data"] = [];
+
+type ResumeMeta = {
+  resumeType: "uploaded" | "generated";
+  resumeId?: string;
+  resumeUrl?: string;
+  resumeFileId?: string;
+  fileName?: string;
+};
+
+// One cache entry per server resource (audit §4.5, P2-5). Switching tabs reads
+// the cache; data refreshes on SSE events, after mutations, and on window focus
+// once stale — never on a timer while live updates are connected.
+const candidateKeys = {
+  all: ["candidate"] as const,
+  dashboard: ["candidate", "dashboard"] as const,
+  profile: ["candidate", "profile"] as const,
+  applications: ["candidate", "applications"] as const,
+  resume: ["candidate", "resume"] as const,
+  certificates: ["candidate", "certificates"] as const,
+  jobs: ["candidate", "jobs"] as const,
+  jobsPage: (page: number) => ["candidate", "jobs", { page }] as const,
+};
+
+const authGet = <T,>(path: string, signal: AbortSignal) => apiGet<T>(path, { auth: true, signal });
+
+const dashboardQueryOptions = queryOptions({
+  queryKey: candidateKeys.dashboard,
+  queryFn: ({ signal }) => authGet<CandidateDashboardResponse>("/dashboards/candidate", signal).then((res) => res.data),
+});
+
+const profileQueryOptions = queryOptions({
+  queryKey: candidateKeys.profile,
+  queryFn: ({ signal }) => authGet<CandidateProfileResponse>("/users/candidate/me", signal).then((res) => res.data),
+});
+
+const applicationsQueryOptions = queryOptions({
+  queryKey: candidateKeys.applications,
+  queryFn: ({ signal }) =>
+    authGet<CandidateApplicationsResponse>("/jobs/applications/mine", signal).then((res) => res.data),
+});
+
+const resumeQueryOptions = queryOptions({
+  queryKey: candidateKeys.resume,
+  queryFn: ({ signal }) =>
+    authGet<{ success: boolean; data: ResumeMeta }>("/resumes/mine", signal)
+      .then((res): ResumeMeta | null => res.data)
+      // No resume saved yet is a normal state, not an error.
+      .catch((err) => {
+        if (err instanceof ApiClientError && err.status === 404) return null;
+        throw err;
+      }),
+});
+
+const certificatesQueryOptions = queryOptions({
+  queryKey: candidateKeys.certificates,
+  queryFn: ({ signal }) =>
+    authGet<CandidateCertificatesResponse>("/users/candidate/certificates", signal).then((res) => res.data || []),
+});
+
+const jobsPageQueryOptions = (page: number) =>
+  queryOptions({
+    queryKey: candidateKeys.jobsPage(page),
+    queryFn: ({ signal }) => authGet<JobsResponse>(candidateJobsUrl(page), signal),
+    staleTime: 60_000,
+  });
 // Photo behind the overview hero. This used to point at "/hero-bg.jpg", which
 // is not where the file lives — every dashboard load fired a request that 404'd
 // and logged an error, and the onError handler quietly hid the result, so the
@@ -487,19 +558,12 @@ const CandidateDashboard = () => {
   // Back button (incl. phone) steps through tabs, leaving the page from Overview.
   useTabHistory(tab, setTab, "overview");
   const [chatApplicationId, setChatApplicationId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [dashboard, setDashboard] = useState<CandidateDashboardResponse["data"] | null>(null);
-  const [profile, setProfile] = useState<CandidateProfileResponse["data"] | null>(null);
-  const [applications, setApplications] = useState<CandidateApplicationsResponse["data"]>([]);
-  const [jobs, setJobs] = useState<JobsResponse["data"]>([]);
-  const [jobsMeta, setJobsMeta] = useState<JobsResponse["meta"] | null>(null);
   const [currentJobsPage, setCurrentJobsPage] = useState(1);
   const [jobSearch, setJobSearch] = useState("");
   const [jobTypeFilter, setJobTypeFilter] = useState("all");
   const [jobLocationFilter, setJobLocationFilter] = useState("all");
   const [jobReadinessFilter, setJobReadinessFilter] = useState<"all" | "ready">("all");
-  const [jobsLoadingMore, setJobsLoadingMore] = useState(false);
   const [applyLoadingJobId, setApplyLoadingJobId] = useState<string | null>(null);
   // What blocked the last apply (server 422 PROFILE_INCOMPLETE), shown above the editor.
   const [gateNotice, setGateNotice] = useState<ProfileGateSummary | null>(null);
@@ -512,20 +576,71 @@ const CandidateDashboard = () => {
   const [resumeDownloading, setResumeDownloading] = useState(false);
   const [resumeNotice, setResumeNotice] = useState("");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [resumeMeta, setResumeMeta] = useState<{
-    resumeType: "uploaded" | "generated";
-    resumeId?: string;
-    resumeUrl?: string;
-    resumeFileId?: string;
-    fileName?: string;
-  } | null>(null);
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const [profilePhotoLoading, setProfilePhotoLoading] = useState(false);
-  const [certificates, setCertificates] = useState<CandidateCertificatesResponse["data"]>([]);
   const [certificateUploading, setCertificateUploading] = useState(false);
   // Initialise to null so server HTML and the first client render match (session
   // lives in localStorage, browser-only). The boot effect sets it after mount.
   const [sessionState, setSessionState] = useState<ReturnType<typeof getSession>>(null);
+
+  const queryClient = useQueryClient();
+  const isCandidateSession = Boolean(sessionState?.accessToken && sessionState.user.role === "candidate");
+
+  // Live updates replace the old 5-second poll: a server event invalidates
+  // exactly the resources it changed.
+  const { status: liveStatus } = useServerEvents({
+    enabled: isCandidateSession,
+    onEvent: ({ type }) => {
+      if (type === "application-created" || type === "application-updated" || type === "message") {
+        void queryClient.invalidateQueries({ queryKey: candidateKeys.dashboard });
+        void queryClient.invalidateQueries({ queryKey: candidateKeys.applications });
+      }
+      if (type === "application-created" || type === "application-updated") {
+        void queryClient.invalidateQueries({ queryKey: candidateKeys.jobs });
+      }
+    },
+  });
+  // Only while the live channel is down do status changes need a (slow) poll.
+  const fallbackPoll = liveStatus === "connected" ? false : 60_000;
+
+  const dashboardQuery = useQuery({ ...dashboardQueryOptions, enabled: isCandidateSession, refetchInterval: fallbackPoll });
+  const profileQuery = useQuery({ ...profileQueryOptions, enabled: isCandidateSession });
+  const applicationsQuery = useQuery({
+    ...applicationsQueryOptions,
+    enabled: isCandidateSession,
+    refetchInterval: fallbackPoll,
+  });
+  const resumeQuery = useQuery({ ...resumeQueryOptions, enabled: isCandidateSession });
+  // keepPreviousData: the current page stays on screen while the next one loads.
+  const jobsQuery = useQuery({
+    ...jobsPageQueryOptions(currentJobsPage),
+    enabled: isCandidateSession,
+    placeholderData: keepPreviousData,
+  });
+  // Certificates are only shown in the editor: fetched on first visit, not on load.
+  const certificatesQuery = useQuery({ ...certificatesQueryOptions, enabled: isCandidateSession && tab === "resume" });
+
+  const loading = isCandidateSession && dashboardQuery.isPending;
+  const dashboard = dashboardQuery.data ?? null;
+  const profile = profileQuery.data ?? dashboard?.profile ?? null;
+  const applications = applicationsQuery.data ?? EMPTY_APPLICATIONS;
+  const jobs = jobsQuery.data?.data ?? EMPTY_JOBS;
+  const jobsMeta = jobsQuery.data?.meta ?? null;
+  const jobsLoadingMore = jobsQuery.isPlaceholderData;
+  const resumeMeta = resumeQuery.data ?? null;
+  const certificates = certificatesQuery.data ?? EMPTY_CERTIFICATES;
+  const profilePhotoUrl = profile?.profilePhotoUrl || null;
+  const loadErrorMessage = dashboardQuery.error?.message || jobsQuery.error?.message || "";
+
+  // Cache writers/invalidators keep the existing save handlers unchanged.
+  const setProfile = (data: CandidateProfileResponse["data"]) =>
+    queryClient.setQueryData(profileQueryOptions.queryKey, data);
+  const setResumeMeta = (next: ResumeMeta | null | ((prev: ResumeMeta | null | undefined) => ResumeMeta | null)) =>
+    queryClient.setQueryData(resumeQueryOptions.queryKey, next);
+  const refreshDashboard = () => queryClient.invalidateQueries({ queryKey: candidateKeys.dashboard });
+  const refreshApplications = () => queryClient.invalidateQueries({ queryKey: candidateKeys.applications });
+  const refreshResumeMeta = () => queryClient.invalidateQueries({ queryKey: candidateKeys.resume });
+  const refreshJobs = () => queryClient.invalidateQueries({ queryKey: candidateKeys.jobs });
+  const loadCertificates = () => queryClient.invalidateQueries({ queryKey: candidateKeys.certificates });
 
   const [resumeForm, setResumeForm] = useState<{
     fullName: string;
@@ -582,40 +697,6 @@ const CandidateDashboard = () => {
   const [inlineSavingField, setInlineSavingField] = useState<EditableProfileField | null>(null);
   const profilePhotoInputRef = useRef<HTMLInputElement | null>(null);
   const profilePhotoPreviewObjectUrlRef = useRef<string | null>(null);
-
-  const refreshDashboard = async () => {
-    const dashboardRes = await apiGet<CandidateDashboardResponse>("/dashboards/candidate", true);
-    setDashboard(dashboardRes.data);
-  };
-
-  const refreshResumeMeta = async () => {
-    try {
-      const resumeRes = await apiGet<{
-        success: boolean;
-        data: {
-          resumeType: "uploaded" | "generated";
-          resumeId?: string;
-          resumeUrl?: string;
-          resumeFileId?: string;
-          fileName?: string;
-        };
-      }>("/resumes/mine", true);
-      setResumeMeta(resumeRes.data);
-    } catch {
-      setResumeMeta(null);
-    }
-  };
-
-  const refreshApplications = async () => {
-    const appsRes = await apiGet<CandidateApplicationsResponse>("/jobs/applications/mine", true);
-    setApplications(appsRes.data);
-  };
-
-  const fetchJobsPage = async (page: number) => {
-    const jobsRes = await apiGet<JobsResponse>(candidateJobsUrl(page), true);
-    setJobsMeta(jobsRes.meta);
-    setJobs(jobsRes.data);
-  };
 
   const syncResumeFormFromProfile = (profileData?: CandidateProfileResponse["data"] | null) => {
     if (!profileData) return;
@@ -707,70 +788,24 @@ const CandidateDashboard = () => {
     };
   }, []);
 
-  const refreshLiveData = useCallback(async () => {
-    try {
-      const [dashboardRes, appsRes, jobsRes, profileRes] = await Promise.all([
-        apiGet<CandidateDashboardResponse>("/dashboards/candidate", true),
-        apiGet<CandidateApplicationsResponse>("/jobs/applications/mine", true),
-        apiGet<JobsResponse>(candidateJobsUrl(currentJobsPage), true),
-        apiGet<CandidateProfileResponse>("/users/candidate/me", true).catch(() => null),
-      ]);
+  // Fill the editor once, when the profile first arrives. Later background
+  // refreshes must not overwrite what the candidate is typing; saves re-sync
+  // explicitly via syncResumeFormFromProfile(res.data).
+  const formSyncedRef = useRef(false);
+  useEffect(() => {
+    if (formSyncedRef.current || !profile) return;
+    formSyncedRef.current = true;
+    syncResumeFormFromProfile(profile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately once per mount, see above
+  }, [profile]);
 
-      setDashboard(dashboardRes.data);
-      setApplications(appsRes.data);
-      setJobsMeta(jobsRes.meta);
-      setJobs(jobsRes.data);
-      const nextProfile = profileRes?.data || dashboardRes.data?.profile || null;
-      if (nextProfile) {
-        setProfile(nextProfile);
-        void loadProfilePhoto(nextProfile);
-      }
-      void refreshResumeMeta();
-    } catch {
-      // Keep the current UI stable if a background refresh fails.
+  // On an auth failure the API layer clears the dead session; rather than
+  // showing a broken dashboard, send the user to login to sign in again.
+  useEffect(() => {
+    if (dashboardQuery.isError && !getSession()?.accessToken) {
+      navigate("/login?role=candidate", { replace: true });
     }
-  }, [currentJobsPage]);
-
-  const loadInitialData = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const [dashboardRes, profileRes, resumeRes] = await Promise.all([
-        apiGet<CandidateDashboardResponse>("/dashboards/candidate", true),
-        apiGet<CandidateProfileResponse>("/users/candidate/me", true).catch(() => null),
-        apiGet<{
-          success: boolean;
-          data: {
-            resumeType: "uploaded" | "generated";
-            resumeId?: string;
-            resumeUrl?: string;
-            resumeFileId?: string;
-            fileName?: string;
-          };
-        }>("/resumes/mine", true).catch(() => null),
-      ]);
-
-      setDashboard(dashboardRes.data);
-        const nextProfile = profileRes?.data || dashboardRes.data?.profile || null;
-        setProfile(nextProfile);
-        setResumeMeta(resumeRes?.data || null);
-        syncResumeFormFromProfile(nextProfile);
-
-        await Promise.all([refreshApplications(), fetchJobsPage(1)]);
-        void loadProfilePhoto(nextProfile);
-        void loadCertificates();
-    } catch (err) {
-      // On an auth failure the API layer clears the dead session; rather than
-      // showing a broken dashboard, send the user to login to sign in again.
-      if (!getSession()?.accessToken) {
-        navigate("/login?role=candidate", { replace: true });
-        return;
-      }
-      setError(err instanceof Error ? err.message : "Failed to load dashboard");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [dashboardQuery.isError, navigate]);
 
   useEffect(() => {
     const boot = async () => {
@@ -793,51 +828,11 @@ const CandidateDashboard = () => {
         navigate(session.user.role === "client" ? "/dashboard/client" : "/login");
         return;
       }
-
-      await loadInitialData();
+      // Data loads from here via the queries above (enabled by sessionState).
     };
 
     void boot();
   }, []);
-
-  useEffect(() => {
-    const session = getSession();
-    if (!session?.accessToken || session.user.role !== "candidate") return;
-
-    const handleWindowFocus = () => {
-      void refreshLiveData();
-    };
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        void refreshLiveData();
-      }
-    };
-
-    const intervalId = window.setInterval(() => {
-      if (!document.hidden) {
-        void refreshLiveData();
-      }
-    }, LIVE_REFRESH_MS);
-
-    window.addEventListener("focus", handleWindowFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", handleWindowFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [refreshLiveData, sessionState?.accessToken]);
-
-  const { status: liveStatus } = useServerEvents({
-    enabled: Boolean(sessionState?.accessToken && sessionState.user.role === "candidate"),
-    onEvent: ({ type }) => {
-      if (type === "application-created" || type === "application-updated" || type === "message") {
-        void refreshLiveData();
-      }
-    },
-  });
 
   const jobTypeOptions = useMemo(
     () => Array.from(new Set(jobs.map((job) => job.employmentType).filter(Boolean))).sort(),
@@ -968,8 +963,8 @@ const CandidateDashboard = () => {
     setApplyLoadingJobId(jobId);
     setError("");
     try {
-      await apiPost("/jobs/apply", { jobId }, true);
-      await Promise.all([refreshDashboard(), refreshApplications(), fetchJobsPage(currentJobsPage)]);
+      await applyToJobRequest(jobId);
+      await Promise.all([refreshDashboard(), refreshApplications(), refreshJobs()]);
       // The application now lives as a chat thread with the employer.
       openChat();
     } catch (err) {
@@ -978,7 +973,7 @@ const CandidateDashboard = () => {
         return;
       }
       if (err instanceof ApiClientError && err.code === "ALREADY_APPLIED") {
-        void Promise.all([refreshApplications(), fetchJobsPage(currentJobsPage)]).catch(() => {});
+        void Promise.all([refreshApplications(), refreshJobs()]);
       }
       setError(err instanceof Error ? err.message : "Failed to apply");
     } finally {
@@ -1324,16 +1319,6 @@ const CandidateDashboard = () => {
     }
   };
 
-  const loadProfilePhoto = async (profileData?: CandidateProfileResponse["data"] | null) => {
-    setProfilePhotoLoading(true);
-    try {
-      const nextUrl = profileData?.profilePhotoUrl || profile?.profilePhotoUrl || null;
-      setProfilePhotoUrl(nextUrl);
-    } finally {
-      setProfilePhotoLoading(false);
-    }
-  };
-
   const uploadProfilePhoto = async (file: File) => {
     setError("");
     setProfilePhotoLoading(true);
@@ -1348,7 +1333,6 @@ const CandidateDashboard = () => {
         true,
       );
       setProfile(res.data);
-      await loadProfilePhoto(res.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to upload photo");
     } finally {
@@ -1369,20 +1353,10 @@ const CandidateDashboard = () => {
         true,
       );
       setProfile(res.data);
-      setProfilePhotoUrl(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to remove photo");
     } finally {
       setProfilePhotoLoading(false);
-    }
-  };
-
-  const loadCertificates = async () => {
-    try {
-      const res = await apiGet<CandidateCertificatesResponse>("/users/candidate/certificates", true);
-      setCertificates(res.data || []);
-    } catch {
-      setCertificates([]);
     }
   };
 
@@ -1429,19 +1403,10 @@ const CandidateDashboard = () => {
     }
   };
 
-  const goToJobsPage = async (page: number) => {
-    if (page < 1) return;
-    if (jobsLoadingMore) return;
-    setJobsLoadingMore(true);
-    setError("");
-    try {
-      await fetchJobsPage(page);
-      setCurrentJobsPage(page);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to change jobs page");
-    } finally {
-      setJobsLoadingMore(false);
-    }
+  // The page is part of the query key: changing it fetches (or reads the cached) page.
+  const goToJobsPage = (page: number) => {
+    if (page < 1 || jobsLoadingMore) return;
+    setCurrentJobsPage(page);
   };
 
   const logout = async () => {
@@ -1609,7 +1574,11 @@ const CandidateDashboard = () => {
         </span>
       }
     >
-        {error && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
+        {(error || loadErrorMessage) && (
+          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {error || loadErrorMessage}
+          </p>
+        )}
 
         {/* One-time explainer for the apply gate, so existing candidates aren't silently locked out. */}
         {dashboard?.completion?.gateEnabled && !dashboard.completion.canApply && !gateIntroDismissed && tab !== "resume" && (

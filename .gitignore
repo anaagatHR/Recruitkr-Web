@@ -33,6 +33,10 @@ Thumbs.db
 # AI / local outputs
 Claude outputs/
 .claude/
+.gemini/
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# Uploaded / temp archives — source assets, not build artifacts
+*.zip

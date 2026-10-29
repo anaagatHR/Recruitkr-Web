@@ -18,10 +18,9 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import JobDescription from "@/components/job/JobDescription";
 import StarRating from "@/components/job/StarRating";
-import { daysUntilDeadline, displayCompany, fetchJob, isExpired, pluralize, type Job } from "@/lib/jobs";
+import { applyToJobRequest, daysUntilDeadline, displayCompany, fetchJob, isExpired, pluralize, type Job } from "@/lib/jobs";
 import { relativeTime, salaryLabel, isFresh } from "@/lib/format";
 import { getSession } from "@/lib/auth";
-import { apiPost } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 export default function JobDetailScreen({ initialJob = null }: { initialJob?: Job | null }) {
@@ -68,11 +67,24 @@ export default function JobDetailScreen({ initialJob = null }: { initialJob?: Jo
     }
     setApplying(true);
     try {
-      await apiPost("/jobs/apply", { jobId: params.id }, { auth: true, retries: 0 });
+      await applyToJobRequest(params.id);
       setApplied(true);
       toast({ title: "Application submitted", description: "We've shared your profile with the employer." });
     } catch (err) {
-      const status = (err as { status?: number })?.status;
+      const { status, code } = (err as { status?: number; code?: string }) ?? {};
+      if (code === "ALREADY_APPLIED") {
+        setApplied(true);
+        toast({ title: "Already applied", description: "You've already applied to this job." });
+        return;
+      }
+      if (code === "PROFILE_INCOMPLETE") {
+        toast({
+          title: "Complete your profile to apply",
+          description: "Employers need your name, phone, skills and resume. Finish your profile, then apply.",
+        });
+        navigate("/dashboard/candidate");
+        return;
+      }
       // Session expired / not authenticated — send them to log in, then back here.
       if (status === 401) {
         navigate(`/login?redirect=${encodeURIComponent(`/jobs/${params.id}`)}`);

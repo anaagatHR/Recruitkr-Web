@@ -11,8 +11,18 @@ import {
 const trimTrailingSlash = (value: string) => value.replace(/\/$/, "");
 
 const API_TIMEOUT_MS = 15000;
-const RETRY_DELAY_MS = 1500;
+const RETRY_BASE_MS = 500;
+const RETRY_CAP_MS = 4000;
 const DEFAULT_RETRIES = 2;
+// Only safe methods are ever retried automatically. A POST/PATCH/PUT/DELETE that
+// timed out may already have been applied server-side; resending it blindly is
+// how one click became three applications (audit P0-5). Writes that need to be
+// retry-safe send an Idempotency-Key and let the user (not the client) retry.
+const RETRYABLE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+// Full jitter (AWS Architecture Blog, "Exponential Backoff And Jitter"):
+// random(0, min(cap, base * 2^attempt)) so a fleet of clients never retries in lockstep.
+const retryDelay = (attempt: number) => Math.random() * Math.min(RETRY_CAP_MS, RETRY_BASE_MS * 2 ** attempt);
 
 const resolveApiBase = (): string => {
   const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
@@ -77,8 +87,11 @@ type ApiOptions = {
   auth?: boolean;
   retryOn401?: boolean;
   timeoutMs?: number;
+  /** Ignored (forced to 0) for non-idempotent methods. */
   retries?: number;
   onRetry?: (context: ApiRetryContext) => void;
+  /** Cancels the request (e.g. a superseded query); an aborted request is never retried. */
+  signal?: AbortSignal;
 };
 
 type ApiHelperOptions = boolean | Omit<ApiOptions, "method" | "body">;
@@ -103,9 +116,13 @@ const fetchWithTimeout = async (
   input: RequestInfo | URL,
   init: RequestInit = {},
   timeoutMs = API_TIMEOUT_MS,
+  signal?: AbortSignal,
 ) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const abortFromCaller = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  signal?.addEventListener("abort", abortFromCaller, { once: true });
 
   try {
     return await fetch(input, {
@@ -114,6 +131,7 @@ const fetchWithTimeout = async (
     });
   } finally {
     clearTimeout(timeoutId);
+    signal?.removeEventListener("abort", abortFromCaller);
   }
 };
 
@@ -237,17 +255,18 @@ async function fetchWithRetry(
   timeoutMs: number,
   retries = DEFAULT_RETRIES,
   onRetry?: (context: ApiRetryContext) => void,
+  signal?: AbortSignal,
 ): Promise<RetryableResult<Response>> {
   const maxAttempts = retries + 1;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const response = await fetchWithTimeout(url, options, timeoutMs);
+      const response = await fetchWithTimeout(url, options, timeoutMs, signal);
 
       if (response.status >= 500) {
         if (attempt <= retries) {
           onRetry?.({ attempt, maxAttempts, reason: "server" });
-          await sleep(RETRY_DELAY_MS);
+          await sleep(retryDelay(attempt));
           continue;
         }
 
@@ -256,12 +275,14 @@ async function fetchWithRetry(
 
       return { ok: true, response, attempt, maxAttempts };
     } catch (error) {
+      // The caller cancelled: surface the AbortError untouched, never retry it.
+      if (signal?.aborted) throw error;
       const reason: RetryReason = isAbortError(error) ? "timeout" : "network";
 
       if (attempt <= retries) {
         onRetry?.({ attempt, maxAttempts, reason });
         console.error("API ERROR:", error instanceof Error ? error.message : error, url);
-        await sleep(RETRY_DELAY_MS);
+        await sleep(retryDelay(attempt));
         continue;
       }
 
@@ -288,9 +309,11 @@ export const apiRequest = async <T>(path: string, options: ApiOptions = {}): Pro
     auth = false,
     retryOn401 = true,
     timeoutMs = API_TIMEOUT_MS,
-    retries = DEFAULT_RETRIES,
+    retries: requestedRetries = DEFAULT_RETRIES,
     onRetry,
+    signal,
   } = options;
+  const retries = RETRYABLE_METHODS.has(method) ? requestedRetries : 0;
 
   const session = getSession();
   const authHeader = auth && session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {};
@@ -313,6 +336,7 @@ export const apiRequest = async <T>(path: string, options: ApiOptions = {}): Pro
     timeoutMs,
     retries,
     onRetry,
+    signal,
   );
 
   if (!retryResult.ok) {
@@ -348,7 +372,7 @@ export const apiRequest = async <T>(path: string, options: ApiOptions = {}): Pro
 
   if (isHtmlResponse(parsed.contentType, parsed.text)) {
     logProbableDeploymentHint(url);
-    console.error("API ERROR:", API_MISCONFIGURED_MESSAGE, url);
+    console.error("API ERROR: received HTML instead of API JSON — check NEXT_PUBLIC_API_URL or backend routing", url);
     throw buildApiError({
       context: "request received HTML instead of API JSON",
       method,

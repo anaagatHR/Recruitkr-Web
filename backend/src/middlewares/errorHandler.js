@@ -51,6 +51,18 @@ export const errorHandler = (error, _req, res, _next) => {
     });
   }
 
+  // Safety net for any unique-index collision a route doesn't map itself:
+  // a duplicate is a client-visible conflict, never a 500, and the driver's
+  // message (collection and index names) must not reach the response.
+  if (error?.code === 11000 || error?.cause?.code === 11000) {
+    console.warn('[db] duplicate key rejected', { keyPattern: error.keyPattern || error.cause?.keyPattern });
+    return res.status(StatusCodes.CONFLICT).json({
+      success: false,
+      message: 'This request conflicts with an existing record.',
+      code: 'DUPLICATE',
+    });
+  }
+
   const isJwtError =
     error?.name === 'JsonWebTokenError' ||
     error?.name === 'TokenExpiredError' ||

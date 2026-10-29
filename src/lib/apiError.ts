@@ -1,8 +1,10 @@
 export const DEFAULT_API_ERROR_MESSAGE = "Connection issue, retrying...";
-export const TIMEOUT_API_ERROR_MESSAGE = "Backend is taking too long to respond. Check the server and MongoDB.";
-export const SERVER_API_ERROR_MESSAGE = "Backend is unavailable. Check the backend server and MongoDB.";
-export const API_MISCONFIGURED_MESSAGE =
-  "API misconfigured. Check NEXT_PUBLIC_API_URL or backend routing";
+// Candidate-facing: never name infrastructure (audit P0-6). Details go to the console log.
+export const TIMEOUT_API_ERROR_MESSAGE =
+  "This is taking longer than usual. Check your connection — if you were saving or applying, refresh before trying again.";
+export const SERVER_API_ERROR_MESSAGE = "Something went wrong on our side. Please try again in a moment.";
+// The deployment hint (NEXT_PUBLIC_API_URL / routing) is logged by api.ts, not shown.
+export const API_MISCONFIGURED_MESSAGE = "We couldn't reach RecruitKr right now. Please try again shortly.";
 
 const TECHNICAL_MESSAGE_PATTERNS = [
   /vite_api_url/i,

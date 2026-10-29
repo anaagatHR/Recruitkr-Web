@@ -97,8 +97,8 @@ describe('error responses', () => {
 
   it('a 5xx never forwards code/data (no infrastructure detail leaks)', () => {
     const res = mockRes();
-    const driverError = Object.assign(new Error('E11000 duplicate key error collection: test.applications'), {
-      code: 11000,
+    const driverError = Object.assign(new Error('connection reset by mongodb-atlas-shard-00'), {
+      code: 'ECONNRESET',
       data: { secret: true },
     });
     const prev = process.env.NODE_ENV;

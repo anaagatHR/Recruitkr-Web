@@ -102,6 +102,10 @@ const applicationSchema = new mongoose.Schema(
     latestMessageAt: { type: Date },
     unreadCandidateCount: { type: Number, default: 0 },
     unreadEmployerCount: { type: Number, default: 0 },
+
+    // Client-supplied Idempotency-Key of the request that created this
+    // application; a retry carrying the same key replays the original 201.
+    idempotencyKey: { type: String, trim: true },
   },
   { timestamps: true },
 );
@@ -123,6 +127,15 @@ applicationSchema.index(
       sourceCollection: { $exists: true, $type: 'string' },
       sourceJobId: { $exists: true, $type: 'string' },
     },
+  },
+);
+
+// Keys are scoped per candidate: the same key string from two accounts never collides.
+applicationSchema.index(
+  { candidateId: 1, idempotencyKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { idempotencyKey: { $type: 'string' } },
   },
 );
 

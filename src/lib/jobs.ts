@@ -1,4 +1,13 @@
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
+
+/**
+ * Apply to a job, safely re-sendable. The Idempotency-Key is derived from the
+ * job (the server scopes it per candidate), so a candidate who re-clicks after a
+ * lost response gets the original 201 back instead of a 409 — and since it is
+ * deterministic, no retry can ever "forget" it. Never retried automatically.
+ */
+export const applyToJobRequest = (jobId: string) =>
+  apiPost("/jobs/apply", { jobId }, { auth: true, headers: { "Idempotency-Key": `apply:${jobId}` } });
 
 export type JobType = "Full-time" | "Part-time" | "Contract" | "Internship" | "Remote";
 
