@@ -1,6 +1,6 @@
 {
   "graftReads": 0,
-  "sourceReads": 88,
+  "sourceReads": 99,
   "savedTokens": 0,
   "injectedPointers": [
     "src/components/HomeJobSearch.tsx:L13-L15",
@@ -17,8 +17,8 @@
   ],
   "nudges": 2,
   "host": "claude-code",
-  "lastBillingUuid": "f812c926-3b37-491b-b195-69217e5ef01e",
-  "inputCostMicros": 64209429,
-  "inputTokensBilled": 117418293,
-  "promptAsks": 12
+  "lastBillingUuid": "ea016000-2dc5-45fd-98b3-242fc7c1a035",
+  "inputCostMicros": 69002736,
+  "inputTokensBilled": 126494706,
+  "promptAsks": 13
 }

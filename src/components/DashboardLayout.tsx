@@ -10,6 +10,8 @@ import ThemeToggle from "@/components/ThemeToggle";
 export type DashboardNavItem<K extends string = string> = {
   key: K;
   label: string;
+  /** Shorter label for the phone bottom bar, where six items get ~60px each. */
+  shortLabel?: string;
   icon: ComponentType<{ size?: number | string; className?: string }>;
 };
 
@@ -161,7 +163,9 @@ export default function DashboardLayout<K extends string>({
           className={cn(
             // The shell is viewport-height (dvh); content scrolls inside main (not
             // the page) on every screen, so the embedded chat fits exactly.
-            "min-h-0 flex-1 overflow-y-auto",
+            // relative: absolutely positioned children (e.g. sr-only text) scroll
+            // with main instead of stretching the page and adding a second scrollbar.
+            "relative min-h-0 flex-1 overflow-y-auto",
             // Mobile clears the fixed bottom nav (pb-24); desktop uses normal padding.
             // The chat tab uses tight padding so the conversation fills the space.
             String(activeKey) === "messages"
@@ -192,7 +196,7 @@ export default function DashboardLayout<K extends string>({
                 onClick={() => onSelect(item.key)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2.5 text-xs font-semibold transition active:scale-95",
+                  "flex min-w-0 flex-1 flex-col items-center gap-1 px-0.5 py-2.5 text-xs font-semibold transition active:scale-95",
                   active ? "text-primary" : "text-muted-foreground",
                 )}
               >
@@ -205,7 +209,7 @@ export default function DashboardLayout<K extends string>({
                 >
                   <Icon size={18} className="shrink-0" />
                 </span>
-                <span className="w-full truncate text-center">{item.label}</span>
+                <span className="w-full truncate text-center">{item.shortLabel ?? item.label}</span>
               </button>
             );
           })}

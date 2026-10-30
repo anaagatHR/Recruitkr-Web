@@ -69,12 +69,18 @@ Every check passed. We tested as a candidate in a real browser and also checked 
 - **The dashboard is lighter.** It now makes 5 requests on opening, down from about 15, and none when switching between tabs.
 - **Keyboard and screen reader.** A candidate can apply using only the keyboard. An automatic accessibility scan found no serious problems on any tab.
 - **Safety limits work.** Spam applying is stopped after 20 an hour, and requests from other websites are blocked.
+- **Works on phones.** Every tab was checked at normal phone width and at the smallest phone width. Nothing scrolls sideways, every button is big enough to tap, and the apply screen fits.
 
 **Problems found during testing, all now fixed:**
 - **The one-time clean-up would have erased some candidates' city.** It erased the city whenever it matched their preferred location, so it now keeps the city as it is.
 - **New candidates were marked "Fresher" without choosing.** This gave free points, so they now have to pick one.
 - **A screen reader always said "unsaved changes"** on the score, even after saving.
 - **Some labels on the Preview tab were too faint to read easily.**
+- **Phone problems:**
+  - The chat screen was cut off on the right.
+  - The bottom menu names were cut off ("Overvi…"), so they now read Home, Jobs, Applied, Chat, Profile and Preview.
+  - iPhones zoomed in whenever a text box was tapped.
+  - A few buttons were too small to tap easily.
 
 ## Still pending
 

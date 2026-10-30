@@ -628,11 +628,12 @@ const Messages = ({
 
   const chatShellClass = embedded
     ? cn(
-        "grid h-full min-h-0 w-full overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:grid-cols-[330px_1fr]",
+        // minmax(0,1fr) keeps a long message preview from widening the phone column.
+        "grid h-full min-h-0 w-full grid-cols-[minmax(0,1fr)] overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:grid-cols-[330px_1fr]",
         className ?? "h-[calc(100vh-11rem)] min-h-[480px]",
       )
     : cn(
-        "mx-auto grid h-[calc(100vh-2rem)] min-h-[560px] w-full max-w-[1600px] overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:grid-cols-[360px_1fr]",
+        "mx-auto grid h-[calc(100vh-2rem)] min-h-[560px] w-full max-w-[1600px] grid-cols-[minmax(0,1fr)] overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:grid-cols-[360px_1fr]",
         className,
       );
 

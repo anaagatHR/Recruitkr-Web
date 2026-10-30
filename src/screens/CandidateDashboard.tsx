@@ -1587,10 +1587,10 @@ const CandidateDashboard = () => {
   // Candidate destinations: overview, find jobs, applied jobs (read details +
   // chat), chat, profile and card.
   const candidateTabs: DashboardNavItem<typeof tab>[] = [
-    { key: "overview", label: "Overview", icon: Sparkles },
-    { key: "jobs", label: "Find Jobs", icon: BriefcaseBusiness },
-    { key: "applications", label: "Applied Jobs", icon: FileText },
-    { key: "messages", label: "My Chat", icon: MessageSquare },
+    { key: "overview", label: "Overview", shortLabel: "Home", icon: Sparkles },
+    { key: "jobs", label: "Find Jobs", shortLabel: "Jobs", icon: BriefcaseBusiness },
+    { key: "applications", label: "Applied Jobs", shortLabel: "Applied", icon: FileText },
+    { key: "messages", label: "My Chat", shortLabel: "Chat", icon: MessageSquare },
     { key: "profile", label: "Profile", icon: Pencil },
     { key: "preview", label: "Preview", icon: UserCircle2 },
   ];
@@ -1887,7 +1887,7 @@ const CandidateDashboard = () => {
                 <button
                   type="button"
                   onClick={() => openChat()}
-                  className="text-[13px] font-bold text-[#264a7f] hover:underline dark:text-[#7da7df]"
+                  className="py-1 text-[13px] font-bold text-[#264a7f] hover:underline dark:text-[#7da7df]"
                 >
                   Open my chat →
                 </button>
@@ -2414,7 +2414,7 @@ const CandidateDashboard = () => {
                               </p>
                             )}
                           </div>
-                          <button type="button" aria-label="Edit name" onClick={(e) => { e.stopPropagation(); setActiveProfileField("fullName"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
+                          <button type="button" aria-label="Edit name" onClick={(e) => { e.stopPropagation(); setActiveProfileField("fullName"); }} className="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                         </div>
                       </div>
 
@@ -2461,7 +2461,7 @@ const CandidateDashboard = () => {
                                 </p>
                               )}
                             </div>
-                            <button type="button" aria-label="Edit qualification" onClick={(e) => { e.stopPropagation(); setActiveProfileField("highestQualification"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
+                            <button type="button" aria-label="Edit qualification" onClick={(e) => { e.stopPropagation(); setActiveProfileField("highestQualification"); }} className="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                           </div>
                         </div>
 
@@ -2501,7 +2501,7 @@ const CandidateDashboard = () => {
                                 </p>
                               )}
                             </div>
-                            <button type="button" aria-label="Edit experience status" onClick={(e) => { e.stopPropagation(); setActiveProfileField("experienceStatus"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
+                            <button type="button" aria-label="Edit experience status" onClick={(e) => { e.stopPropagation(); setActiveProfileField("experienceStatus"); }} className="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                           </div>
                         </div>
 
@@ -2532,7 +2532,7 @@ const CandidateDashboard = () => {
                                 </p>
                               )}
                             </div>
-                            <button type="button" aria-label="Edit preferred role" onClick={(e) => { e.stopPropagation(); setActiveProfileField("preferredRole"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
+                            <button type="button" aria-label="Edit preferred role" onClick={(e) => { e.stopPropagation(); setActiveProfileField("preferredRole"); }} className="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                           </div>
                         </div>
 
@@ -2567,7 +2567,7 @@ const CandidateDashboard = () => {
                                 </p>
                               )}
                             </div>
-                            <button type="button" aria-label="Edit preferred location" onClick={(e) => { e.stopPropagation(); setActiveProfileField("preferredLocation"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
+                            <button type="button" aria-label="Edit preferred location" onClick={(e) => { e.stopPropagation(); setActiveProfileField("preferredLocation"); }} className="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                           </div>
                         </div>
 
@@ -2593,7 +2593,7 @@ const CandidateDashboard = () => {
                                 </p>
                               )}
                             </div>
-                            <button type="button" aria-label="Edit summary" onClick={(e) => { e.stopPropagation(); setActiveProfileField("summary"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
+                            <button type="button" aria-label="Edit summary" onClick={(e) => { e.stopPropagation(); setActiveProfileField("summary"); }} className="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                           </div>
                         </div>
                       </div>
@@ -2633,7 +2633,7 @@ const CandidateDashboard = () => {
                                 </p>
                               )}
                             </div>
-                            <button type="button" aria-label="Edit LinkedIn URL" onClick={(e) => { e.stopPropagation(); setActiveProfileField("linkedinUrl"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
+                            <button type="button" aria-label="Edit LinkedIn URL" onClick={(e) => { e.stopPropagation(); setActiveProfileField("linkedinUrl"); }} className="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                           </div>
                         </div>
 
@@ -2661,7 +2661,7 @@ const CandidateDashboard = () => {
                                 </p>
                               )}
                             </div>
-                            <button type="button" aria-label="Edit portfolio URL" onClick={(e) => { e.stopPropagation(); setActiveProfileField("portfolioUrl"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
+                            <button type="button" aria-label="Edit portfolio URL" onClick={(e) => { e.stopPropagation(); setActiveProfileField("portfolioUrl"); }} className="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                           </div>
                         </div>
                       </div>
@@ -2709,7 +2709,7 @@ const CandidateDashboard = () => {
                               </p>
                             )}
                           </div>
-                          <button type="button" aria-label="Edit work mode" onClick={(e) => { e.stopPropagation(); setActiveProfileField("workModes"); }} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
+                          <button type="button" aria-label="Edit work mode" onClick={(e) => { e.stopPropagation(); setActiveProfileField("workModes"); }} className="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#264a7f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"><Pencil size={15} aria-hidden="true" /></button>
                         </div>
                       </div>
                     </div>
@@ -3195,7 +3195,7 @@ const CandidateDashboard = () => {
                           <p className="text-sm font-medium">Job #{idx + 1}</p>
                           <button
                             type="button"
-                            className="text-sm text-red-500"
+                            className="py-1 text-sm text-red-500"
                             aria-label={`Remove job ${idx + 1}`}
                             onClick={() =>
                               setResumeForm((p) => ({ ...p, experience: p.experience.filter((_, i) => i !== idx) }))
