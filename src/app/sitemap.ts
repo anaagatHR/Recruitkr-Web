@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
-import { fetchAllJobs, type Job } from "@/lib/jobs";
+import { fetchAllJobs, isOpen, type Job } from "@/lib/jobs";
 import { fetchBlogPosts } from "@/lib/blog";
-import { CITIES, cityPath, matchCity } from "@/lib/locations";
+import { CITIES, cityPath, matchCity, MIN_INDEXABLE_CITY_ROLES } from "@/lib/locations";
 import { services } from "@/lib/services";
 
 const SITE_URL =
@@ -101,19 +101,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     /* no jobs available — static + city routes still ship */
   }
 
-  // Every city landing page. Each carries its own market copy and links to
-  // live jobs (or the latest ones when the city has none), so none is an
-  // empty doorway page.
-  const cityRoutes: MetadataRoute.Sitemap = CITIES.map((city) => ({
-    url: `${SITE_URL}${cityPath(city.slug)}`,
-    // The page is a filtered view of the board, so it last changed when its
-    // newest matching job was posted.
-    lastModified: liveJobs
-      ? newest(matchCity(liveJobs, city).map((job) => safeDate(job.postedAt))) ?? undefined
-      : undefined,
-    changeFrequency: "daily",
-    priority: 0.8,
-  }));
+  // City pages only while they are indexable: the page noindexes itself below
+  // MIN_INDEXABLE_CITY_ROLES open roles (same rule, same live count), and a
+  // sitemap must not list noindexed URLs. With the backend down, none ship.
+  const openJobs = (liveJobs ?? []).filter(isOpen);
+  const cityRoutes: MetadataRoute.Sitemap = CITIES.map((city) => ({ city, roles: matchCity(openJobs, city) }))
+    .filter(({ roles }) => roles.length >= MIN_INDEXABLE_CITY_ROLES)
+    .map(({ city, roles }) => ({
+      url: `${SITE_URL}${cityPath(city.slug)}`,
+      // The page is a filtered view of the board, so it last changed when its
+      // newest matching job was posted.
+      lastModified: newest(roles.map((job) => safeDate(job.postedAt))) ?? undefined,
+      changeFrequency: "daily",
+      priority: 0.8,
+    }));
 
   const serviceRoutes: MetadataRoute.Sitemap = services.map((service) => ({
     url: `${SITE_URL}/services/${service.id}`,

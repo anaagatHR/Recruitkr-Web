@@ -238,6 +238,28 @@ export default function JobDetailScreen({ initialJob = null, related = [] }: { i
                   share the full role details with you.
                 </p>
               )}
+              {(
+                [
+                  ["Responsibilities", job.responsibilities],
+                  ["Requirements", job.requirements],
+                ] as const
+              ).map(([heading, items]) =>
+                items?.length ? (
+                  <div key={heading}>
+                    <h3 className="mt-6 font-semibold text-foreground">{heading}</h3>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-foreground/85">
+                      {items.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null,
+              )}
+              {job.qualification && (
+                <p className="mt-6 text-sm text-foreground/85">
+                  <span className="font-semibold text-foreground">Qualification:</span> {job.qualification}
+                </p>
+              )}
               {job.skills.length > 0 && (
                 <>
                   <h3 className="mt-6 font-semibold text-foreground">Key skills</h3>

@@ -6,7 +6,8 @@ import {
   fetchJobResult,
   fetchJobs,
   formatExperience,
-  isExpired,
+  isIndexableJob,
+  isOpen,
   jobIdFromParam,
   jobPath,
   jobSlug,
@@ -43,15 +44,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: `${job.title} (${job.type}, ${job.workMode}) in ${city}.${experience ? ` ${experience}.` : ""} Apply now on RecruitKr.`,
     path: jobPath(job),
     keywords: [job.title, ...(job.company ? [job.company] : []), job.sector, ...job.skills],
-    // Expired listings stay reachable for old links but shouldn't be indexed.
-    noindex: job.canApply === false && isExpired(job),
+    // Closed listings and postings with no real description stay reachable
+    // (and crawlable) but out of the index; jobs-sitemap.xml applies the same rule.
+    noindex: !isIndexableJob(job),
   });
 }
 
 /** Up to six other open jobs, same sector first. */
 const relatedJobs = (job: Job, all: Job[]) =>
   all
-    .filter((other) => other.id !== job.id && !isExpired(other) && other.canApply !== false)
+    .filter((other) => other.id !== job.id && isOpen(other))
     .sort((a, b) => Number(b.sector === job.sector) - Number(a.sector === job.sector))
     .slice(0, 6);
 

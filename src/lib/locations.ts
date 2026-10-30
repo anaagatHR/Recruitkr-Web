@@ -211,6 +211,12 @@ export const CITIES: City[] = [
   },
 ];
 
+/**
+ * A city page is indexed (and listed in sitemap.xml) only with at least this
+ * many open roles; below it the page is mostly shared boilerplate.
+ */
+export const MIN_INDEXABLE_CITY_ROLES = 3;
+
 export const getCity = (slug: string) => CITIES.find((city) => city.slug === slug.toLowerCase());
 
 export const cityHeading = (city: City) => city.heading ?? `Jobs in ${city.name}`;

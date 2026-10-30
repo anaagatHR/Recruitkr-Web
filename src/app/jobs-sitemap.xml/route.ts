@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchAllJobs, isExpired, jobPath } from "@/lib/jobs";
+import { fetchAllJobs, isIndexableJob, jobPath } from "@/lib/jobs";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
 
@@ -25,9 +25,9 @@ export async function GET() {
     });
   }
 
-  // Expired jobs render noindex, so they don't belong here.
+  // Only pages that render `index`: open jobs with a real description.
   const urls = jobs
-    .filter((job) => !(job.canApply === false && isExpired(job)))
+    .filter(isIndexableJob)
     .map((job) => {
       const lastmod = new Date(job.postedAt);
       return `  <url>

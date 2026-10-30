@@ -60,6 +60,10 @@ export type Job = {
   sector: string;
   skills: string[];
   description: string;
+  /** Bullet lists and qualification from the posting form; often empty. */
+  responsibilities?: string[];
+  requirements?: string[];
+  qualification?: string;
   postedAt: string; // ISO
   applicants: number;
   openings: number;
@@ -117,6 +121,23 @@ export const isExpired = (job: Pick<Job, "applicationDeadline">) => {
   const days = daysUntilDeadline(job);
   return days !== undefined && days < 0;
 };
+
+/** Still taking applications. */
+export const isOpen = (job: Job) => !isExpired(job) && job.canApply !== false;
+
+/**
+ * A job page is only worth indexing with a real write-up. Below this many
+ * characters of description + responsibilities + requirements the page is
+ * noindexed and left out of jobs-sitemap.xml (a title-only posting is thin).
+ */
+export const MIN_INDEXABLE_DESCRIPTION_CHARS = 100;
+
+export const hasRealDescription = (job: Pick<Job, "description" | "responsibilities" | "requirements">) =>
+  [job.description, ...(job.responsibilities ?? []), ...(job.requirements ?? [])].join(" ").trim().length >=
+  MIN_INDEXABLE_DESCRIPTION_CHARS;
+
+/** Indexable job page: open and properly described. */
+export const isIndexableJob = (job: Job) => isOpen(job) && hasRealDescription(job);
 
 /**
  * "2-4" → "2–4 years experience", "Fresher" → "Fresher", "Not specified" → "".
@@ -220,6 +241,7 @@ export function normalizeApiJob(raw: unknown): Job | null {
   const rawCompany = asString(record.company ?? record.companyName);
   const company = /^company$/i.test(rawCompany) ? "" : rawCompany;
   const description = asString(record.description ?? record.jobDescription, "");
+  const list = (value: unknown) => (Array.isArray(value) ? value.map((item) => asString(item)).filter(Boolean) : []);
   const deadline = asString(record.applicationDeadline);
   const isComplete =
     typeof record.isComplete === "boolean" ? record.isComplete : Boolean(company) && description.length >= 40;
@@ -243,6 +265,9 @@ export function normalizeApiJob(raw: unknown): Job | null {
       ? record.skills.map((skill) => asString(skill)).filter(Boolean)
       : [],
     description,
+    responsibilities: list(record.responsibilities),
+    requirements: list(record.requirements),
+    qualification: asString(record.qualification) || undefined,
     postedAt: createdAt,
     applicants: asNumber(record.applicants) ?? 0,
     openings: Math.max(1, asNumber(record.openings) ?? 1),

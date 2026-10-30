@@ -1,4 +1,4 @@
-import { displayCompany, formatExperience, jobPath, PLACEHOLDER_LOCATION, type Job } from "@/lib/jobs";
+import { displayCompany, formatExperience, hasRealDescription, jobPath, PLACEHOLDER_LOCATION, type Job } from "@/lib/jobs";
 import { CITIES, HOME_CITY, HOME_REGION } from "@/lib/locations";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
@@ -12,8 +12,35 @@ const EMPLOYMENT_TYPE: Record<Job["type"], string> = {
   Remote: "FULL_TIME",
 };
 
-/** Salary is stored in LPA (lakhs per annum); convert to absolute INR per year. */
-const toAnnualInr = (lpa?: number) => (lpa != null && lpa > 0 ? Math.round(lpa * 100000) : undefined);
+/**
+ * Salary is stored in LPA (lakhs per annum); convert to absolute INR per year.
+ * Values above 200 LPA (₹2 crore) are data-entry errors, e.g. a monthly
+ * ₹25,000 typed into the LPA field, which would publish ₹250 crore a year.
+ * Those are omitted rather than published.
+ */
+const MAX_PLAUSIBLE_LPA = 200;
+const toAnnualInr = (lpa?: number) =>
+  lpa != null && lpa > 0 && lpa <= MAX_PLAUSIBLE_LPA ? Math.round(lpa * 100000) : undefined;
+
+const escapeHtml = (value: string) =>
+  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/** The posting's own write-up as HTML, which is the form Google asks for. */
+const descriptionHtml = (job: Job) => {
+  const list = (title: string, items?: string[]) =>
+    items?.length ? `<h3>${title}</h3><ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : "";
+  return [
+    job.description
+      .split(/\n\s*\n/)
+      .map((para) => para.trim())
+      .filter(Boolean)
+      .map((para) => `<p>${escapeHtml(para).replace(/\n/g, "<br>")}</p>`)
+      .join(""),
+    list("Responsibilities", job.responsibilities),
+    list("Requirements", job.requirements),
+    job.qualification ? `<p><strong>Qualification:</strong> ${escapeHtml(job.qualification)}</p>` : "",
+  ].join("");
+};
 
 /**
  * Google recommends validThrough; we don't store an expiry, so derive one.
@@ -81,7 +108,10 @@ export function jobPostingJsonLd(job: Job): Record<string, unknown> {
     "@context": "https://schema.org/",
     "@type": "JobPosting",
     title: job.title,
-    description: job.description || fallbackDescription(job, area),
+    // The generated summary is only for postings saved without a write-up;
+    // those pages are noindexed (see isIndexableJob), so it never reaches
+    // Google as a rich result.
+    description: hasRealDescription(job) ? descriptionHtml(job) : fallbackDescription(job, area),
     datePosted: job.postedAt,
     // A real employer deadline wins; otherwise the derived 45-day window.
     validThrough:
