@@ -1,6 +1,6 @@
 {
   "graftReads": 0,
-  "sourceReads": 99,
+  "sourceReads": 104,
   "savedTokens": 0,
   "injectedPointers": [
     "src/components/HomeJobSearch.tsx:L13-L15",
@@ -13,12 +13,15 @@
     "src/screens/CandidateDashboard.tsx:L1407-L1410",
     "backend/src/services/resume.service.js:L872-L994",
     "src/screens/Process.tsx:L6-L14",
-    "src/components/ProcessSection.tsx:L10-L50"
+    "src/components/ProcessSection.tsx:L10-L50",
+    "backend/src/utils/recruitkrId.js:L20-L21",
+    "backend/src/services/liveUpdate.service.js",
+    "src/screens/ClientDashboard.tsx:L683-L698"
   ],
   "nudges": 2,
   "host": "claude-code",
-  "lastBillingUuid": "ea016000-2dc5-45fd-98b3-242fc7c1a035",
-  "inputCostMicros": 69002736,
-  "inputTokensBilled": 126494706,
-  "promptAsks": 13
+  "lastBillingUuid": "4a850bb9-5ab2-42a0-bd29-bb4216815fa3",
+  "inputCostMicros": 69915763,
+  "inputTokensBilled": 127381518,
+  "promptAsks": 17
 }
