@@ -713,7 +713,8 @@ const CandidateDashboard = () => {
     linkedinUrl: string;
     portfolioUrl: string;
     highestQualification: string;
-    experienceStatus: "fresher" | "experienced";
+    // "" until the candidate picks one, so the score never counts an unchosen default.
+    experienceStatus: "" | "fresher" | "experienced";
     experienceDetails: {
       currentCompany: string;
       designation: string;
@@ -740,7 +741,7 @@ const CandidateDashboard = () => {
     linkedinUrl: "",
     portfolioUrl: "",
     highestQualification: "",
-    experienceStatus: "fresher",
+    experienceStatus: "",
     experienceDetails: { currentCompany: "", designation: "", totalExperience: "", industry: "" },
     experience: [],
     preferences: { preferredRole: "", preferredLocation: "", preferredIndustry: "", workModes: [] },
@@ -790,7 +791,7 @@ const CandidateDashboard = () => {
       experienceStatus:
         activeProfileField === "experienceStatus"
           ? prev.experienceStatus
-          : profileData?.experienceStatus || "fresher",
+          : profileData?.experienceStatus || "",
       experienceDetails: {
         currentCompany: profileData?.experienceDetails?.currentCompany || "",
         designation: profileData?.experienceDetails?.designation || "",
@@ -1160,7 +1161,7 @@ const CandidateDashboard = () => {
         .filter((entry) => entry.company || entry.role);
 
       const payload: Record<string, unknown> = {
-        experienceStatus: resumeForm.experienceStatus,
+        experienceStatus: resumeForm.experienceStatus || undefined,
         summary: resumeForm.summary.trim(),
         skills,
         projects,
@@ -2387,7 +2388,7 @@ const CandidateDashboard = () => {
                     />
 
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Profile Info</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Profile Info</p>
 
                       <div
                         className="group mt-3 rounded-lg border border-transparent px-1 py-1 transition hover:border-[#264a7f]/10 hover:bg-slate-50"
@@ -2395,7 +2396,7 @@ const CandidateDashboard = () => {
                       >
                         <div className="flex flex-col items-center gap-2 md:flex-row md:items-start md:justify-between md:gap-3">
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Name</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Name</p>
                             {activeProfileField === "fullName" ? (
                               <input
                                 autoFocus
@@ -2418,7 +2419,7 @@ const CandidateDashboard = () => {
                       </div>
 
                       <div className="mt-3 rounded-lg bg-slate-50 px-4 py-3 text-center md:text-left">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Email</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Email</p>
                         <p className="mt-1 break-all text-base font-medium text-slate-800">
                           {sessionState?.user.email || "Not added"}
                         </p>
@@ -2440,7 +2441,7 @@ const CandidateDashboard = () => {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Qualification</p>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Qualification</p>
                               {activeProfileField === "highestQualification" ? (
                                 <input
                                   autoFocus
@@ -2470,7 +2471,7 @@ const CandidateDashboard = () => {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Experience</p>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Experience</p>
                               {activeProfileField === "experienceStatus" ? (
                                 <div className="relative mt-2">
                                   <select
@@ -2488,6 +2489,7 @@ const CandidateDashboard = () => {
                                     }
                                     className="w-full appearance-none rounded-lg border border-[#264a7f]/15 bg-white px-3 py-2 text-base font-semibold capitalize text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#264a7f]"
                                   >
+                                    <option value="" disabled>Select…</option>
                                     <option value="fresher">Fresher</option>
                                     <option value="experienced">Experienced</option>
                                   </select>
@@ -2509,7 +2511,7 @@ const CandidateDashboard = () => {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Preferred Role</p>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Preferred Role</p>
                               {activeProfileField === "preferredRole" ? (
                                 <input
                                   autoFocus
@@ -2540,7 +2542,7 @@ const CandidateDashboard = () => {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Preferred Location</p>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Preferred Location</p>
                               {activeProfileField === "preferredLocation" ? (
                                 <input
                                   autoFocus
@@ -2575,7 +2577,7 @@ const CandidateDashboard = () => {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Professional Summary</p>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Professional Summary</p>
                               {activeProfileField === "summary" ? (
                                 <textarea
                                   autoFocus
@@ -2601,7 +2603,7 @@ const CandidateDashboard = () => {
                       <h3 className="text-center text-lg font-bold text-slate-900 md:text-left">Contact &amp; Links</h3>
                       <div className="mt-5 grid gap-4 md:grid-cols-2">
                         <div className="rounded-lg border border-gray-200 bg-slate-50 p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Email</p>
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Email</p>
                           <p className="mt-2 break-all text-base font-semibold text-slate-900">
                             {sessionState?.user.email || "Not added"}
                           </p>
@@ -2613,7 +2615,7 @@ const CandidateDashboard = () => {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">LinkedIn</p>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">LinkedIn</p>
                               {activeProfileField === "linkedinUrl" ? (
                                 <input
                                   autoFocus
@@ -2641,7 +2643,7 @@ const CandidateDashboard = () => {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Portfolio</p>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Portfolio</p>
                               {activeProfileField === "portfolioUrl" ? (
                                 <input
                                   autoFocus
@@ -2673,7 +2675,7 @@ const CandidateDashboard = () => {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Preferred Work Mode</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Preferred Work Mode</p>
                             {activeProfileField === "workModes" ? (
                               <div className="relative mt-2">
                                 <select
@@ -2718,7 +2720,7 @@ const CandidateDashboard = () => {
                       <h3 className="text-center text-lg font-bold text-slate-900 md:text-left">Quick Snapshot</h3>
                       <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                         <div className="rounded-lg border border-gray-200 bg-slate-50 p-5">
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Applications</p>
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Applications</p>
                           <p className="mt-3 text-3xl font-bold text-slate-900">
                             {dashboard?.stats.applicationsSent || 0}
                           </p>
@@ -2727,7 +2729,7 @@ const CandidateDashboard = () => {
 
                         <div className="rounded-lg border border-gray-200 bg-slate-50 p-5">
                           <div className="flex items-center justify-between gap-3">
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Profile Completion</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Profile Completion</p>
                             <span className="text-sm font-semibold text-[#264a7f]">
                               {dashboard?.stats.profileCompletion || 0}%
                             </span>
@@ -2762,7 +2764,7 @@ const CandidateDashboard = () => {
             {liveCompletion && (
               <ProfileCompletionCard
                 {...liveCompletion}
-                live
+                live={liveCompletion.score !== dashboard?.completion?.score}
                 headingId="editor-completion"
                 onSelectField={focusProfileField}
                 onBrowseJobs={() => setTab("jobs")}
@@ -3006,6 +3008,7 @@ const CandidateDashboard = () => {
                     }
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                   >
+                    <option value="" disabled>Select…</option>
                     <option value="fresher">Fresher</option>
                     <option value="experienced">Experienced</option>
                   </select>

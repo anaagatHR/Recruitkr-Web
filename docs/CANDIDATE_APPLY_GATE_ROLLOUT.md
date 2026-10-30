@@ -25,7 +25,7 @@ npm run candidates:migrate:apply    # writes
 npm run solr:reindex:candidates     # if Solr is configured
 ```
 
-Run it soon after deploy: it clears `city` when it equals the preferred location (that was a copy written before the City field existed).
+It never clears `city`. Older code copied the preferred location into it, so some profiles show their preferred location as their city until the candidate edits it.
 
 ## 4. Test on staging (gate still off)
 

@@ -10,9 +10,7 @@
  *      User.mobile<-profile.phone/mobile (when the user has no valid mobile).
  *   2. Clears placeholder values older code wrote ("Not specified",
  *      "Not provided", "000000", the 2000-01-01 default DOB, an email-prefix name).
- *   3. Clears `city` when it is just a copy of preferredLocation (written before
- *      the editor had a City input).
- *   4. Re-writes the legacy mirror fields from the canonical values.
+ *   3. Re-writes the legacy mirror fields from the canonical values.
  * Every pair whose two copies disagreed is printed so an admin can review it.
  *
  * Usage:

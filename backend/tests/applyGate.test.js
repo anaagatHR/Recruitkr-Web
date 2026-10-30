@@ -117,9 +117,8 @@ describe('error responses', () => {
 });
 
 describe('FEATURE_APPLY_GATE flag', () => {
-  it('defaults to off when the variable is unset', async () => {
-    assert.equal(process.env.FEATURE_APPLY_GATE, undefined);
+  it('is off unless explicitly enabled', async () => {
     const { env } = await import('../src/config/env.js');
-    assert.equal(env.FEATURE_APPLY_GATE, false);
+    assert.equal(env.FEATURE_APPLY_GATE, ['true', '1', 'yes'].includes(String(process.env.FEATURE_APPLY_GATE).toLowerCase()));
   });
 });

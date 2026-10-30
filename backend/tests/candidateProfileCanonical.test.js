@@ -63,9 +63,9 @@ describe('planCandidateProfileMigration', () => {
     assert.deepEqual(plan.unset, ['dateOfBirth']);
   });
 
-  it('clears a city that is only a copy of preferredLocation', () => {
+  it('keeps a city that equals preferredLocation (it may be what the candidate typed)', () => {
     const plan = planCandidateProfileMigration({ city: 'Jaipur', preferences: { preferredLocation: 'Jaipur' } }, {});
-    assert.equal(plan.set.city, '');
+    assert.equal(plan.set.city, undefined);
   });
 
   it('does not overwrite a valid user mobile', () => {

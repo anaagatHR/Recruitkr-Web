@@ -135,14 +135,10 @@ export const planCandidateProfileMigration = (profile = {}, user = {}) => {
     set['preferences.workModes'] = profile.workModes;
   }
 
-  // Before the editor had a City input, city was a copy of preferredLocation.
+  // Older code copied preferredLocation into city, but a city equal to the preferred
+  // location is just as often what the candidate typed, so it is kept, never cleared.
   const city = meaningful(profile.city);
-  if (city && city === meaningful(prefs.preferredLocation || profile.preferredLocation)) {
-    set.city = '';
-    conflicts.push({ field: 'city', kept: '', dropped: city, droppedFrom: 'city (copy of preferredLocation)' });
-  } else if (city !== (profile.city ?? '')) {
-    set.city = city;
-  }
+  if (city !== (profile.city ?? '')) set.city = city;
 
   for (const field of ['highestQualification', 'address', 'pincode']) {
     const value = meaningful(profile[field]);
