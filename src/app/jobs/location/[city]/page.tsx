@@ -1,107 +1,171 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { MapPin, Search } from "lucide-react";
+import { notFound } from "next/navigation";
+import { MapPin } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import JobCard from "@/components/job/JobCard";
+import { buildMetadata } from "@/lib/seo";
+import { fetchAllJobs, isExpired, jobPath, pluralize, type Job } from "@/lib/jobs";
+import { CITIES, cityHeading, cityPath, getCity, matchCity } from "@/lib/locations";
+import { services } from "@/lib/services";
 
-export const dynamic = "force-dynamic";
+/**
+ * Served at /jobs-in-<city> via the rewrite in next.config.mjs; this route's
+ * own URL (/jobs/location/<city>) 301s there, so it never competes with it.
+ */
+export const revalidate = 600;
 
-interface PageProps {
-  params: Promise<{ city: string }> | { city: string };
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
+const MAX_LISTED = 30;
+
+type Props = { params: Promise<{ city: string }> | { city: string } };
+
+const cityOf = async (params: Props["params"]) => getCity((await Promise.resolve(params))?.city || "");
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const city = await cityOf(params);
+  if (!city) return {};
+  return buildMetadata({
+    // Bare title: the root layout template appends "| RecruitKr" exactly once.
+    title: `${cityHeading(city)} — Verified Openings`,
+    description: `${cityHeading(city)} on RecruitKr: openings in ${city.sectors
+      .slice(0, 3)
+      .join(", ")
+      .toLowerCase()} and more. Apply free with verified employers.`,
+    path: cityPath(city.slug),
+  });
 }
 
-function cleanCityName(slug: string): string {
-  if (!slug) return "All India";
-  const decoded = decodeURIComponent(slug).replace(/^jobs-in-/, "").replace(/-/g, " ");
-  return decoded.charAt(0).toUpperCase() + decoded.slice(1);
-}
+export default async function Page({ params }: Props) {
+  const city = await cityOf(params);
+  if (!city) notFound();
 
-export async function generateMetadata(props: PageProps): Promise<Metadata> {
-  const resolved = await Promise.resolve(props.params);
-  const raw = resolved?.city || "";
-  const name = cleanCityName(raw);
+  let open: Job[] = [];
+  try {
+    const { jobs, live } = await fetchAllJobs();
+    // Seed fallback jobs are fictional; never list them as real openings.
+    if (live) open = jobs.filter((job) => !isExpired(job) && job.canApply !== false);
+  } catch {
+    /* backend down: the page still renders its city content */
+  }
+  const matched = matchCity(open, city);
+  const listed = matched.slice(0, MAX_LISTED);
+  // An empty city still links to real jobs, so the page is never a dead end.
+  const fallback = matched.length ? [] : open.slice(0, 6);
+  const heading = cityHeading(city);
 
-  return {
-    title: `Jobs in ${name} — Verified Openings | RecruitKr`,
-    description: `Explore verified job openings and vacancies in ${name}. Apply directly on RecruitKr.`,
-    alternates: {
-      canonical: `https://www.recruitkr.com/jobs/location/${raw.toLowerCase()}`,
-    },
-  };
-}
+  const itemList = listed.length
+    ? {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        name: heading,
+        numberOfItems: listed.length,
+        itemListElement: listed.map((job, i) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          url: `${SITE_URL}${jobPath(job)}`,
+          name: job.title,
+        })),
+      }
+    : null;
 
-export default async function Page(props: PageProps) {
-  const resolved = await Promise.resolve(props.params);
-  const rawCity = resolved?.city || "";
-  const cityName = cleanCityName(rawCity);
-
-  const locations = [
-    { name: "Jaipur", slug: "jaipur" },
-    { name: "Jodhpur", slug: "jodhpur" },
-    { name: "Kota", slug: "kota" },
-    { name: "Udaipur", slug: "udaipur" },
-    { name: "Ajmer", slug: "ajmer" },
-    { name: "Bhilwara", slug: "bhilwara" },
-    { name: "Delhi NCR", slug: "delhi" },
-    { name: "Mumbai", slug: "mumbai" },
-  ];
+  const relatedServices = services.filter((s) => s.cities.includes(city.slug)).slice(0, 4);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      {itemList && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList) }} />
+      )}
       <Navbar />
 
-      <main className="flex-grow">
+      <main id="main" className="flex-grow pt-16 sm:pt-20">
         <section className="border-b border-border bg-muted/20 py-12">
           <div className="container mx-auto px-4">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-              <MapPin size={13} /> {cityName}
+              <MapPin size={13} aria-hidden /> {city.name === "Remote" ? "Work from anywhere" : `${city.name}, ${city.region}`}
             </span>
-            <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Jobs in {cityName}
-            </h1>
-            <p className="mt-2 max-w-2xl text-muted-foreground text-sm sm:text-base">
-              Verified job openings and career vacancies in {cityName}. Apply directly on RecruitKr.
+            <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">{heading}</h1>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
+              {matched.length
+                ? `${pluralize(matched.length, "open role")} from verified employers. Applying is always free.`
+                : `No open roles in ${city.name} right now. New openings are added every week.`}
             </p>
-            <div className="mt-6">
-              <Link
-                href="/jobs"
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow hover:opacity-90 transition"
-              >
-                <Search size={16} /> View all verified jobs
-              </Link>
-            </div>
           </div>
         </section>
 
-        <section className="container mx-auto px-4 py-12">
-          <div className="rounded-2xl border border-border bg-card p-10 text-center max-w-xl mx-auto shadow-sm">
-            <h2 className="text-lg font-bold">Hiring in {cityName}</h2>
-            <p className="text-muted-foreground text-sm mt-2">
-              We are actively matching talent with top employers across Rajasthan and pan-India. Browse all live openings to apply directly.
-            </p>
-            <Link
-              href="/jobs"
-              className="mt-5 inline-block rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground"
-            >
-              Browse All Live Listings
-            </Link>
-          </div>
-        </section>
-
-        <section className="container mx-auto px-4 pb-14">
-          <h2 className="text-sm font-semibold text-muted-foreground mb-3">
-            Other Popular Cities
+        <section aria-labelledby="openings" className="container mx-auto px-4 py-10">
+          <h2 id="openings" className="text-xl font-bold">
+            {matched.length ? `Current openings` : "Latest openings across RecruitKr"}
           </h2>
-          <div className="flex flex-wrap gap-2">
-            {locations.map((loc) => (
-              <Link
-                key={loc.slug}
-                href={`/jobs/location/${loc.slug}`}
-                className="rounded-full border border-border px-4 py-1.5 text-xs font-medium text-muted-foreground hover:border-primary hover:text-primary transition"
-              >
-                Jobs in {loc.name}
-              </Link>
-            ))}
+          {listed.length + fallback.length > 0 ? (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {(listed.length ? listed : fallback).map((job) => (
+                <JobCard key={job.id} job={job} headingLevel={3} />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">Listings could not be loaded right now.</p>
+          )}
+          <p className="mt-6 text-sm">
+            <Link href="/jobs" className="font-semibold text-primary hover:underline">
+              Browse all jobs on RecruitKr →
+            </Link>
+          </p>
+        </section>
+
+        <section aria-labelledby="market" className="border-t border-border bg-muted/10">
+          <div className="container mx-auto grid gap-10 px-4 py-12 lg:grid-cols-[1fr_320px]">
+            <div className="max-w-3xl space-y-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
+              <h2 id="market" className="text-xl font-bold text-foreground">
+                {city.slug === "remote" ? "About remote jobs" : `Hiring in ${city.name}`}
+              </h2>
+              {city.intro.map((p) => (
+                <p key={p}>{p}</p>
+              ))}
+              <h3 className="pt-2 text-base font-semibold text-foreground">
+                {city.slug === "remote" ? "Common remote roles" : `Sectors we hire for in ${city.name}`}
+              </h3>
+              <ul className="flex flex-wrap gap-2">
+                {city.sectors.map((sector) => (
+                  <li key={sector} className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground/80">
+                    {sector}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <aside className="space-y-6 text-sm">
+              {relatedServices.length > 0 && (
+                <div>
+                  <h2 className="font-semibold text-foreground">For employers</h2>
+                  <ul className="mt-2 space-y-1.5">
+                    {relatedServices.map((s) => (
+                      <li key={s.id}>
+                        <Link href={`/services/${s.id}`} className="text-primary hover:underline">
+                          {s.cardTitle}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div>
+                <h2 className="font-semibold text-foreground">Nearby and related cities</h2>
+                <ul className="mt-2 space-y-1.5">
+                  {city.nearby.map((slug) => {
+                    const other = CITIES.find((c) => c.slug === slug);
+                    return other ? (
+                      <li key={slug}>
+                        <Link href={cityPath(slug)} className="text-primary hover:underline">
+                          {cityHeading(other)}
+                        </Link>
+                      </li>
+                    ) : null;
+                  })}
+                </ul>
+              </div>
+            </aside>
           </div>
         </section>
       </main>

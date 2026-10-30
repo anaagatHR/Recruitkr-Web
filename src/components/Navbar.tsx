@@ -54,7 +54,7 @@ const Navbar = memo(function Navbar() {
         {/* Full logo with the "Your Hiring Partner" tagline baked in, on a
             genuinely transparent background (white removed) — no white box,
             works on any navbar colour, light or dark. */}
-        <Link to="/home" aria-label="RecruitKr home" className="flex shrink-0 items-center">
+        <Link to="/" aria-label="RecruitKr home" className="flex shrink-0 items-center">
           {/* next/image, not a raw <img>: the source PNG is 912x391 (186 KB) but
               this renders at ~168x72, and it is the LCP element on every page.
               A bare <img src={logoImage.src}> ships the full-size PNG and cost

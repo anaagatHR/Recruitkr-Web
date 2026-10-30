@@ -2,7 +2,7 @@
 
 import { Link } from "@/compat/router";
 import { Briefcase, CalendarClock, MapPin, Users } from "lucide-react";
-import { daysUntilDeadline, displayCompany, pluralize, type Job } from "@/lib/jobs";
+import { daysUntilDeadline, displayCompany, jobPath, pluralize, type Job } from "@/lib/jobs";
 import { isFresh, relativeTime, salaryLabel } from "@/lib/format";
 import StarRating from "@/components/job/StarRating";
 
@@ -79,7 +79,7 @@ export default function JobCard({
 
   return (
     <Link
-      to={`/jobs/${job.id}`}
+      to={jobPath(job)}
       className="group relative flex flex-col gap-2 overflow-hidden rounded-xl border border-border bg-card p-3 pt-3.5 transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_18px_40px_-18px_hsl(var(--primary)/0.35)] sm:rounded-2xl"
     >
       {/* Top brand accent bar */}

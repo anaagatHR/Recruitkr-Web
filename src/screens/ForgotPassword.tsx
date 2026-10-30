@@ -52,7 +52,7 @@ const ForgotPassword = () => {
         <div className="container mx-auto max-w-md px-4">
           <div className="rounded-2xl border border-border bg-card p-8 shadow-2xl">
             <div className="text-center mb-8">
-              <Link to="/home" className="font-heading text-3xl font-bold">
+              <Link to="/" className="font-heading text-3xl font-bold">
                 Recruit<span style={{ color: "#264a7f" }}>kr</span>
               </Link>
               {/* The page had no heading element at all — only a styled <p> —

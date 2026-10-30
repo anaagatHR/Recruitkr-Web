@@ -3,17 +3,16 @@ import { buildMetadata } from "@/lib/seo";
 import Index from "@/screens/Index";
 
 /**
- * The marketing home page. It used to render at `/`; `/` now forwards to the
- * job board (see src/app/page.tsx), so it needs a path and metadata of its own
- * — it can no longer inherit the root layout's defaults as the site root.
+ * The marketing home page, served at `/` itself. It briefly lived at /home
+ * behind a `/` → /home redirect, which split the homepage across two URLs in
+ * Google; /home now 301s here (next.config.mjs).
  */
-export const metadata: Metadata = buildMetadata({
-  // The brand is appended by the root layout's title template, so it must not
-  // be repeated here — this used to render as "RecruitKr | ... | RecruitKr".
+const base = buildMetadata({
+  // Bare: used for the social title ("... | RecruitKr"); the <title> is set below.
   title: "Hiring & Job Search Partner Across India",
   description:
     "RecruitKr connects candidates with verified employers across India — recruitment, staffing and HR support from first interview to retention.",
-  path: "/home",
+  path: "/",
   keywords: [
     "recruitment agency India",
     "hiring partner",
@@ -23,6 +22,15 @@ export const metadata: Metadata = buildMetadata({
     "placement services",
   ],
 });
+
+export const metadata: Metadata = {
+  ...base,
+  // The layout's "%s | RecruitKr" template only applies to child segments, not
+  // to the page beside it, so the homepage spells its full title out.
+  title: { absolute: "RecruitKr: Hiring & Job Search Partner Across India" },
+  // Absolute with the trailing slash: a relative "/" resolves to the bare origin.
+  alternates: { canonical: "https://www.recruitkr.com/" },
+};
 
 export default function Page() {
   return <Index />;

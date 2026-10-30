@@ -94,7 +94,7 @@ export default function AuthHero({ className }: { className?: string }) {
           soft white chip the footer uses to read against a deep-navy panel —
           a bare <img> here would be nearly invisible. */}
       <Link
-        to="/home"
+        to="/"
         aria-label="RecruitKr home"
         className="relative z-10 flex w-fit items-center rounded-2xl bg-white/95 px-4 py-2.5 shadow-lg ring-1 ring-white/50 transition-transform duration-200 hover:scale-[1.02]"
       >

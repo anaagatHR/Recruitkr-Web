@@ -1,111 +1,53 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import { fetchAllJobs, isExpired, jobPath } from "@/lib/jobs";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
+
+// It used to be a hard-coded list of 66 ObjectIds that went stale as jobs
+// closed; it now lists exactly the live, indexable job pages at their
+// canonical slug URLs. Rendered per request (the CDN caches it for an hour via
+// Cache-Control) so a backend outage during a build can't bake in a 503.
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+const xmlEscape = (value: string) =>
+  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export async function GET() {
-  const baseUrl = 'https://www.recruitkr.com';
+  const { jobs, live } = await fetchAllJobs().catch(() => ({ jobs: [], live: false }));
 
-  // Important static pages jo index karani hain
-  const staticPages = [
-    '/goal',
-    '/success-stories',
-    '/training',
-  ];
+  // Backend unreachable: say "try later" instead of serving an empty sitemap,
+  // which Google would read as every job having been removed.
+  if (!live) {
+    return new NextResponse("Job listings temporarily unavailable", {
+      status: 503,
+      headers: { "Retry-After": "3600" },
+    });
+  }
 
-  // Saari Discovered Job IDs (Total: 66)
-  const jobIds = [
-    '6a6d5dbe1ade991fb99b1ba0',
-    '6a74219d7e8fcbcc84d76da7',
-    '6a74219d7e8fcbcc84d76da8',
-    '6a74219d7e8fcbcc84d76da9',
-    '6a74219d7e8fcbcc84d76daa',
-    '6a74219d7e8fcbcc84d76dab',
-    '6a74219d7e8fcbcc84d76dac',
-    '6a74219d7e8fcbcc84d76dad',
-    '6a74219d7e8fcbcc84d76dae',
-    '6a74219d7e8fcbcc84d76daf',
-    '6a74219d7e8fcbcc84d76db0',
-    '6a74219d7e8fcbcc84d76db1',
-    '6a74219d7e8fcbcc84d76db2',
-    '6a74219d7e8fcbcc84d76db3',
-    '6a74219d7e8fcbcc84d76db4',
-    '6a74219d7e8fcbcc84d76db5',
-    '6a74219d7e8fcbcc84d76db6',
-    '6a74219d7e8fcbcc84d76db7',
-    '6a74219d7e8fcbcc84d76db8',
-    '6a74219d7e8fcbcc84d76db9',
-    '6a74219d7e8fcbcc84d76dba',
-    '6a74219d7e8fcbcc84d76dbb',
-    '6a74219d7e8fcbcc84d76dbc',
-    '6a74219d7e8fcbcc84d76dbd',
-    '6a74219d7e8fcbcc84d76dbe',
-    '6a74219d7e8fcbcc84d76dbf',
-    '6a74219d7e8fcbcc84d76dc0',
-    '6a74219d7e8fcbcc84d76dc1',
-    '6a74219d7e8fcbcc84d76dc2',
-    '6a74219d7e8fcbcc84d76dc3',
-    '6a74219d7e8fcbcc84d76dc4',
-    '6a74219d7e8fcbcc84d76dc5',
-    '6a74219d7e8fcbcc84d76dc6',
-    '6a74219d7e8fcbcc84d76dc7',
-    '6a74219d7e8fcbcc84d76dc8',
-    '6a74219d7e8fcbcc84d76dc9',
-    '6a74219d7e8fcbcc84d76dca',
-    '6a74219d7e8fcbcc84d76dcb',
-    '6a74219d7e8fcbcc84d76dcc',
-    '6a74219d7e8fcbcc84d76dcd',
-    '6a74219d7e8fcbcc84d76dce',
-    '6a74219d7e8fcbcc84d76dcf',
-    '6a74219d7e8fcbcc84d76dd0',
-    '6a74219d7e8fcbcc84d76dd1',
-    '6a74219d7e8fcbcc84d76dd2',
-    '6a74219d7e8fcbcc84d76dd3',
-    '6a74219d7e8fcbcc84d76dd4',
-    '6a74219d7e8fcbcc84d76dd5',
-    '6a74219d7e8fcbcc84d76dd6',
-    '6a74219d7e8fcbcc84d76dd7',
-    '6a74219d7e8fcbcc84d76dd8',
-    '6a74219d7e8fcbcc84d76dd9',
-    '6a74219d7e8fcbcc84d76dda',
-    '6a74219d7e8fcbcc84d76ddb',
-    '6a74219d7e8fcbcc84d76ddc',
-    '6a74219d7e8fcbcc84d76ddd',
-    '6a74219d7e8fcbcc84d76dde',
-    '6a74219d7e8fcbcc84d76ddf',
-    '6a74219d7e8fcbcc84d76de0',
-    '6a74219d7e8fcbcc84d76de1',
-    '6a74219d7e8fcbcc84d76de2',
-    '6a74219d7e8fcbcc84d76de3',
-    '6a74219d7e8fcbcc84d76de4',
-    '6a74219d7e8fcbcc84d76de5',
-    '6a74219d7e8fcbcc84d76de6',
-    '6a74219d7e8fcbcc84d76de7',
-  ];
+  // Expired jobs render noindex, so they don't belong here.
+  const urls = jobs
+    .filter((job) => !(job.canApply === false && isExpired(job)))
+    .map((job) => {
+      const lastmod = new Date(job.postedAt);
+      return `  <url>
+    <loc>${xmlEscape(`${SITE_URL}${jobPath(job)}`)}</loc>${
+      Number.isNaN(lastmod.getTime()) ? "" : `\n    <lastmod>${lastmod.toISOString()}</lastmod>`
+    }
+  </url>`;
+    })
+    .join("\n");
 
-  const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
+  return new NextResponse(
+    `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${staticPages
-  .map(
-    (path) => `  <url>
-    <loc>${baseUrl}${path}</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>`
-  )
-  .join('\n')}
-${jobIds
-  .map(
-    (id) => `  <url>
-    <loc>${baseUrl}/jobs/${id}</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>`
-  )
-  .join('\n')}
-</urlset>`;
-
-  return new NextResponse(sitemapXml, {
-    headers: {
-      'Content-Type': 'application/xml',
-      'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+${urls}
+</urlset>`,
+    {
+      headers: {
+        "Content-Type": "application/xml",
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+      },
     },
-  });
+  );
 }

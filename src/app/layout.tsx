@@ -77,15 +77,14 @@ export const metadata: Metadata = {
   "RecruitKr",
 ],
 
-  alternates: {
-    canonical: "/",
-  },
+  // No site-wide canonical here: it would be inherited by any page that forgets
+  // its own and declare that page a duplicate of the homepage. Pages set theirs
+  // through buildMetadata (src/lib/seo.ts).
 
   // Google Search Console ownership. Emitted as
   // <meta name="google-site-verification" content="..."> on every page, which
   // is what Search Console's "HTML tag" method checks for. Keep it in the root
-  // layout: verification is re-checked periodically, and it must survive `/`
-  // redirecting to /jobs.
+  // layout: verification is re-checked periodically.
   verification: {
     google:  "5m8uJ9_amWtMM_haIq7hZqy0I0w309RJo19IbwgcDr0",
 },
@@ -146,11 +145,8 @@ const organizationJsonLd = {
       "@type": "WebSite",
       name: SITE_NAME,
       url: SITE_URL,
-      potentialAction: {
-        "@type": "SearchAction",
-        target: `${SITE_URL}/jobs?search={search_term_string}`,
-        "query-input": "required name=search_term_string",
-      },
+      // No SearchAction: Google retired the sitelinks search box, and the
+      // template URL was being crawled literally as /jobs?search={search_term_string}.
     },
     {
       "@type": "Organization",

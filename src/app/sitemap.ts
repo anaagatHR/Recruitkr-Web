@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
 import { fetchAllJobs, type Job } from "@/lib/jobs";
 import { fetchBlogPosts } from "@/lib/blog";
-import { CITIES, citySlug, matchCity } from "@/lib/locations";
+import { CITIES, cityPath, matchCity } from "@/lib/locations";
+import { services } from "@/lib/services";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
@@ -26,11 +27,12 @@ export const revalidate = 3600;
 export const maxDuration = 60;
 
 const staticRoutes: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }> = [
-  // Final destination page daalein taaki 307 redirect error na aaye:
-  { path: "/home", priority: 1.0, changeFrequency: "daily" },
-
-  // Baaki ke routes waise hi rahenge:
+  // Every URL here must answer 200 directly: no redirects (/home 301s to /)
+  // and nothing noindexed. Job detail pages live in /jobs-sitemap.xml.
+  { path: "/", priority: 1.0, changeFrequency: "daily" },
   { path: "/jobs", priority: 0.9, changeFrequency: "hourly" },
+  { path: "/services", priority: 0.8, changeFrequency: "monthly" },
+  { path: "/sectors", priority: 0.6, changeFrequency: "monthly" },
   { path: "/candidates", priority: 0.8, changeFrequency: "weekly" },
   { path: "/employers", priority: 0.8, changeFrequency: "weekly" },
   { path: "/about", priority: 0.6, changeFrequency: "monthly" },
@@ -56,6 +58,7 @@ const staticRoutes: Array<{ path: string; priority: number; changeFrequency: Met
  * without a `<lastmod>` at all — see below.
  */
 const DERIVED_LASTMOD: Record<string, "jobs" | "blog"> = {
+  "/": "jobs",
   "/jobs": "jobs",
   "/blog": "blog",
 };
@@ -83,55 +86,38 @@ function newest(dates: Array<Date | null>): Date | null {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Individual job pages — so Google can crawl and index each JobPosting.
-  // Every live listing, paged, not just the first 50: a job that never makes
-  // the sitemap is a job Google may never find.
-  let jobRoutes: MetadataRoute.Sitemap = [];
+  // Jobs feed the city pages' <lastmod> and /jobs's; the job URLs themselves
+  // are listed in /jobs-sitemap.xml so each sitemap has one purpose.
   let liveJobs: Job[] | null = null;
   let jobsLastMod: Date | null = null;
   try {
     const { jobs, live } = await fetchAllJobs();
-    // `live: false` means the API was unreachable and these are the fictional
-    // seed listings. Publishing /jobs/j1…j8 would hand Google eight URLs that
-    // 404 in production — worse than shipping no job URLs at all.
+    // `live: false` means the API was unreachable and these are seed listings.
     if (live) {
       liveJobs = jobs;
-      jobRoutes = jobs.map((job) => ({
-        url: `${SITE_URL}/jobs/${job.id}`,
-        // No `?? now` fallback: a job row with an unparseable timestamp ships
-        // without a <lastmod> (which is optional) rather than claiming it
-        // changed this minute. See the note on the static routes below.
-        lastModified: safeDate(job.postedAt) ?? undefined,
-        changeFrequency: "daily",
-        priority: 0.85,
-      }));
       jobsLastMod = newest(jobs.map((job) => safeDate(job.postedAt)));
     }
   } catch {
-    /* no jobs available at build time — static + city routes still ship */
+    /* no jobs available — static + city routes still ship */
   }
 
-  /**
-   * "Jobs in <city>" SEO landing pages — but only the ones that actually have
-   * openings. Jobs are currently posted in Jaipur only, so the other eleven
-   * cities render an identical empty shell; submitting them asks Google to
-   * index eleven doorway pages, which costs more in site-wide quality signals
-   * than the pages could ever return. They stay out of the sitemap (and carry
-   * `noindex`) until a job exists there.
-   *
-   * When the job list is unavailable we fall back to publishing every city, so
-   * a backend outage cannot quietly empty this section of the sitemap.
-   */
-  const cityRoutes: MetadataRoute.Sitemap = CITIES.filter(
-    (city) => !liveJobs || matchCity(liveJobs, city).length > 0,
-  ).map((city) => ({
-    url: `${SITE_URL}/jobs-in-${citySlug(city)}`,
+  // Every city landing page. Each carries its own market copy and links to
+  // live jobs (or the latest ones when the city has none), so none is an
+  // empty doorway page.
+  const cityRoutes: MetadataRoute.Sitemap = CITIES.map((city) => ({
+    url: `${SITE_URL}${cityPath(city.slug)}`,
     // The page is a filtered view of the board, so it last changed when its
     // newest matching job was posted.
     lastModified: liveJobs
       ? newest(matchCity(liveJobs, city).map((job) => safeDate(job.postedAt))) ?? undefined
       : undefined,
     changeFrequency: "daily",
+    priority: 0.8,
+  }));
+
+  const serviceRoutes: MetadataRoute.Sitemap = services.map((service) => ({
+    url: `${SITE_URL}/services/${service.id}`,
+    changeFrequency: "monthly",
     priority: 0.8,
   }));
 
@@ -166,7 +152,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
    */
   const derived = { jobs: jobsLastMod, blog: blogLastMod };
 
-  const base: MetadataRoute.Sitemap = staticRoutes.map((route) => {
+  // An empty blog index is a thin page; list it only once there are posts.
+  const base: MetadataRoute.Sitemap = staticRoutes.filter((route) => route.path !== "/blog" || blogRoutes.length > 0).map((route) => {
     const source = DERIVED_LASTMOD[route.path];
     return {
       url: `${SITE_URL}${route.path}`,
@@ -176,5 +163,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     };
   });
 
-  return [...base, ...cityRoutes, ...jobRoutes, ...blogRoutes];
+  return [...base, ...serviceRoutes, ...cityRoutes, ...blogRoutes];
 }

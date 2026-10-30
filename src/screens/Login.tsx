@@ -258,7 +258,7 @@ useEffect(() => {
             className="mx-auto w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-xl"
           >
             <div className="text-center mb-8">
-              <Link to="/home" className="font-heading text-3xl font-bold">
+              <Link to="/" className="font-heading text-3xl font-bold">
                 Recruit<span style={{ color: "#264a7f" }}>kr</span>
               </Link>
               <p className="mt-2 text-muted-foreground text-sm">ANAAGAT HUMANPOWER PRIVATE LIMITED</p>

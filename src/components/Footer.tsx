@@ -5,6 +5,8 @@ import logoImage from "@/assets/logo-tagline.png";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Link } from "@/compat/router";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { services } from "@/lib/services";
+import { CITIES, cityHeading, cityPath } from "@/lib/locations";
 
 const socialLinks = [
   {
@@ -53,21 +55,17 @@ const linkSections = [
   {
     title: "Services",
     links: [
+      { label: "All Services", to: "/services" },
+      ...services.map((s) => ({ label: s.cardTitle, to: `/services/${s.id}` })),
+      { label: "Sectors We Serve", to: "/sectors" },
       { label: "Assessment", to: "/assessment" },
       { label: "Training", to: "/training" },
     ],
   },
   {
     title: "Top Locations",
-    links: [
-      { label: "Jobs in Jaipur", to: "/jobs/location/jaipur" },
-      { label: "Jobs in Jodhpur", to: "/jobs/location/jodhpur" },
-      { label: "Jobs in Kota", to: "/jobs/location/kota" },
-      { label: "Jobs in Udaipur", to: "/jobs/location/udaipur" },
-      { label: "Jobs in Ajmer", to: "/jobs/location/ajmer" },
-      { label: "Jobs in Bhilwara", to: "/jobs/location/bhilwara" },
-      { label: "Jobs in Delhi NCR", to: "/jobs/location/delhi" },
-    ],
+    // Every city page, at its canonical /jobs-in-<city> URL.
+    links: CITIES.map((city) => ({ label: cityHeading(city), to: cityPath(city.slug) })),
   },
 ];
 

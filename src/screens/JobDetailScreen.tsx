@@ -18,13 +18,16 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import JobDescription from "@/components/job/JobDescription";
 import StarRating from "@/components/job/StarRating";
-import { applyToJobRequest, daysUntilDeadline, displayCompany, fetchJob, isExpired, pluralize, type Job } from "@/lib/jobs";
+import { applyToJobRequest, daysUntilDeadline, displayCompany, fetchJob, isExpired, jobIdFromParam, pluralize, type Job } from "@/lib/jobs";
+import JobCard from "@/components/job/JobCard";
 import { relativeTime, salaryLabel, isFresh } from "@/lib/format";
 import { getSession } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
-export default function JobDetailScreen({ initialJob = null }: { initialJob?: Job | null }) {
+export default function JobDetailScreen({ initialJob = null, related = [] }: { initialJob?: Job | null; related?: Job[] }) {
   const params = useParams<{ id: string }>();
+  // The URL segment is "<title>-<company>-<id>"; the API only knows the id.
+  const jobId = jobIdFromParam(params.id);
   const navigate = useNavigate();
   const { toast } = useToast();
   // Seeded from the server render so the job is in the first paint (and in the
@@ -40,14 +43,14 @@ export default function JobDetailScreen({ initialJob = null }: { initialJob?: Jo
     // The server already resolved this exact job — refetching would only
     // re-render identical data. A client-side hop to a different job leaves the
     // ids mismatched, so that still fetches.
-    if (initialJobId && initialJobId === params.id) {
+    if (initialJobId && initialJobId === jobId) {
       setLoading(false);
       return;
     }
 
     let active = true;
     setLoading(true);
-    fetchJob(params.id).then((j) => {
+    fetchJob(jobId).then((j) => {
       if (active) {
         setJob(j);
         setLoading(false);
@@ -56,7 +59,7 @@ export default function JobDetailScreen({ initialJob = null }: { initialJob?: Jo
     return () => {
       active = false;
     };
-  }, [params.id, initialJobId]);
+  }, [jobId, initialJobId]);
 
   const handleApply = async () => {
     const session = getSession();
@@ -67,7 +70,7 @@ export default function JobDetailScreen({ initialJob = null }: { initialJob?: Jo
     }
     setApplying(true);
     try {
-      await applyToJobRequest(params.id);
+      await applyToJobRequest(jobId);
       setApplied(true);
       toast({ title: "Application submitted", description: "We've shared your profile with the employer." });
     } catch (err) {
@@ -313,6 +316,21 @@ export default function JobDetailScreen({ initialJob = null }: { initialJob?: Jo
             </div>
           </aside>
         </div>
+
+        {/* Server-rendered links to other live jobs: the crawl path that keeps
+            job pages from being orphans reachable only via the sitemap. */}
+        {related.length > 0 && (
+          <section aria-labelledby="similar-jobs" className="mt-12">
+            <h2 id="similar-jobs" className="font-heading text-xl font-bold">
+              Similar jobs
+            </h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {related.map((r) => (
+                <JobCard key={r.id} job={r} headingLevel={3} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
       </main>
       <Footer />

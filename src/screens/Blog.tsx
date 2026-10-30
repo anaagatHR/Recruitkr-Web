@@ -12,12 +12,13 @@ const INITIAL_BLOG_COUNT = 6;
 const BLOG_COUNT_STEP = 6;
 const SITE_URL = "https://www.recruitkr.com";
 
-const Blog = () => {
+const Blog = ({ initialPosts = [] }: { initialPosts?: BlogPost[] }) => {
   // Seed empty to match the server render; the sessionStorage cache is read in
   // an effect after mount so the first client render stays identical to SSR
   // (reading the cache during render causes a hydration mismatch on <select>).
-  const [blogs, setBlogs] = useState<BlogPost[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Server-fetched posts make the list part of the HTML crawlers read.
+  const [blogs, setBlogs] = useState<BlogPost[]>(initialPosts);
+  const [loading, setLoading] = useState(initialPosts.length === 0);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -42,6 +43,8 @@ const Blog = () => {
   };
 
   useEffect(() => {
+    // The server already rendered the list; don't blank it with a reload.
+    if (initialPosts.length > 0) return;
     // Show cached posts instantly (client-only), then refresh from the API.
     const cached = getCachedBlogPosts();
     if (cached.length > 0) {

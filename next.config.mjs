@@ -94,21 +94,19 @@ const nextConfig = {
     ];
   },
   async redirects() {
+    // statusCode 301 rather than `permanent: true` (308): same meaning to
+    // Google, but 301 is what Search Console and most SEO tools expect to see.
+    // Every destination is a final 200 page, so no chain is longer than one hop.
+    // Expired jobs are deliberately NOT redirected to /jobs: Google treats that
+    // as a soft 404, and a plain 404 is the honest answer for a closed listing.
     return [
-      { source: "/", destination: "/home", permanent: false },
-      { source: "/internship", destination: "/jobs?type=Internship", permanent: true },
-      { source: "/register/candidate", destination: "/signup", permanent: true },
-      { source: "/intern-login", destination: "/login", permanent: true },
-      { source: "/services", destination: "/home", permanent: true },
-      { source: "/services/:id", destination: "/home", permanent: true },
-      { source: "/sectors", destination: "/home", permanent: true },
-
-      // --- 404 Dead Job Postings Redirect to Jobs Board ---
-      { source: "/jobs/6a45f9efafb720ea6a4f5484", destination: "/jobs", permanent: true },
-      { source: "/jobs/6a45f9efafb720ea6a4f52e9", destination: "/jobs", permanent: true },
-      { source: "/jobs/6a45f9efafb720ea6a4f5373", destination: "/jobs", permanent: true },
-      { source: "/jobs/6a45f9f1afb720ea6a4f58ce", destination: "/jobs", permanent: true },
-      { source: "/jobs/6a45f9efafb720ea6a4f5186", destination: "/jobs", permanent: true },
+      { source: "/home", destination: "/", statusCode: 301 },
+      { source: "/internship", destination: "/jobs?type=Internship", statusCode: 301 },
+      { source: "/register/candidate", destination: "/signup", statusCode: 301 },
+      { source: "/register/client", destination: "/signup/employer", statusCode: 301 },
+      { source: "/intern-login", destination: "/login", statusCode: 301 },
+      // /jobs-in-<city> is the canonical city URL (rewritten below to this route).
+      { source: "/jobs/location/:city", destination: "/jobs-in-:city", statusCode: 301 },
     ];
   },
   async rewrites() {

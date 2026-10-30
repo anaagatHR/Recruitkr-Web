@@ -16,12 +16,15 @@
     "src/components/ProcessSection.tsx:L10-L50",
     "backend/src/utils/recruitkrId.js:L20-L21",
     "backend/src/services/liveUpdate.service.js",
-    "src/screens/ClientDashboard.tsx:L683-L698"
+    "src/screens/ClientDashboard.tsx:L683-L698",
+    "backend/src/controllers/seo.controller.js:L39-L87",
+    "src/app/jobs-sitemap.xml/route.ts:L13-L14",
+    "src/app/sitemap.ts:L88-L167"
   ],
   "nudges": 2,
   "host": "claude-code",
-  "lastBillingUuid": "f745ce0b-1250-40d7-9bcf-fe997b3dbc5e",
-  "inputCostMicros": 70920584,
-  "inputTokensBilled": 128989274,
-  "promptAsks": 18
+  "lastBillingUuid": "74163adb-9b40-492e-9f9c-4cb44f2abe79",
+  "inputCostMicros": 85537407,
+  "inputTokensBilled": 155921601,
+  "promptAsks": 19
 }

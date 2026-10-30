@@ -84,6 +84,27 @@ export const CONFIDENTIAL_EMPLOYER = "Confidential Employer";
 /** Employer name for display: the real one, or an honest placeholder. */
 export const displayCompany = (job: Pick<Job, "company">) => job.company?.trim() || CONFIDENTIAL_EMPLOYER;
 
+/**
+ * Readable job URL segment: "chief-general-technician-spiny-<id>". The full id
+ * stays at the end (after the last "-"), so no lookup table is needed and a
+ * renamed job keeps working: /jobs/[id] 301s any stale slug to the current one.
+ */
+export const jobSlug = (job: Pick<Job, "id" | "title" | "company">) => {
+  const words = `${job.title} ${job.company ?? ""}`
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80)
+    .replace(/-+$/, "");
+  return words ? `${words}-${job.id}` : job.id;
+};
+
+export const jobPath = (job: Pick<Job, "id" | "title" | "company">) => `/jobs/${jobSlug(job)}`;
+
+/** The job id inside a /jobs/<segment> URL: a bare id, or whatever follows the slug's last "-". */
+export const jobIdFromParam = (param: string) => param.slice(param.lastIndexOf("-") + 1);
+
 /** Days until the deadline (negative when past); undefined when none is set. */
 export const daysUntilDeadline = (job: Pick<Job, "applicationDeadline">): number | undefined => {
   if (!job.applicationDeadline) return undefined;
@@ -130,8 +151,18 @@ export type Company = {
   verified?: boolean;
 };
 
-const JOB_TYPES: JobType[] = ["Full-time", "Part-time", "Contract", "Internship", "Remote"];
-const WORK_MODES: Job["workMode"][] = ["On-site", "Hybrid", "Remote"];
+/** Board page size, shared by the server-rendered /jobs?page=N and the client infinite scroll. */
+export const JOBS_PAGE_SIZE = 12;
+
+export const JOB_TYPES: JobType[] = ["Full-time", "Part-time", "Contract", "Internship", "Remote"];
+export const WORK_MODES: Job["workMode"][] = ["On-site", "Hybrid", "Remote"];
+
+/** "internship,remote" → ["Internship", "Remote"]; unknown values are dropped. */
+export const parseFilterList = <T extends string>(raw: string | null | undefined, allowed: readonly T[]): T[] =>
+  (raw ?? "")
+    .split(",")
+    .map((value) => allowed.find((option) => option.toLowerCase() === value.trim().toLowerCase()))
+    .filter((value): value is T => Boolean(value));
 
 const asString = (value: unknown, fallback = "") => {
   if (typeof value === "string") return value.trim();

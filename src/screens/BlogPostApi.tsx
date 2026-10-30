@@ -14,11 +14,18 @@ const detailPlaceholderImageClass =
   "flex w-full items-end rounded-xl bg-[radial-gradient(circle_at_top,_rgba(38,74,127,0.96),_rgba(38,74,127,0.82)_42%,_rgba(105,164,79,0.9)_100%)] p-6 text-2xl font-bold leading-tight text-white";
 const SITE_URL = "https://www.recruitkr.com";
 
-const BlogPostApi = () => {
+const BlogPostApi = ({
+  initialPost = null,
+  initialRelated = [],
+}: {
+  /** Server-fetched post, so the article is in the HTML crawlers read. */
+  initialPost?: BlogPost | null;
+  initialRelated?: BlogPost[];
+}) => {
   const { slug } = useParams();
-  const [post, setPost] = useState<BlogPost | null>(null);
-  const [relatedBlogs, setRelatedBlogs] = useState<BlogPost[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [post, setPost] = useState<BlogPost | null>(initialPost);
+  const [relatedBlogs, setRelatedBlogs] = useState<BlogPost[]>(initialRelated);
+  const [loading, setLoading] = useState(!initialPost);
   const [error, setError] = useState("");
   const publishedDate = post?.publishedAt
     ? new Date(post.publishedAt).toLocaleDateString()
@@ -79,6 +86,8 @@ const BlogPostApi = () => {
     : null;
 
   useEffect(() => {
+    // The server already rendered this exact post.
+    if (initialPost && initialPost.slug === slug) return;
     const loadPost = async () => {
       if (!slug) {
         setLoading(false);
@@ -112,7 +121,7 @@ const BlogPostApi = () => {
     };
 
     void loadPost();
-  }, [slug]);
+  }, [slug, initialPost]);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f7fafc_0%,#ffffff_22%,#f7fbff_100%)]">

@@ -7,31 +7,29 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import JobCard from "@/components/job/JobCard";
 import FomoTicker from "@/components/job/FomoTicker";
-import { fetchJobsPage, pluralize, type Job } from "@/lib/jobs";
-
-const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship", "Remote"];
-const WORK_MODES = ["On-site", "Hybrid", "Remote"];
-const PAGE_SIZE = 12;
+import { fetchJobsPage, JOB_TYPES, JOBS_PAGE_SIZE as PAGE_SIZE, parseFilterList, pluralize, WORK_MODES, type Job } from "@/lib/jobs";
 
 export default function JobsScreen({
   initialJobs = [],
   initialHasMore = true,
   initialTotal,
+  initialPage = 1,
+  totalPages = 1,
 }: {
   initialJobs?: Job[];
   initialHasMore?: boolean;
   /** Board-wide total from the API, so the count line can say "68 jobs" not "12+ jobs". */
   initialTotal?: number;
+  /** Server-rendered ?page= this view started from; infinite scroll continues after it. */
+  initialPage?: number;
+  totalPages?: number;
 }) {
   const routeLocation = useLocation();
   const initialSearch = new URLSearchParams(routeLocation.search).get("search") ?? "";
   // `?type=` / `?mode=` preset the filter chips, so the homepage category cards can
   // deep-link straight into a filtered list. Unknown values are dropped.
-  const paramList = (search: string, key: string, allowed: readonly string[]) =>
-    (new URLSearchParams(search).get(key) ?? "")
-      .split(",")
-      .map((value) => allowed.find((option) => option.toLowerCase() === value.trim().toLowerCase()))
-      .filter((value): value is string => Boolean(value));
+  const paramList = (search: string, key: string, allowed: readonly string[]): string[] =>
+    parseFilterList(new URLSearchParams(search).get(key), allowed);
   const [jobs, setJobs] = useState<Job[]>(initialJobs);
   const [loading, setLoading] = useState(initialJobs.length === 0);
   const [query, setQuery] = useState(initialSearch);
@@ -47,7 +45,7 @@ export default function JobsScreen({
   const [hasMore, setHasMore] = useState(initialJobs.length > 0 ? initialHasMore : true);
   const [total, setTotal] = useState<number | undefined>(initialTotal);
   const [loadingMore, setLoadingMore] = useState(false);
-  const pageRef = useRef(1);
+  const pageRef = useRef(initialPage);
   const hasMoreRef = useRef(initialJobs.length > 0 ? initialHasMore : true);
   const fetchingRef = useRef(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -290,6 +288,24 @@ export default function JobsScreen({
                   </button>
                 )}
               </div>
+            )}
+            {/* Crawlable pagination: plain <a href> links, so every listing is
+                reachable without JavaScript or the infinite-scroll observer. */}
+            {!isFiltering && totalPages > 1 && (
+              <nav aria-label="Job pages" className="flex flex-wrap items-center justify-center gap-2 py-4 text-sm">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                  <a
+                    key={n}
+                    href={n === 1 ? "/jobs" : `/jobs?page=${n}`}
+                    aria-current={n === initialPage ? "page" : undefined}
+                    className={`inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border px-3 ${
+                      n === initialPage ? "border-primary bg-primary/10 font-semibold text-primary" : "border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {n}
+                  </a>
+                ))}
+              </nav>
             )}
             {!loading && !hasMore && filtered.length > 0 && (
               <p className="py-8 text-center text-xs text-muted-foreground">

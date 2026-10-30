@@ -1,5 +1,5 @@
-import { displayCompany, formatExperience, type Job } from "@/lib/jobs";
-import { HOME_CITY, HOME_REGION } from "@/lib/locations";
+import { displayCompany, formatExperience, jobPath, PLACEHOLDER_LOCATION, type Job } from "@/lib/jobs";
+import { CITIES, HOME_CITY, HOME_REGION } from "@/lib/locations";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
 
@@ -31,6 +31,22 @@ const expiryDate = (iso: string, days = 45) => {
 };
 
 /**
+ * For a listing saved without a description: a summary built only from fields
+ * that hold real values. Placeholders such as "Location not shared" or
+ * "Not specified" are left out rather than printed.
+ */
+const fallbackDescription = (job: Job, area?: string) =>
+  [
+    `${job.title} at ${displayCompany(job)}${area ? ` in ${area}` : ""}.`,
+    `${job.type} role, ${job.workMode.toLowerCase()}.`,
+    formatExperience(job.experience) ? `${formatExperience(job.experience)}.` : "",
+    job.skills.length ? `Skills: ${job.skills.join(", ")}.` : "",
+    job.openings > 1 ? `${job.openings} openings.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+/**
  * Builds a Google-compatible JobPosting JSON-LD object for a single job.
  * This is what makes a job eligible to appear in Google's job search
  * (the "jobs in <city>" experience). See:
@@ -38,8 +54,12 @@ const expiryDate = (iso: string, days = 45) => {
  */
 export function jobPostingJsonLd(job: Job): Record<string, unknown> {
   const isRemote = job.workMode === "Remote";
-  // `location` holds a neighborhood (e.g. "Mansarovar"); resolve to Jaipur, Rajasthan.
-  const area = job.location && !/^location not shared$/i.test(job.location) ? job.location : undefined;
+  const area = job.location && job.location !== PLACEHOLDER_LOCATION ? job.location : undefined;
+  // A known city name ("Bengaluru") is the locality itself. Anything else is a
+  // Jaipur neighborhood (e.g. "Mansarovar"), which is how most jobs are saved.
+  const city = area
+    ? CITIES.find((c) => c.slug !== "remote" && c.match.some((m) => area.toLowerCase().includes(m)))
+    : undefined;
   const minInr = toAnnualInr(job.salaryMin);
   const maxInr = toAnnualInr(job.salaryMax);
 
@@ -61,9 +81,7 @@ export function jobPostingJsonLd(job: Job): Record<string, unknown> {
     "@context": "https://schema.org/",
     "@type": "JobPosting",
     title: job.title,
-    description:
-      job.description ||
-      `${job.title} at ${displayCompany(job)} in ${job.location}.${formatExperience(job.experience) ? ` ${formatExperience(job.experience)}.` : ""}`,
+    description: job.description || fallbackDescription(job, area),
     datePosted: job.postedAt,
     // A real employer deadline wins; otherwise the derived 45-day window.
     validThrough:
@@ -72,7 +90,7 @@ export function jobPostingJsonLd(job: Job): Record<string, unknown> {
         : expiryDate(job.postedAt),
     employmentType: EMPLOYMENT_TYPE[job.type] ?? "FULL_TIME",
     industry: job.sector,
-    url: `${SITE_URL}/jobs/${job.id}`,
+    url: `${SITE_URL}${jobPath(job)}`,
     directApply: true,
     identifier: {
       "@type": "PropertyValue",
@@ -89,9 +107,9 @@ export function jobPostingJsonLd(job: Job): Record<string, unknown> {
       "@type": "Place",
       address: {
         "@type": "PostalAddress",
-        ...(area && !isRemote ? { streetAddress: area } : {}),
-        addressLocality: HOME_CITY,
-        addressRegion: HOME_REGION,
+        ...(area && !city && !isRemote ? { streetAddress: area } : {}),
+        addressLocality: city ? city.name.replace(/ NCR$/, "") : HOME_CITY,
+        addressRegion: city ? city.region : HOME_REGION,
         addressCountry: "IN",
       },
     },
