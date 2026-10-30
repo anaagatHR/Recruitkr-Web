@@ -46,6 +46,7 @@ const staticRoutes: Array<{ path: string; priority: number; changeFrequency: Met
   { path: "/blog", priority: 0.7, changeFrequency: "daily" },
   { path: "/contact", priority: 0.5, changeFrequency: "monthly" },
   { path: "/privacy-policy", priority: 0.3, changeFrequency: "yearly" },
+  { path: "/terms", priority: 0.3, changeFrequency: "yearly" },
   { path: "/delete-account", priority: 0.2, changeFrequency: "yearly" },
 ];
 
