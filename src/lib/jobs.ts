@@ -1,4 +1,5 @@
 import { apiGet, apiPost } from "@/lib/api";
+import { salaryLabel } from "@/lib/format";
 
 /**
  * Apply to a job, safely re-sendable. The Idempotency-Key is derived from the
@@ -64,6 +65,9 @@ export type Job = {
   responsibilities?: string[];
   requirements?: string[];
   qualification?: string;
+  /** False when the API had no usable value and `type` / `workMode` are defaults. */
+  typeKnown?: boolean;
+  workModeKnown?: boolean;
   postedAt: string; // ISO
   applicants: number;
   openings: number;
@@ -125,19 +129,89 @@ export const isExpired = (job: Pick<Job, "applicationDeadline">) => {
 /** Still taking applications. */
 export const isOpen = (job: Job) => !isExpired(job) && job.canApply !== false;
 
+/** Above 200 LPA (₹2 crore) is a data-entry error, e.g. a monthly ₹25,000 typed into the LPA field. */
+export const MAX_PLAUSIBLE_LPA = 200;
+const plausibleLpa = (lpa?: number) => (lpa != null && lpa > 0 && lpa <= MAX_PLAUSIBLE_LPA ? lpa : undefined);
+export const plausibleSalary = (job: Pick<Job, "salaryMin" | "salaryMax">) => ({
+  min: plausibleLpa(job.salaryMin),
+  max: plausibleLpa(job.salaryMax),
+});
+
+const postedDate = (iso: string) => {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? ""
+    : // Fixed zone so the server render and the browser agree on the day.
+      date.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+};
+
 /**
- * A job page is only worth indexing with a real write-up. Below this many
- * characters of description + responsibilities + requirements the page is
- * noindexed and left out of jobs-sitemap.xml (a title-only posting is thin).
+ * The posting's real facts as [label, value]. Placeholders ("Location not
+ * shared") and values the normaliser defaulted (type/work mode the employer
+ * never chose) are left out, so nothing here is invented.
  */
-export const MIN_INDEXABLE_DESCRIPTION_CHARS = 100;
+export const jobFacts = (job: Job): Array<[string, string]> => {
+  const salary = plausibleSalary(job);
+  const facts: Array<[string, string | undefined]> = [
+    ["Company", job.company?.trim()],
+    ["Location", job.location !== PLACEHOLDER_LOCATION ? job.location : undefined],
+    ["Employment type", job.typeKnown === false ? undefined : job.type],
+    ["Work mode", job.workModeKnown === false ? undefined : job.workMode],
+    ["Experience", formatExperience(job.experience)],
+    ["Qualification", job.qualification],
+    ["Department", job.sector !== "General" ? job.sector : undefined],
+    ["Openings", job.openings > 1 ? String(job.openings) : undefined],
+    ["Salary", salary.min || salary.max ? salaryLabel(salary.min, salary.max) : undefined],
+    ["Posted", postedDate(job.postedAt)],
+  ];
+  return facts.filter((fact): fact is [string, string] => Boolean(fact[1]));
+};
 
-export const hasRealDescription = (job: Pick<Job, "description" | "responsibilities" | "requirements">) =>
-  [job.description, ...(job.responsibilities ?? []), ...(job.requirements ?? [])].join(" ").trim().length >=
-  MIN_INDEXABLE_DESCRIPTION_CHARS;
+const countWords = (parts: Array<string | undefined>) => parts.join(" ").split(/\s+/).filter(Boolean).length;
 
-/** Indexable job page: open and properly described. */
-export const isIndexableJob = (job: Job) => isOpen(job) && hasRealDescription(job);
+/** A description shorter than this counts as no description ("Jaipur" is not one). */
+export const MIN_DESCRIPTION_WORDS = 30;
+/** Posting-specific words needed for a description-less job page to be indexed. */
+export const MIN_INDEXABLE_CONTENT_WORDS = 150;
+
+export const hasDescription = (job: Pick<Job, "description">) => countWords([job.description]) >= MIN_DESCRIPTION_WORDS;
+
+/**
+ * Words of content specific to this posting: its title, facts, description,
+ * responsibilities, requirements and skills. Deliberately excludes the
+ * generated overview, the apply steps and related roles — those appear on
+ * every job page and say nothing new about this one.
+ */
+export const jobContentWords = (job: Job) =>
+  countWords([
+    job.title,
+    ...jobFacts(job).map(([, value]) => value),
+    job.description,
+    ...(job.responsibilities ?? []),
+    ...(job.requirements ?? []),
+    ...job.skills,
+  ]);
+
+/**
+ * Indexable job page: open, and either described or carrying enough real
+ * structured detail. Page metadata and jobs-sitemap.xml both use this.
+ */
+export const isIndexableJob = (job: Job) =>
+  isOpen(job) && (hasDescription(job) || jobContentWords(job) >= MIN_INDEXABLE_CONTENT_WORDS);
+
+/** Other open roles, same location first, then same department, then newest. */
+export const relatedJobs = (job: Job, all: Job[], limit = 6) => {
+  const location = job.location !== PLACEHOLDER_LOCATION ? job.location.toLowerCase() : "";
+  const score = (other: Job) =>
+    (location && other.location.toLowerCase() === location ? 2 : 0) +
+    (job.sector !== "General" && other.sector === job.sector ? 1 : 0);
+  return all
+    .filter((other) => other.id !== job.id && isOpen(other))
+    .map((other, index) => ({ other, index, rank: score(other) }))
+    .sort((a, b) => b.rank - a.rank || a.index - b.index)
+    .slice(0, limit)
+    .map(({ other }) => other);
+};
 
 /**
  * "2-4" → "2–4 years experience", "Fresher" → "Fresher", "Not specified" → "".
@@ -257,6 +331,10 @@ export function normalizeApiJob(raw: unknown): Job | null {
     location: asString(record.location ?? record.jobLocation, "Location not shared") || "Location not shared",
     type: normalizeJobType(record.type ?? record.employmentType),
     workMode: normalizeWorkMode(record.workMode, record.workModes),
+    typeKnown: JOB_TYPES.some((t) => t.toLowerCase() === asString(record.type ?? record.employmentType).toLowerCase()),
+    workModeKnown:
+      (Array.isArray(record.workModes) && record.workModes.length > 0) ||
+      WORK_MODES.some((m) => asString(record.workMode).toLowerCase().includes(m.toLowerCase())),
     salaryMin: salaryMin && salaryMin > 0 ? salaryMin : undefined,
     salaryMax: salaryMax && salaryMax > 0 ? salaryMax : undefined,
     experience: asString(record.experience ?? record.experienceRequired, "Not specified") || "Not specified",

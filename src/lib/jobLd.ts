@@ -1,4 +1,4 @@
-import { displayCompany, formatExperience, hasRealDescription, jobPath, PLACEHOLDER_LOCATION, type Job } from "@/lib/jobs";
+import { displayCompany, jobFacts, jobPath, PLACEHOLDER_LOCATION, plausibleSalary, type Job } from "@/lib/jobs";
 import { CITIES, HOME_CITY, HOME_REGION } from "@/lib/locations";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.recruitkr.com";
@@ -12,15 +12,8 @@ const EMPLOYMENT_TYPE: Record<Job["type"], string> = {
   Remote: "FULL_TIME",
 };
 
-/**
- * Salary is stored in LPA (lakhs per annum); convert to absolute INR per year.
- * Values above 200 LPA (₹2 crore) are data-entry errors, e.g. a monthly
- * ₹25,000 typed into the LPA field, which would publish ₹250 crore a year.
- * Those are omitted rather than published.
- */
-const MAX_PLAUSIBLE_LPA = 200;
-const toAnnualInr = (lpa?: number) =>
-  lpa != null && lpa > 0 && lpa <= MAX_PLAUSIBLE_LPA ? Math.round(lpa * 100000) : undefined;
+/** Salary is stored in LPA (lakhs per annum); convert to absolute INR per year. */
+const toAnnualInr = (lpa?: number) => (lpa ? Math.round(lpa * 100000) : undefined);
 
 const escapeHtml = (value: string) =>
   value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -57,21 +50,14 @@ const expiryDate = (iso: string, days = 45) => {
   return d.getTime() > Date.now() ? d.toISOString() : undefined;
 };
 
-/**
- * For a listing saved without a description: a summary built only from fields
- * that hold real values. Placeholders such as "Location not shared" or
- * "Not specified" are left out rather than printed.
- */
-const fallbackDescription = (job: Job, area?: string) =>
-  [
-    `${job.title} at ${displayCompany(job)}${area ? ` in ${area}` : ""}.`,
-    `${job.type} role, ${job.workMode.toLowerCase()}.`,
-    formatExperience(job.experience) ? `${formatExperience(job.experience)}.` : "",
-    job.skills.length ? `Skills: ${job.skills.join(", ")}.` : "",
-    job.openings > 1 ? `${job.openings} openings.` : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+/** For a listing saved without any write-up: its real facts, nothing invented. */
+const fallbackDescription = (job: Job) =>
+  `<p>${escapeHtml(job.title)}.</p><ul>${jobFacts(job)
+    .map(([label, value]) => `<li>${escapeHtml(label)}: ${escapeHtml(value)}</li>`)
+    .join("")}</ul>`;
+
+const hasWriteUp = (job: Job) =>
+  Boolean(job.description.trim() || job.responsibilities?.length || job.requirements?.length);
 
 /**
  * Builds a Google-compatible JobPosting JSON-LD object for a single job.
@@ -87,8 +73,10 @@ export function jobPostingJsonLd(job: Job): Record<string, unknown> {
   const city = area
     ? CITIES.find((c) => c.slug !== "remote" && c.match.some((m) => area.toLowerCase().includes(m)))
     : undefined;
-  const minInr = toAnnualInr(job.salaryMin);
-  const maxInr = toAnnualInr(job.salaryMax);
+  // Implausible values (data-entry errors) are dropped, never published.
+  const salary = plausibleSalary(job);
+  const minInr = toAnnualInr(salary.min);
+  const maxInr = toAnnualInr(salary.max);
 
   const baseSalary =
     minInr || maxInr
@@ -108,10 +96,9 @@ export function jobPostingJsonLd(job: Job): Record<string, unknown> {
     "@context": "https://schema.org/",
     "@type": "JobPosting",
     title: job.title,
-    // The generated summary is only for postings saved without a write-up;
-    // those pages are noindexed (see isIndexableJob), so it never reaches
-    // Google as a rich result.
-    description: hasRealDescription(job) ? descriptionHtml(job) : fallbackDescription(job, area),
+    // The posting's own write-up whenever it has one; the facts list only
+    // when it has none.
+    description: hasWriteUp(job) ? descriptionHtml(job) : fallbackDescription(job),
     datePosted: job.postedAt,
     // A real employer deadline wins; otherwise the derived 45-day window.
     validThrough:

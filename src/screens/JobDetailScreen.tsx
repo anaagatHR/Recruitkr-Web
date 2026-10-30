@@ -18,7 +18,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import JobDescription from "@/components/job/JobDescription";
 import StarRating from "@/components/job/StarRating";
-import { applyToJobRequest, daysUntilDeadline, displayCompany, fetchJob, isExpired, jobIdFromParam, pluralize, type Job } from "@/lib/jobs";
+import { applyToJobRequest, daysUntilDeadline, displayCompany, fetchJob, isExpired, jobFacts, jobIdFromParam, pluralize, type Job } from "@/lib/jobs";
 import JobCard from "@/components/job/JobCard";
 import { relativeTime, salaryLabel, isFresh } from "@/lib/format";
 import { getSession } from "@/lib/auth";
@@ -229,14 +229,11 @@ export default function JobDetailScreen({ initialJob = null, related = [] }: { i
             </div>
 
             <div className="rounded-2xl border border-border bg-card p-6">
-              <h2 className="font-heading text-lg font-bold">Job description</h2>
+              <h2 className="font-heading text-lg font-bold">{job.description ? "Job description" : "About this role"}</h2>
               {job.description ? (
                 <JobDescription text={job.description} className="mt-3" />
               ) : (
-                <p className="mt-3 text-sm italic leading-relaxed text-muted-foreground">
-                  The employer hasn&apos;t added a detailed description yet. Apply and the recruiter will
-                  share the full role details with you.
-                </p>
+                <RoleOverview job={job} />
               )}
               {(
                 [
@@ -356,6 +353,58 @@ export default function JobDetailScreen({ initialJob = null, related = [] }: { i
       </div>
       </main>
       <Footer />
+    </div>
+  );
+}
+
+/**
+ * Body for a posting saved without a description: what we do know about the
+ * role, from its real fields only (jobFacts drops placeholders and defaults),
+ * plus how applying works. Related roles render below the main card.
+ */
+function RoleOverview({ job }: { job: Job }) {
+  const facts = jobFacts(job);
+  const fact = (label: string) => facts.find(([l]) => l === label)?.[1];
+  const company = fact("Company") ?? "This employer";
+  const location = fact("Location");
+  const type = fact("Employment type");
+  const mode = fact("Work mode");
+  const posted = fact("Posted");
+
+  return (
+    <div className="mt-3 space-y-5 text-sm leading-relaxed text-foreground/85">
+      <p>
+        {company} is hiring for the role of <strong>{job.title}</strong>
+        {location ? ` in ${location}` : ""} through RecruitKr.
+        {type ? ` This is a ${type.toLowerCase()} position${mode ? `, ${mode.toLowerCase()}` : ""}.` : ""}
+        {job.openings > 1 ? ` There are ${job.openings} openings.` : ""}
+        {posted ? ` The opening was posted on ${posted}.` : ""} The employer hasn&apos;t added a full description yet;
+        our recruitment team will share the complete role details with shortlisted candidates.
+      </p>
+
+      <div>
+        <h3 className="font-semibold text-foreground">Role details</h3>
+        <dl className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+          {[["Role", job.title] as [string, string], ...facts].map(([label, value]) => (
+            <div key={label} className="flex gap-2">
+              <dt className="min-w-[8rem] text-muted-foreground">{label}</dt>
+              <dd className="font-medium text-foreground">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      <div>
+        <h3 className="font-semibold text-foreground">How to apply</h3>
+        <ol className="mt-2 list-decimal space-y-1 pl-5">
+          <li>Sign in, or create a free candidate profile on RecruitKr.</li>
+          <li>
+            Select <strong>Apply now</strong>. Before anything is sent you will see exactly what {company === "This employer" ? "the employer" : company} receives.
+          </li>
+          <li>Track your application status and chat with the recruiter from your dashboard.</li>
+        </ol>
+        <p className="mt-2 text-muted-foreground">RecruitKr never charges candidates a fee to apply or to be placed.</p>
+      </div>
     </div>
   );
 }

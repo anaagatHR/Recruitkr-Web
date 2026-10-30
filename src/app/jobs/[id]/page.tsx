@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import { buildMetadata } from "@/lib/seo";
 import {
   displayCompany,
+  fetchAllJobs,
   fetchJobResult,
-  fetchJobs,
   formatExperience,
   isIndexableJob,
-  isOpen,
   jobIdFromParam,
   jobPath,
   jobSlug,
   PLACEHOLDER_LOCATION,
-  type Job,
+  relatedJobs,
 } from "@/lib/jobs";
 import { jobPostingJsonLd } from "@/lib/jobLd";
 import JobDetailScreen from "@/screens/JobDetailScreen";
@@ -44,18 +44,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: `${job.title} (${job.type}, ${job.workMode}) in ${city}.${experience ? ` ${experience}.` : ""} Apply now on RecruitKr.`,
     path: jobPath(job),
     keywords: [job.title, ...(job.company ? [job.company] : []), job.sector, ...job.skills],
-    // Closed listings and postings with no real description stay reachable
-    // (and crawlable) but out of the index; jobs-sitemap.xml applies the same rule.
+    // Closed listings, and postings with neither a description nor enough real
+    // detail, stay reachable (and crawlable) but out of the index;
+    // jobs-sitemap.xml applies the same rule.
     noindex: !isIndexableJob(job),
   });
 }
 
-/** Up to six other open jobs, same sector first. */
-const relatedJobs = (job: Job, all: Job[]) =>
-  all
-    .filter((other) => other.id !== job.id && isOpen(other))
-    .sort((a, b) => Number(b.sector === job.sector) - Number(a.sector === job.sector))
-    .slice(0, 6);
+/** The whole board, once per request, for related roles. */
+const loadAllJobs = cache(() => fetchAllJobs().catch(() => ({ jobs: [], live: false })));
 
 export default async function Page({ params }: Props) {
   const param = await paramOf(params);
@@ -67,7 +64,7 @@ export default async function Page({ params }: Props) {
   // their history. Only on a live answer: seed fallback data has no real URL.
   if (job && live && param !== jobSlug(job)) permanentRedirect(jobPath(job));
 
-  const related = job && live ? relatedJobs(job, (await fetchJobs()).jobs) : [];
+  const related = job && live ? relatedJobs(job, (await loadAllJobs()).jobs) : [];
 
   return (
     <>

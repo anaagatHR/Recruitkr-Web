@@ -23,8 +23,8 @@
   ],
   "nudges": 2,
   "host": "claude-code",
-  "lastBillingUuid": "4dd0e7a4-b9eb-465a-a6e6-27a29bca6efa",
-  "inputCostMicros": 91535013,
-  "inputTokensBilled": 167313824,
+  "lastBillingUuid": "1cfab474-b824-4c24-878e-d73af5b8ae59",
+  "inputCostMicros": 95304255,
+  "inputTokensBilled": 174472608,
   "promptAsks": 20
 }
