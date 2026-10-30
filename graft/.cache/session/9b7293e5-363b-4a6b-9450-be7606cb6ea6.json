@@ -26,5 +26,6 @@
   "lastBillingUuid": "5e6395b7-ce14-40ab-8406-45144f782361",
   "inputCostMicros": 108572208,
   "inputTokensBilled": 199739827,
-  "promptAsks": 21
+  "promptAsks": 21,
+  "summarized": true
 }

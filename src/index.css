@@ -632,6 +632,18 @@
   }
 }
 
+/* Hero blank words rising into place when they change. */
+@keyframes word-in {
+  from {
+    transform: translateY(0.55em);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
 /* Right-to-left marquee track (the doubled list scrolls one full set). */
 @keyframes marquee {
   from {

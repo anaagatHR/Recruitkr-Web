@@ -33,7 +33,7 @@ export default function JobsScreen({
   const [jobs, setJobs] = useState<Job[]>(initialJobs);
   const [loading, setLoading] = useState(initialJobs.length === 0);
   const [query, setQuery] = useState(initialSearch);
-  const [location, setLocation] = useState("");
+  const [location, setLocation] = useState(new URLSearchParams(routeLocation.search).get("location") ?? "");
   const [activeTypes, setActiveTypes] = useState<string[]>(() => paramList(routeLocation.search, "type", JOB_TYPES));
   const [activeModes, setActiveModes] = useState<string[]>(() => paramList(routeLocation.search, "mode", WORK_MODES));
   const [sort, setSort] = useState<"recent" | "salary">("recent");
@@ -52,6 +52,7 @@ export default function JobsScreen({
 
   useEffect(() => {
     setQuery(new URLSearchParams(routeLocation.search).get("search") ?? "");
+    setLocation(new URLSearchParams(routeLocation.search).get("location") ?? "");
     setActiveTypes(paramList(routeLocation.search, "type", JOB_TYPES));
     setActiveModes(paramList(routeLocation.search, "mode", WORK_MODES));
   }, [routeLocation.search]);
