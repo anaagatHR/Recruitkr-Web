@@ -11,7 +11,7 @@
  */
 import { isIndianMobile } from '../utils/mobile.js';
 
-export const PROFILE_COMPLETION_VERSION = 2;
+export const PROFILE_COMPLETION_VERSION = 3;
 export const APPLY_GATE_MIN_SCORE = 70;
 
 // Placeholder strings older code wrote instead of leaving a field empty.
@@ -72,7 +72,7 @@ const hasWorkHistory = (experience) =>
  * @param {object} input
  * @param {object} input.profile  CandidateProfile (plain object, canonical fields)
  * @param {object} [input.user]   User: { email, mobile }
- * @param {object} [input.resume] Resume: { resumeType, resumeFileId } — none means "generated"
+ * @param {object} [input.resume] Resume: { resumeType, resumeFileId }; only an uploaded file scores
  * @param {number} [input.certificateFileCount] uploaded certificate files
  */
 export const computeProfileCompletion = ({ profile = {}, user = {}, resume = null, certificateFileCount = 0 } = {}) => {
@@ -80,15 +80,6 @@ export const computeProfileCompletion = ({ profile = {}, user = {}, resume = nul
   const skillCount = dedupeSkills(profile.skills).length;
   const projects = Array.isArray(profile.projects) ? profile.projects : [];
   const hasProject = projects.some((project) => filled(project?.name, 3) && filled(project?.description, 40));
-
-  // A generated resume only counts when it would contain something real.
-  const generatedResumeIsSubstantive =
-    filled(profile.highestQualification, 2) &&
-    skillCount >= 3 &&
-    filled(prefs.preferredRole, 2) &&
-    (meaningful(profile.summary).length >= 120 ||
-      hasWorkHistory(profile.experience) ||
-      projects.some((project) => filled(project?.name, 3)));
 
   const field = (key, label, weight, required, group, points) => ({
     key,
@@ -145,11 +136,13 @@ export const computeProfileCompletion = ({ profile = {}, user = {}, resume = nul
     // proof (31)
     field(
       'resume',
-      'Resume',
+      'Upload your resume',
       11,
       true,
       'proof',
-      all(resume?.resumeType === 'uploaded' ? filled(resume.resumeFileId) : generatedResumeIsSubstantive, 11),
+      // Applying requires an uploaded file (job.controller RESUME_REQUIRED);
+      // a resume generated from the profile no longer counts.
+      all(resume?.resumeType === 'uploaded' && filled(resume.resumeFileId), 11),
     ),
     field(
       'certifications',

@@ -1105,6 +1105,12 @@ const CandidateDashboard = () => {
         openProfileGate(err.data as Partial<ProfileGateSummary>);
         return;
       }
+      if (err instanceof ApiClientError && err.code === "RESUME_REQUIRED") {
+        setReviewJob(null);
+        toast({ title: "Upload your resume to apply", description: "Employers need your resume. Upload it here, then apply." });
+        focusProfileField("resume");
+        return;
+      }
       if (err instanceof ApiClientError && err.code === "ALREADY_APPLIED") {
         void Promise.all([refreshApplications(), refreshJobs()]);
       }
@@ -3586,10 +3592,8 @@ const CandidateDashboard = () => {
             phone: profile?.phone ? `+91 ${profile.phone}` : "",
             email: sessionState?.user.email || "",
             skills: profile?.skills || [],
-            resumeLabel:
-              resumeMeta?.resumeType === "uploaded"
-                ? `Uploaded PDF${resumeMeta.fileName ? `: ${resumeMeta.fileName}` : ""}`
-                : "Generated from your profile",
+            resumeLabel: `Uploaded${resumeMeta?.fileName ? `: ${resumeMeta.fileName}` : ""}`,
+            hasUploadedResume: resumeMeta?.resumeType === "uploaded",
           }}
           submitting={Boolean(applyLoadingJobId)}
           error={applyError}
@@ -3605,6 +3609,10 @@ const CandidateDashboard = () => {
             setTab("profile");
           }}
           onPreviewResume={() => void downloadResumePdf()}
+          onUploadResume={() => {
+            setReviewJob(null);
+            focusProfileField("resume");
+          }}
         />
     </DashboardLayout>
   );

@@ -198,17 +198,19 @@ describe('computeProfileCompletion — anti-gaming', () => {
     assert.equal(ok([{ company: 'Acme', role: 'Sales Lead', startDate: '2022-04', current: true }]), true);
   });
 
-  it('a generated resume counts only when it would contain something real', () => {
-    const resumePoints = (profile) => score({ profile }).fields.find((f) => f.key === 'resume').points;
-    const base = {
+  it('only an uploaded resume file counts; a generated one never does', () => {
+    const resumePoints = (profile, resume) => score({ profile, resume }).fields.find((f) => f.key === 'resume').points;
+    const rich = {
       highestQualification: 'MBA',
       skills: ['Sales', 'Excel', 'Billing'],
       preferences: { preferredRole: 'Sales Executive' },
+      summary: SUMMARY_150,
     };
     assert.equal(resumePoints({}), 0);
-    assert.equal(resumePoints(base), 0);
-    assert.equal(resumePoints({ ...base, summary: SUMMARY_150 }), 11);
-    assert.equal(resumePoints({ ...base, projects: [{ name: 'Store revamp' }] }), 11);
+    assert.equal(resumePoints(rich), 0);
+    assert.equal(resumePoints(rich, { resumeType: 'generated' }), 0);
+    assert.equal(resumePoints({}, { resumeType: 'uploaded', resumeFileId: '' }), 0);
+    assert.equal(resumePoints({}, { resumeType: 'uploaded', resumeFileId: 'file_123' }), 11);
   });
 
   it('uploaded certificate files count as certification proof', () => {

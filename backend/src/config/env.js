@@ -54,6 +54,13 @@ const envSchema = z.object({
   GOOGLE_OAUTH_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().min(10).optional()),
   GOOGLE_OAUTH_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(10).optional()),
   GOOGLE_OAUTH_REDIRECT_URI: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  // Candidate resumes are copied to a Google Drive folder (personal Gmail, OAuth).
+  // Client id/secret fall back to the sign-in client above; the refresh token and
+  // folder id come from `node scripts/googleDriveSetup.js`. All unset = copy off.
+  GOOGLE_DRIVE_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().min(10).optional()),
+  GOOGLE_DRIVE_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(10).optional()),
+  GOOGLE_DRIVE_REFRESH_TOKEN: z.preprocess(emptyToUndefined, z.string().min(10).optional()),
+  GOOGLE_DRIVE_RESUME_FOLDER_ID: z.preprocess(emptyToUndefined, z.string().min(5).optional()),
 
   // Apache Solr is optional. When SOLR_URL is unset the job search falls back to
   // a cached MongoDB query, so the app keeps working without a Solr server.

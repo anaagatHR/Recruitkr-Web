@@ -1136,6 +1136,17 @@ export const applyToJob = asyncHandler(async (req, res) => {
     return answerDuplicate(exists);
   }
 
+  // An uploaded resume is mandatory for every application, independent of the
+  // profile-completion gate below. A profile-generated resume does not count.
+  const candidateResume = await Resume.findOne({ candidateUserId: req.user.id })
+    .select('resumeType resumeFileId')
+    .lean();
+  if (candidateResume?.resumeType !== 'uploaded' || !candidateResume.resumeFileId) {
+    throw new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, 'Upload your resume to apply for this job', null, {
+      code: 'RESUME_REQUIRED',
+    });
+  }
+
   // Authoritative profile gate (audit P0-3): re-derived from the database on
   // every request, never from anything the client sends.
   if (env.FEATURE_APPLY_GATE) {

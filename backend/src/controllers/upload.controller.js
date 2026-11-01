@@ -1,5 +1,8 @@
 import { StatusCodes } from 'http-status-codes';
 
+import { CandidateProfile } from '../models/CandidateProfile.js';
+import { User } from '../models/User.js';
+import { isDriveConfigured, resumeDriveFileName, uploadResumeToDrive } from '../services/googleDrive.service.js';
 import { listImageKitFiles, uploadBufferToImageKit } from '../services/imagekit.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -66,6 +69,23 @@ export const listJobVideos = asyncHandler(async (_req, res) => {
   }
 });
 
+/** Copy a candidate's freshly uploaded resume into the Google Drive folder. */
+const copyResumeToDrive = async (userId, file) => {
+  const [user, profile] = await Promise.all([
+    User.findById(userId).select('email mobile').lean(),
+    CandidateProfile.findOne({ userId }).select('fullName').lean(),
+  ]);
+  await uploadResumeToDrive({
+    buffer: file.buffer,
+    mimeType: file.mimetype,
+    fileName: resumeDriveFileName({
+      name: profile?.fullName || user?.email,
+      mobile: user?.mobile,
+      originalName: file.originalname,
+    }),
+  });
+};
+
 export const uploadFile = asyncHandler(async (req, res) => {
   if (typeof req.body?.file === 'string' && req.body.file.trim().startsWith('data:')) {
     throw new ApiError(
@@ -92,6 +112,16 @@ export const uploadFile = asyncHandler(async (req, res) => {
     }
 
     throw error;
+  }
+
+  // Background copy: Drive being slow or misconfigured must never fail or
+  // delay the candidate's upload. Failures are logged for the team to see.
+  const isCandidateResume =
+    String(req.body?.folder || '').trim().toLowerCase() === 'resumes' && req.user?.role === 'candidate';
+  if (isCandidateResume && isDriveConfigured()) {
+    copyResumeToDrive(req.user.id, req.file).catch((error) =>
+      console.error('[drive] resume copy failed', { userId: req.user.id, message: error.message }),
+    );
   }
 
   const payload = {

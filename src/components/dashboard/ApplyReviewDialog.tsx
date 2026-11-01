@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import { X } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
+import { whatsappLink } from "@/lib/whatsapp";
 
 export type ApplyReviewJob = { _id: string; jobTitle: string; companyName?: string; jobLocation?: string };
 
@@ -11,6 +12,8 @@ export type ApplySnapshot = {
   email: string;
   skills: string[];
   resumeLabel: string;
+  /** Applying requires an uploaded resume file (server: RESUME_REQUIRED). */
+  hasUploadedResume: boolean;
 };
 
 type Props = {
@@ -23,6 +26,8 @@ type Props = {
   onClose: () => void;
   onEditProfile: () => void;
   onPreviewResume: () => void;
+  /** Close the sheet and take the candidate to the resume upload field. */
+  onUploadResume: () => void;
 };
 
 const NOTE_MAX = 300;
@@ -33,9 +38,21 @@ const NOTE_MAX = 300;
  * Native <dialog> + showModal(): the page behind is inert, Escape closes it and
  * focus returns to the Apply button that opened it.
  */
-const ApplyReviewDialog = ({ job, snapshot, submitting, error, onSubmit, onClose, onEditProfile, onPreviewResume }: Props) => {
+const ApplyReviewDialog = ({
+  job,
+  snapshot,
+  submitting,
+  error,
+  onSubmit,
+  onClose,
+  onEditProfile,
+  onPreviewResume,
+  onUploadResume,
+}: Props) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const consentRef = useRef<HTMLInputElement>(null);
+  const uploadRef = useRef<HTMLButtonElement>(null);
+  const [resumeError, setResumeError] = useState(false);
   const [note, setNote] = useState("");
   const [consent, setConsent] = useState(false);
   const [consentError, setConsentError] = useState(false);
@@ -48,6 +65,7 @@ const ApplyReviewDialog = ({ job, snapshot, submitting, error, onSubmit, onClose
       setNote("");
       setConsent(false);
       setConsentError(false);
+      setResumeError(false);
       dialog.showModal();
     } else if (!job && dialog.open) {
       dialog.close();
@@ -58,6 +76,11 @@ const ApplyReviewDialog = ({ job, snapshot, submitting, error, onSubmit, onClose
     event.preventDefault();
     if (submitting) return;
     // Validate on submit (never by disabling the button); focus the field at fault.
+    if (!snapshot.hasUploadedResume) {
+      setResumeError(true);
+      uploadRef.current?.focus();
+      return;
+    }
     if (!consent) {
       setConsentError(true);
       consentRef.current?.focus();
@@ -108,7 +131,16 @@ const ApplyReviewDialog = ({ job, snapshot, submitting, error, onSubmit, onClose
             {row("Name", snapshot.fullName)}
             {row("Mobile", snapshot.phone)}
             {row("Email", snapshot.email)}
-            {row("Resume", snapshot.resumeLabel)}
+            <div className="flex justify-between gap-4 py-1.5">
+              <dt className="text-slate-500">Resume</dt>
+              <dd className="min-w-0 break-words text-right font-medium">
+                {snapshot.hasUploadedResume ? (
+                  <span className="text-slate-900">{snapshot.resumeLabel}</span>
+                ) : (
+                  <span className="text-red-700">Not uploaded (required)</span>
+                )}
+              </dd>
+            </div>
             <div className="py-1.5">
               <dt className="text-slate-500">Skills</dt>
               <dd className="mt-1 flex flex-wrap gap-1.5">
@@ -124,10 +156,31 @@ const ApplyReviewDialog = ({ job, snapshot, submitting, error, onSubmit, onClose
               </dd>
             </div>
           </dl>
+          {!snapshot.hasUploadedResume && (
+            <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+              <p>Employers need your resume, so you can apply only after uploading one.</p>
+              <button
+                ref={uploadRef}
+                type="button"
+                onClick={onUploadResume}
+                aria-describedby={resumeError ? `${ids}-resume-error` : undefined}
+                className="mt-2 inline-flex min-h-[40px] items-center rounded-lg bg-[#264a7f] px-3 text-sm font-semibold text-white"
+              >
+                Upload resume
+              </button>
+              {resumeError && (
+                <p id={`${ids}-resume-error`} role="alert" className="mt-1.5 font-medium text-red-700">
+                  Upload your resume before submitting this application.
+                </p>
+              )}
+            </div>
+          )}
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            <button type="button" onClick={onPreviewResume} className="font-semibold text-[#264a7f] underline">
-              Preview resume PDF
-            </button>
+            {snapshot.hasUploadedResume && (
+              <button type="button" onClick={onPreviewResume} className="font-semibold text-[#264a7f] underline">
+                Preview resume
+              </button>
+            )}
             <button type="button" onClick={onEditProfile} className="font-semibold text-[#264a7f] underline">
               Edit profile
             </button>
@@ -181,6 +234,16 @@ const ApplyReviewDialog = ({ job, snapshot, submitting, error, onSubmit, onClose
               {error}
             </p>
           )}
+
+          <a
+            href={whatsappLink(`Hi RecruitKr, I have a question about the ${job.jobTitle} role.`)}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-4 inline-flex min-h-[40px] items-center gap-2 text-sm font-semibold text-[#128c4b] underline-offset-2 hover:underline"
+          >
+            <MessageCircle size={16} aria-hidden="true" />
+            Questions? Chat with your hiring partner on WhatsApp
+          </a>
 
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <button type="button" onClick={onClose} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold">

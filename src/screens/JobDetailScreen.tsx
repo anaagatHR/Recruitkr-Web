@@ -11,6 +11,7 @@ import {
   Flame,
   Lock,
   MapPin,
+  MessageCircle,
   Share2,
   Users,
 } from "lucide-react";
@@ -18,10 +19,11 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import JobDescription from "@/components/job/JobDescription";
 import StarRating from "@/components/job/StarRating";
-import { applyToJobRequest, daysUntilDeadline, displayCompany, fetchJob, isExpired, jobFacts, jobIdFromParam, pluralize, type Job } from "@/lib/jobs";
+import { applyToJobRequest, daysUntilDeadline, displayCompany, fetchJob, isExpired, jobFacts, jobIdFromParam, jobPath, pluralize, type Job } from "@/lib/jobs";
 import JobCard from "@/components/job/JobCard";
 import { relativeTime, salaryLabel, isFresh } from "@/lib/format";
 import { getSession } from "@/lib/auth";
+import { whatsappLink } from "@/lib/whatsapp";
 import { useToast } from "@/hooks/use-toast";
 
 export default function JobDetailScreen({ initialJob = null, related = [] }: { initialJob?: Job | null; related?: Job[] }) {
@@ -78,6 +80,14 @@ export default function JobDetailScreen({ initialJob = null, related = [] }: { i
       if (code === "ALREADY_APPLIED") {
         setApplied(true);
         toast({ title: "Already applied", description: "You've already applied to this job." });
+        return;
+      }
+      if (code === "RESUME_REQUIRED") {
+        toast({
+          title: "Upload your resume to apply",
+          description: "Employers need your resume. Upload it in your profile, then apply again.",
+        });
+        navigate("/dashboard/candidate?tab=profile");
         return;
       }
       if (code === "PROFILE_INCOMPLETE") {
@@ -320,6 +330,18 @@ export default function JobDetailScreen({ initialJob = null, related = [] }: { i
                   </Link>
                 </p>
               )}
+
+              {/* Talk to RecruitKr (the hiring partner) before or after applying. */}
+              <a
+                href={whatsappLink(
+                  `Hi RecruitKr, I'm interested in the ${job.title} role${job.company ? ` at ${job.company}` : ""}: https://www.recruitkr.com${jobPath(job)}`,
+                )}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-[#128c4b] py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0f7a41]"
+              >
+                <MessageCircle size={16} aria-hidden /> Chat with hiring partner on WhatsApp
+              </a>
 
               <button
                 type="button"
