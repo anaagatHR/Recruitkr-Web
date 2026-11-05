@@ -5,11 +5,17 @@ const TEAM_CACHE_TTL_MS = 5 * 60 * 1000;
 let cachedTeam = null;
 let cacheExpiresAt = 0;
 
+/** Site Studio calls this after every team write so the public list is fresh at once. */
+export const clearTeamCache = () => {
+  cachedTeam = null;
+  cacheExpiresAt = 0;
+};
+
 // CRM-panel uploads are stored as relative paths ("/uploads/..."). Those only
 // resolve on the CRM host, so prefix them with TEAM_ASSET_BASE_URL when set
 // (e.g. https://crm.recruitkr.com). Absolute URLs pass through untouched.
 const TEAM_ASSET_BASE = String(process.env.TEAM_ASSET_BASE_URL || '').replace(/\/$/, '');
-const toAbsoluteAssetUrl = (value = '') => {
+export const toAbsoluteAssetUrl = (value = '') => {
   const path = String(value || '').trim();
   if (!path) return '';
   if (/^https?:\/\//i.test(path)) return path;

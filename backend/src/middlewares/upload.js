@@ -104,3 +104,21 @@ export const videoUpload = createMemoryUpload({
   invalidFileMessage: 'Only MP4, WEBM, MOV, or MKV videos are supported',
 });
 
+// Site Studio media: website images (incl. SVG logos) and short videos. The
+// multer cap is the video cap; the controller re-checks the real file type
+// from its bytes and applies the per-type limit (5MB images, 50MB video).
+export const STUDIO_MEDIA_LIMITS = {
+  'image/jpeg': 5 * 1024 * 1024,
+  'image/png': 5 * 1024 * 1024,
+  'image/webp': 5 * 1024 * 1024,
+  'image/svg+xml': 5 * 1024 * 1024,
+  'video/mp4': 50 * 1024 * 1024,
+  'video/webm': 50 * 1024 * 1024,
+};
+
+export const studioMediaUpload = createMemoryUpload({
+  allowedMimeTypes: new Set(Object.keys(STUDIO_MEDIA_LIMITS)),
+  maxFileSizeBytes: 50 * 1024 * 1024,
+  invalidFileMessage: 'Only JPG, PNG, WEBP or SVG images and MP4 or WEBM videos are supported',
+});
+

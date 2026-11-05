@@ -82,6 +82,14 @@ const envSchema = z.object({
   // without a secret the form still works, protected by the honeypot field
   // and the per-IP rate limit only.
   TURNSTILE_SECRET_KEY: z.preprocess(emptyToUndefined, z.string().min(10).optional()),
+
+  // Site Studio (no-code editor). All optional: without them the editor can
+  // still save and publish, but has no live draft preview (preview secret) and
+  // published changes reach the site on its 5-minute refresh instead of at once
+  // (revalidate URL + secret, shared with the Next.js site).
+  STUDIO_PREVIEW_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
+  SITE_REVALIDATE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  REVALIDATE_SECRET: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
   // Profile-completion gate on POST /jobs/apply (audit P0-3). Off unless set to
   // "true"/"1" so it can be enabled per environment: staging first, then prod.
   FEATURE_APPLY_GATE: z.preprocess(

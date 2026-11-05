@@ -12,6 +12,8 @@ import jobsRoutes from './jobs.routes.js';
 import messageRoutes from './message.routes.js';
 import resumeRoutes from './resume.routes.js';
 import searchRoutes from './search.routes.js';
+import siteContentRoutes from './siteContent.routes.js';
+import studioRoutes from './studio.routes.js';
 import uploadRoutes from './upload.routes.js';
 import videoRoutes from './video.routes.js';
 import userRoutes from './user.routes.js';
@@ -45,5 +47,7 @@ router.use('/dashboards', dashboardRoutes);
 router.use('/contact', contactRoutes);
 router.use('/conversations', messageRoutes);
 router.use('/uploads', uploadRoutes);
+router.use('/site-content', siteContentRoutes);
+router.use('/studio', studioRoutes);
 
 export default router;
