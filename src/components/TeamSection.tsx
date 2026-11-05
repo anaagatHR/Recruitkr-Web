@@ -10,17 +10,18 @@ import { fetchTeamMembers, getCachedTeamMembers, type TeamMember } from "@/lib/t
 const INITIAL_TEAM_COUNT = 8;
 const TEAM_COUNT_STEP = 8;
 
-// Fallback sample team shown when the API has no data / fails to load, so the
-// section always renders something (a leader + the rest of the team).
+// The team as shown while the CRM's `teammembers` collection is empty (it is
+// today, so this is what the live page renders). As soon as the CRM returns
+// members, its list replaces this one entirely.
+// Photos and intros live in public/team/: portraits were cut from each intro
+// video, and summaries follow what each person says in their intro.
 const DUMMY_TEAM: TeamMember[] = [
-  { _id: "dummy-boss", name: "Sachin Kumar", role: "CEO and Managing Director", summary: "Sets RecruitKr's vision and steers the company across hiring, growth, and long-term strategy.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-core-1", name: "Krishna Devi", role: "Full time director", summary: "Guides day-to-day direction and key decisions to keep the company moving forward.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-core-2", name: "Ajay Sharma", role: "web developer", summary: "Builds and maintains the RecruitKr platform, shipping fast and reliable features.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-work-1", name: "Neha Verma", role: "operation & deployment", summary: "Runs smooth operations and handles deployments so everything stays live and stable.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-work-2", name: "Mohd. Siddhiq", role: "marketing & lead generation", summary: "Drives marketing campaigns and generates quality leads to grow the business.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-work-3", name: "Mohammad Saad Farooqui", role: "finance compriance", summary: "Manages finances and keeps the company compliant with every regulation.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-work-4", name: "Kinshuk Gujar", role: "research & analyze", summary: "Researches the market and analyzes data to power smarter hiring decisions.", image: "", linkedin: "", email: "" },
-  { _id: "dummy-work-5", name: "Paridhi", role: "business developer", summary: "Builds partnerships and opens new opportunities to expand RecruitKr's reach.", image: "", linkedin: "", email: "" },
+  { _id: "team-sachin", name: "Sachin Kumar", role: "Founder, CEO and Managing Director", summary: "Founded RecruitKr. Takes care of day-to-day operations and management, along with employer relations and customer satisfaction.", image: "/team/sachin-kumar.jpg", video: "/team/sachin-kumar.mp4", linkedin: "", email: "" },
+  { _id: "team-krishna", name: "Krishna Devi", role: "Full time director", summary: "Guides day-to-day direction and key decisions to keep the company moving forward.", image: "", linkedin: "", email: "" },
+  { _id: "team-nisha", name: "Nisha", role: "Client relationship", summary: "Learns what partner companies actually need, not just a job title but the person who will fit and stay, and stays with them through profiles, interview feedback and everything in between.", image: "/team/nisha.jpg", video: "/team/nisha.mp4", linkedin: "", email: "" },
+  { _id: "team-komal", name: "Komal", role: "Data management", summary: "Keeps the information behind every hire correct and secure, from candidate records to client requirements and interview feedback, and builds the reports the team runs on.", image: "/team/komal.jpg", video: "/team/komal.mp4", linkedin: "", email: "" },
+  { _id: "team-aarti", name: "Aarti", role: "Data management", summary: "Keeps every candidate's profile, skills, salary and notice period in one place, so an urgent client role is matched with a single search.", image: "/team/aarti.jpg", video: "/team/aarti.mp4", linkedin: "", email: "" },
+  { _id: "team-ayush", name: "Ayush", role: "Social media intern", summary: "Plans posts, creates reels and schedules the week's content for RecruitKr's social channels, and keeps an eye on comments and engagement.", image: "/team/ayush.jpg", video: "/team/ayush.mp4", linkedin: "", email: "" },
 ];
 
 const getInitials = (name: string) =>
