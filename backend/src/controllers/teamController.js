@@ -42,8 +42,12 @@ const dedupeTeamMembers = (members = []) => {
   const byKey = new Map();
   for (const member of members) {
     const key =
-      String(member.email || '').trim().toLowerCase() ||
-      String(member.name || '').trim().toLowerCase() ||
+      String(member.email || '')
+        .trim()
+        .toLowerCase() ||
+      String(member.name || '')
+        .trim()
+        .toLowerCase() ||
       String(member._id);
     const existing = byKey.get(key);
     if (!existing) {

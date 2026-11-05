@@ -28,14 +28,28 @@ export const FONT_ALLOWLIST = [
 
 // Home page sections after the hero, in their current order. The hero holds the
 // page's only <h1>, so it always stays first and visible.
-export const HOME_SECTION_IDS = ['latest-jobs', 'job-showcase', 'why-us', 'placement', 'testimonials', 'closing-cta'];
+export const HOME_SECTION_IDS = [
+  'latest-jobs',
+  'job-showcase',
+  'why-us',
+  'placement',
+  'testimonials',
+  'closing-cta',
+];
 
 const text = (label, max = 200, extra = {}) => ({ type: 'text', label, max, ...extra });
 const image = (label) => ({ type: 'image', label });
 const color = (label) => ({ type: 'color', label });
 const font = (label) => ({ type: 'font', label, options: FONT_ALLOWLIST });
 const toggle = (label) => ({ type: 'toggle', label });
-const number = (label, min, max, step = 1, unit = '') => ({ type: 'number', label, min, max, step, unit });
+const number = (label, min, max, step = 1, unit = '') => ({
+  type: 'number',
+  label,
+  min,
+  max,
+  step,
+  unit,
+});
 const url = (label) => ({ type: 'url', label });
 const path = (label) => ({ type: 'path', label });
 const email = (label) => ({ type: 'email', label });
@@ -71,7 +85,11 @@ export const SITE_CONTENT_SCHEMA = {
     label: 'Navigation bar',
     group: 'Pages',
     fields: {
-      items: list('Menu links', { label: text('Label', 30), path: path('Link (e.g. /employers)'), visible: toggle('Show') }, 10),
+      items: list(
+        'Menu links',
+        { label: text('Label', 30), path: path('Link (e.g. /employers)'), visible: toggle('Show') },
+        10,
+      ),
     },
   },
   'home.hero': {
@@ -86,14 +104,22 @@ export const SITE_CONTENT_SCHEMA = {
       buttonPrefix: text('Button word before the role ("Show")', 20),
       searchPlaceholder: text('Search box placeholder', 60),
       roles: list('Roles the headline cycles through', { name: text('Role', 30) }, 20),
-      photos: list('Photos in the headline', { src: image('Photo'), alt: text('Describe the photo', 140) }, 6),
+      photos: list(
+        'Photos in the headline',
+        { src: image('Photo'), alt: text('Describe the photo', 140) },
+        6,
+      ),
     },
   },
   'home.sections': {
     label: 'Home · Section order',
     group: 'Pages',
     fields: {
-      order: list('Sections below the hero', { id: select('Section', HOME_SECTION_IDS), visible: toggle('Show') }, HOME_SECTION_IDS.length),
+      order: list(
+        'Sections below the hero',
+        { id: select('Section', HOME_SECTION_IDS), visible: toggle('Show') },
+        HOME_SECTION_IDS.length,
+      ),
     },
   },
   footer: {
@@ -102,13 +128,24 @@ export const SITE_CONTENT_SCHEMA = {
     fields: {
       heading: text('Heading', 60),
       intro: text('Intro text', 400),
-      phones: list('Phone numbers', { label: text('Label', 40), display: text('Shown as', 30), tel: tel('Number to dial') }, 4),
+      phones: list(
+        'Phone numbers',
+        { label: text('Label', 40), display: text('Shown as', 30), tel: tel('Number to dial') },
+        4,
+      ),
       emails: list('Email addresses', { label: text('Label', 40), email: email('Email') }, 4),
       ctaLabel: text('Button label', 40),
       visitHeading: text('Visit heading', 60),
       visitIntro: text('Visit intro', 200),
       copyright: text('Copyright line (after the year)', 120),
-      social: list('Social links', { network: select('Network', ['linkedin', 'facebook', 'instagram']), href: url('Profile URL') }, 3),
+      social: list(
+        'Social links',
+        {
+          network: select('Network', ['linkedin', 'facebook', 'instagram']),
+          href: url('Profile URL'),
+        },
+        3,
+      ),
     },
   },
 };
@@ -121,7 +158,11 @@ const HTTP_URL = /^https?:\/\/[^\s<>"']+$/i;
 const LOCAL_PATH = /^\/(?!\/)[A-Za-z0-9\-._~/%]*$/;
 const INTERNAL_LINK = /^\/(?!\/)[A-Za-z0-9\-._~/%?=&#]*$/;
 
-const escapeAttr = (s) => s.replace(/&(?!(?:[a-z]+|#\d+|#x[0-9a-f]+);)/gi, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+const escapeAttr = (s) =>
+  s
+    .replace(/&(?!(?:[a-z]+|#\d+|#x[0-9a-f]+);)/gi, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
 const escapeText = (s) => s.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const RICH_TAGS = new Set(['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'a']);
 
@@ -133,7 +174,10 @@ const RICH_TAGS = new Set(['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'ul', 'ol',
 export const sanitizeRichText = (input) => {
   const html = String(input ?? '')
     .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<(script|style|iframe|object|embed|template|noscript|svg|math|textarea|select)\b[\s\S]*?<\/\1\s*>/gi, '');
+    .replace(
+      /<(script|style|iframe|object|embed|template|noscript|svg|math|textarea|select)\b[\s\S]*?<\/\1\s*>/gi,
+      '',
+    );
   const out = [];
   let last = 0;
   const tagRe = /<\s*(\/?)\s*([a-zA-Z][a-zA-Z0-9]*)\b([^<>]*)>/g;
@@ -151,7 +195,11 @@ export const sanitizeRichText = (input) => {
     if (name === 'a') {
       const href = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/i.exec(attrs);
       const value = href ? (href[1] ?? href[2] ?? href[3] ?? '').trim() : '';
-      out.push(/^(https?:\/\/|mailto:|\/(?!\/))/i.test(value) ? `<a href="${escapeAttr(value)}" rel="noopener noreferrer">` : '<a>');
+      out.push(
+        /^(https?:\/\/|mailto:|\/(?!\/))/i.test(value)
+          ? `<a href="${escapeAttr(value)}" rel="noopener noreferrer">`
+          : '<a>',
+      );
       continue;
     }
     out.push(`<${name}>`);
@@ -166,12 +214,16 @@ const checkField = (spec, raw) => {
     case 'text': {
       if (typeof raw !== 'string') return { ok: false, error: 'must be text' };
       const v = stripControl(raw).trim();
-      return v.length > spec.max ? { ok: false, error: `must be at most ${spec.max} characters` } : { ok: true, value: v };
+      return v.length > spec.max
+        ? { ok: false, error: `must be at most ${spec.max} characters` }
+        : { ok: true, value: v };
     }
     case 'richtext': {
       if (typeof raw !== 'string') return { ok: false, error: 'must be text' };
       const v = sanitizeRichText(stripControl(raw)).trim();
-      return v.length > spec.max ? { ok: false, error: `must be at most ${spec.max} characters` } : { ok: true, value: v };
+      return v.length > spec.max
+        ? { ok: false, error: `must be at most ${spec.max} characters` }
+        : { ok: true, value: v };
     }
     case 'image':
     case 'video': {
@@ -182,7 +234,9 @@ const checkField = (spec, raw) => {
     }
     case 'url': {
       const v = typeof raw === 'string' ? raw.trim() : null;
-      return v !== null && v.length <= 2048 && HTTP_URL.test(v) ? { ok: true, value: v } : { ok: false, error: 'must be an http(s) link' };
+      return v !== null && v.length <= 2048 && HTTP_URL.test(v)
+        ? { ok: true, value: v }
+        : { ok: false, error: 'must be an http(s) link' };
     }
     case 'path': {
       const v = typeof raw === 'string' ? raw.trim() : null;
@@ -198,17 +252,25 @@ const checkField = (spec, raw) => {
     }
     case 'tel': {
       const v = typeof raw === 'string' ? raw.replace(/\s+/g, '') : null;
-      return v !== null && /^\+?[0-9]{6,15}$/.test(v) ? { ok: true, value: v } : { ok: false, error: 'must be a phone number' };
+      return v !== null && /^\+?[0-9]{6,15}$/.test(v)
+        ? { ok: true, value: v }
+        : { ok: false, error: 'must be a phone number' };
     }
     case 'color': {
       const v = typeof raw === 'string' ? raw.trim().toLowerCase() : null;
-      return v !== null && /^#[0-9a-f]{6}$/.test(v) ? { ok: true, value: v } : { ok: false, error: 'must be a colour like #264a7f' };
+      return v !== null && /^#[0-9a-f]{6}$/.test(v)
+        ? { ok: true, value: v }
+        : { ok: false, error: 'must be a colour like #264a7f' };
     }
     case 'font':
     case 'select':
-      return spec.options.includes(raw) ? { ok: true, value: raw } : { ok: false, error: 'is not one of the allowed choices' };
+      return spec.options.includes(raw)
+        ? { ok: true, value: raw }
+        : { ok: false, error: 'is not one of the allowed choices' };
     case 'toggle':
-      return typeof raw === 'boolean' ? { ok: true, value: raw } : { ok: false, error: 'must be on or off' };
+      return typeof raw === 'boolean'
+        ? { ok: true, value: raw }
+        : { ok: false, error: 'must be on or off' };
     case 'number': {
       const v = typeof raw === 'number' ? raw : Number.NaN;
       return Number.isFinite(v) && v >= spec.min && v <= spec.max
@@ -264,8 +326,11 @@ const checkObject = (fields, raw, strict, where, errors) => {
  * Returns { ok, value, errors }.
  */
 export const validateContent = (key, raw, { strict = true } = {}) => {
-  const entry = Object.prototype.hasOwnProperty.call(SITE_CONTENT_SCHEMA, key) ? SITE_CONTENT_SCHEMA[key] : null;
-  if (!entry) return { ok: false, value: {}, errors: [`"${key}" is not an editable part of the site`] };
+  const entry = Object.prototype.hasOwnProperty.call(SITE_CONTENT_SCHEMA, key)
+    ? SITE_CONTENT_SCHEMA[key]
+    : null;
+  if (!entry)
+    return { ok: false, value: {}, errors: [`"${key}" is not an editable part of the site`] };
   const errors = [];
   const value = checkObject(entry.fields, raw, strict, '', errors);
   return { ok: errors.length === 0, value, errors };

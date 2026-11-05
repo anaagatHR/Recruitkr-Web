@@ -121,4 +121,3 @@ export const studioMediaUpload = createMemoryUpload({
   maxFileSizeBytes: 50 * 1024 * 1024,
   invalidFileMessage: 'Only JPG, PNG, WEBP or SVG images and MP4 or WEBM videos are supported',
 });
-

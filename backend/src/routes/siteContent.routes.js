@@ -12,16 +12,20 @@ import {
   rollback,
   saveDraft,
 } from '../controllers/siteContent.controller.js';
-import { requireAuth, requireRole } from '../middlewares/auth.js';
+import { authLimiter } from '../middlewares/rateLimiter.js';
+import { pinLogin, requireStudio } from '../middlewares/studioAuth.js';
 
 const router = Router();
-const admin = [requireAuth, requireRole('admin')];
+const admin = [requireStudio]; // the Studio PIN, or a website admin login
 
 // Public: the website reads these.
 router.get('/published', getPublished);
 router.get('/preview', getPreview); // gated by a signed, short-lived preview token
 
-// Site Studio (admins only).
+// Site Studio sign-in with the PIN (STUDIO_PIN on the API).
+router.post('/pin-login', authLimiter, pinLogin);
+
+// Site Studio (PIN or admin only).
 router.get('/', ...admin, listContent);
 router.post('/preview-token', ...admin, createPreviewToken);
 router.post('/publish-all', ...admin, publishAll);

@@ -10,12 +10,12 @@ import {
   updateMember,
   uploadMedia,
 } from '../controllers/studio.controller.js';
-import { requireAuth, requireRole } from '../middlewares/auth.js';
+import { requireStudio } from '../middlewares/studioAuth.js';
 import { studioMediaUpload } from '../middlewares/upload.js';
 
-/** Site Studio: media library and team manager. Every route is admin-only. */
+/** Site Studio: media library and team manager. Every route needs the Studio PIN or an admin login. */
 const router = Router();
-router.use(requireAuth, requireRole('admin'));
+router.use(requireStudio);
 
 router.get('/media', listMedia);
 router.post('/media', studioMediaUpload.single('file'), uploadMedia);

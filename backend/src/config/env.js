@@ -27,7 +27,9 @@ const envSchema = z.object({
   CORS_ORIGIN: z
     .string()
     .min(1)
-    .default('http://localhost:3000,http://localhost:3001,http://localhost:5173,http://localhost:8080'),
+    .default(
+      'http://localhost:3000,http://localhost:3001,http://localhost:5173,http://localhost:8080',
+    ),
   JWT_ACCESS_SECRET: z.preprocess(
     () => envValue('JWT_ACCESS_SECRET', 'ACCESS_TOKEN_SECRET', 'JWT_SECRET'),
     z.string().min(32),
@@ -38,7 +40,11 @@ const envSchema = z.object({
   ),
   JWT_ACCESS_EXPIRES: z.string().default('15m'),
   JWT_REFRESH_EXPIRES: z.string().default('30d'),
-  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
+  RATE_LIMIT_WINDOW_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(15 * 60 * 1000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(2000),
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   CONTACT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
@@ -90,6 +96,8 @@ const envSchema = z.object({
   STUDIO_PREVIEW_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
   SITE_REVALIDATE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
   REVALIDATE_SECRET: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
+  // Site Studio opens with this PIN (6-12 digits). Keep it only here, never in code.
+  STUDIO_PIN: z.preprocess(emptyToUndefined, z.string().regex(/^\d{6,12}$/).optional()),
   // Profile-completion gate on POST /jobs/apply (audit P0-3). Off unless set to
   // "true"/"1" so it can be enabled per environment: staging first, then prod.
   FEATURE_APPLY_GATE: z.preprocess(
@@ -106,4 +114,3 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
-

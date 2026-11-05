@@ -15,4 +15,5 @@ const siteContentRevisionSchema = new mongoose.Schema(
 
 siteContentRevisionSchema.index({ key: 1, version: -1 });
 
-export default mongoose.models.SiteContentRevision || mongoose.model('SiteContentRevision', siteContentRevisionSchema);
+export default mongoose.models.SiteContentRevision ||
+  mongoose.model('SiteContentRevision', siteContentRevisionSchema);

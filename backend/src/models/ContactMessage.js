@@ -22,4 +22,3 @@ const contactMessageSchema = new mongoose.Schema(
 );
 
 export const ContactMessage = mongoose.model('ContactMessage', contactMessageSchema);
-
