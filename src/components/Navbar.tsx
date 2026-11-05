@@ -1,6 +1,7 @@
 "use client";
 import {
   Briefcase,
+  Link2,
   LogIn,
   Mail,
   Menu,
@@ -16,8 +17,10 @@ import Image from "next/image";
 import { memo, useCallback, useState } from "react";
 import logoImage from "@/assets/logo-tagline.png";
 import { Link, NavLink } from "@/compat/router";
+import { useSiteContent } from "@/components/site/SiteContentProvider";
 import { useSession } from "@/hooks/useSession";
 import { dashboardPathForRole } from "@/lib/auth";
+import { editable } from "@/lib/siteContentCore";
 
 const navItems: { label: string; path: string; icon: LucideIcon }[] = [
   { label: "Candidate", path: "/candidates", icon: UserRound },
@@ -27,6 +30,13 @@ const navItems: { label: string; path: string; icon: LucideIcon }[] = [
   { label: "Partners", path: "/partners", icon: Trophy },
   { label: "Our Team", path: "/our-team", icon: Users },
 ];
+
+// Site Studio can relabel, reorder, hide or add menu links (`nav`) and swap the
+// logo (`brand`). Nothing published = the menu and logo above, unchanged.
+type NavEdit = { label?: string; path?: string; visible?: boolean };
+const NAV_DEFAULTS: { items: NavEdit[] } = { items: [] };
+const BRAND_DEFAULTS: { siteName?: string; logo?: string; logoDark?: string } = {};
+const ICON_BY_PATH = new Map(navItems.map((item) => [item.path, item.icon]));
 
 const navLinkClass = (isActive: boolean) =>
   `relative text-[0.9rem] font-medium tracking-tight transition-colors hover:text-primary ${isActive ? "text-primary" : "text-foreground/70"
@@ -47,6 +57,14 @@ const Navbar = memo(function Navbar() {
     : { label: "Login / Sign up", path: "/login", icon: LogIn, aria: "Login or sign up" };
   const AccountIcon = account.icon;
 
+  const nav = useSiteContent("nav", NAV_DEFAULTS);
+  const brand = useSiteContent("brand", BRAND_DEFAULTS);
+  const edited = nav.items
+    .filter((item) => item.visible !== false && item.label && item.path)
+    .map((item) => ({ label: item.label as string, path: item.path as string, icon: ICON_BY_PATH.get(item.path as string) ?? Link2 }));
+  const links = nav.items.length ? edited : navItems;
+  const logoAlt = brand.siteName ? `${brand.siteName} home` : "RecruitKr — Your Hiring Partner";
+
   return (
     <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/40 bg-white/95 shadow-soft-sm backdrop-blur-xl supports-[backdrop-filter]:bg-white/90 dark:border-white/10 dark:bg-[#0d1a30]/90">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:h-20 sm:px-6 lg:px-8">
@@ -54,26 +72,40 @@ const Navbar = memo(function Navbar() {
         {/* Full logo with the "Your Hiring Partner" tagline baked in, on a
             genuinely transparent background (white removed) — no white box,
             works on any navbar colour, light or dark. */}
-        <Link to="/" aria-label="RecruitKr home" className="flex shrink-0 items-center">
+        <Link to="/" aria-label={brand.siteName ? `${brand.siteName} home` : "RecruitKr home"} className="flex shrink-0 items-center" {...editable("brand.logo")}>
           {/* next/image, not a raw <img>: the source PNG is 912x391 (186 KB) but
               this renders at ~168x72, and it is the LCP element on every page.
               A bare <img src={logoImage.src}> ships the full-size PNG and cost
               ~1.8s of a 4.5s mobile LCP. Passing the static import lets Next
               serve a correctly-sized WebP/AVIF. `priority` replaces the old
               eager + fetchPriority="high" pair. */}
-          <Image
-            src={logoImage}
-            alt="RecruitKr — Your Hiring Partner"
-            width={168}
-            height={72}
-            priority
-            className="h-16 w-auto object-contain sm:h-[4.5rem]"
-          />
+          {brand.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element -- a Studio upload can live on any https host
+            <img
+              src={brand.logo}
+              alt={logoAlt}
+              height={72}
+              className={`h-16 w-auto object-contain sm:h-[4.5rem]${brand.logoDark ? " dark:hidden" : ""}`}
+            />
+          ) : (
+            <Image
+              src={logoImage}
+              alt={logoAlt}
+              width={168}
+              height={72}
+              priority
+              className={`h-16 w-auto object-contain sm:h-[4.5rem]${brand.logoDark ? " dark:hidden" : ""}`}
+            />
+          )}
+          {brand.logoDark ? (
+            // eslint-disable-next-line @next/next/no-img-element -- a Studio upload can live on any https host
+            <img src={brand.logoDark} alt={logoAlt} height={72} className="hidden h-16 w-auto object-contain sm:h-[4.5rem] dark:block" />
+          ) : null}
         </Link>
 
         {/* Nav Links (desktop) */}
-        <div className="hidden items-center gap-7 text-[#264a7f] lg:flex xl:gap-8 dark:text-foreground">
-          {navItems.map((item) => {
+        <div className="hidden items-center gap-7 text-[#264a7f] lg:flex xl:gap-8 dark:text-foreground" {...editable("nav.items")}>
+          {links.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink
@@ -139,7 +171,7 @@ const Navbar = memo(function Navbar() {
             id="mobile-nav-menu"
             className="animate-pop-in relative z-50 max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-border/60 bg-white/90 px-3 py-3 shadow-soft-lg backdrop-blur-xl dark:bg-[#0d1a30]/90 lg:hidden"
           >
-            {[...navItems, { label: account.label, path: account.path, icon: account.icon }].map((item) => {
+            {[...links, { label: account.label, path: account.path, icon: account.icon }].map((item) => {
               const Icon = item.icon;
               return (
                 <NavLink

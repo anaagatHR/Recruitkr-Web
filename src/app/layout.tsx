@@ -7,7 +7,10 @@ import JoinPrompt from "@/components/JoinPrompt";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import QueryProvider from "@/components/QueryProvider";
 import ThemeProvider from "@/components/ThemeProvider";
+import { SiteContentProvider } from "@/components/site/SiteContentProvider";
 import { Toaster } from "@/components/ui/toaster";
+import { getContent, getPublishedContent } from "@/lib/siteContent";
+import { themeCss, themeFontsHref } from "@/lib/siteContentCore";
 
 // Body / UI text — Inter: clean, neutral, legible at every size.
 const inter = Inter({
@@ -39,7 +42,7 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   metadataBase: new URL(SITE_URL),
 
   title: {
@@ -138,6 +141,13 @@ export const metadata: Metadata = {
   },
 };
 
+// Identical to baseMetadata unless a favicon is published in Site Studio.
+export async function generateMetadata(): Promise<Metadata> {
+  const { favicon } = getContent(await getPublishedContent(), "brand", { favicon: "" });
+  if (!favicon) return baseMetadata;
+  return { ...baseMetadata, icons: { icon: [{ url: favicon }], shortcut: favicon, apple: favicon } };
+}
+
 const organizationJsonLd = {
   "@context": "https://schema.org",
   "@graph": [
@@ -157,11 +167,15 @@ const organizationJsonLd = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Published Site Studio content ({} when none, or when the API is slow/down).
+  const content = await getPublishedContent();
+  const theme = themeCss(content);
+  const fontsHref = themeFontsHref(content);
   // `suppressHydrationWarning` on <html> is required, not cosmetic: next-themes
   // writes the active theme onto <html> as a class from a blocking script before
   // React hydrates, so the client's className never matches the server's and
@@ -170,6 +184,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${sora.variable}`} suppressHydrationWarning>
       <body>
+        {/* Site Studio theme: only rendered when one is published. */}
+        {theme ? <style dangerouslySetInnerHTML={{ __html: theme }} /> : null}
+        {fontsHref ? <link rel="stylesheet" href={fontsHref} /> : null}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -191,7 +208,7 @@ export default function RootLayout({
             <AnalyticsTracker />
             <ApiKeepAlive />
             <JoinPrompt />
-            {children}
+            <SiteContentProvider initial={content}>{children}</SiteContentProvider>
             <MobileBottomNav />
             <Toaster />
           </QueryProvider>

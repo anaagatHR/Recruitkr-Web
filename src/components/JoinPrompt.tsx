@@ -48,6 +48,7 @@ export default function JoinPrompt() {
   useEffect(() => {
     if (suppressed) return;
     if (getSession()) return; // already a member — nothing to capture.
+    if (new URLSearchParams(window.location.search).has("studio")) return; // Site Studio's live preview
 
     try {
       if (localStorage.getItem(SEEN_KEY)) return;

@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/index.css"
+        ],
+        "createdAt": "2026-11-05T19:10:37.143Z",
+        "reason": "Claude triage: slate-100/200 text on slate-900 and white/5-over-slate-950 surfaces is near-white on near-black (~15:1), not gray on a hue"
+      }
+    ]
+  }
+}

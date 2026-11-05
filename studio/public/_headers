@@ -1,0 +1,7 @@
+# Cloudflare Pages headers. Only Business OS (and the Studio itself) may frame
+# the Studio; nothing is indexed.
+/*
+  Content-Security-Policy: frame-ancestors 'self' https://recruitkr-business-os.vercel.app
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Robots-Tag: noindex, nofollow

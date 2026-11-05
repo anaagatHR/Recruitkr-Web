@@ -5,6 +5,8 @@ import { Link } from "@/compat/router";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { services } from "@/lib/services";
 import { CITIES, cityHeading, cityPath } from "@/lib/locations";
+import { useSiteContent } from "@/components/site/SiteContentProvider";
+import { editable } from "@/lib/siteContentCore";
 
 /**
  * Site-wide footer: a close, not a sitemap. It ends on the one thing the
@@ -60,6 +62,26 @@ const SOCIAL = [
     label: "RecruitKr on Instagram",
   },
 ];
+
+// Site Studio key `footer`: today's copy and contacts are the defaults.
+const SOCIAL_ICON = { linkedin: Linkedin, facebook: Facebook, instagram: Instagram } as const;
+const SOCIAL_LABEL = { linkedin: "RecruitKr on LinkedIn", facebook: "RecruitKr on Facebook", instagram: "RecruitKr on Instagram" } as const;
+const FOOTER_DEFAULTS = {
+  heading: "Let's meet in Jaipur.",
+  intro:
+    "Hiring for a role, or looking for your next job? Call, write, or come and see us at either of our offices. Let us know before you visit so the right recruiter is there to meet you.",
+  phones: PHONES as { label?: string; display?: string; tel?: string }[],
+  emails: EMAILS.map((email, i) => ({ label: i === 0 ? "General & employers" : "Careers", email })) as { label?: string; email?: string }[],
+  ctaLabel: "Send us a message",
+  visitHeading: "Visit us in person",
+  visitIntro: "Two offices in Jaipur. Pick one to see where it is.",
+  copyright: "RecruitKr · Anaagat Humanpower Private Limited",
+  social: [
+    { network: "linkedin", href: SOCIAL[0].href },
+    { network: "facebook", href: SOCIAL[1].href },
+    { network: "instagram", href: SOCIAL[2].href },
+  ] as { network?: keyof typeof SOCIAL_ICON; href?: string }[],
+};
 
 type FooterLink = { label: string; to: string };
 
@@ -249,6 +271,10 @@ const Footer = () => {
   const markRef = useRef<HTMLDivElement>(null);
   const visitStage = useReveal(visitRef, 0.2);
   const markStage = useReveal(markRef, 0.35);
+  const f = useSiteContent("footer", FOOTER_DEFAULTS);
+  const phones = f.phones.filter((p) => p.tel && p.display);
+  const emails = f.emails.filter((e) => e.email);
+  const social = f.social.filter((s) => s.href && s.network && SOCIAL_ICON[s.network]);
 
   return (
     <footer className="relative overflow-hidden text-white" style={{ backgroundColor: INK }}>
@@ -263,16 +289,16 @@ const Footer = () => {
             <h2
               id="footer-meet"
               className="heading-plain font-display text-4xl font-bold leading-[1.02] tracking-[-0.03em] text-white sm:text-5xl lg:text-6xl"
+              {...editable("footer.heading")}
             >
-              Let&apos;s meet in Jaipur.
+              {f.heading}
             </h2>
-            <p className="mt-5 max-w-md text-base leading-relaxed text-slate-200">
-              Hiring for a role, or looking for your next job? Call, write, or come and see us at either of our
-              offices. Let us know before you visit so the right recruiter is there to meet you.
+            <p className="mt-5 max-w-md text-base leading-relaxed text-slate-200" {...editable("footer.intro")}>
+              {f.intro}
             </p>
 
-            <dl className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              {PHONES.map((phone) => (
+            <dl className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2" {...editable("footer.phones")}>
+              {phones.map((phone) => (
                 <div key={phone.tel}>
                   <dt className="text-sm text-slate-300">{phone.label}</dt>
                   <dd>
@@ -286,9 +312,9 @@ const Footer = () => {
                   </dd>
                 </div>
               ))}
-              {EMAILS.map((email, i) => (
+              {emails.map(({ label, email }) => (
                 <div key={email}>
-                  <dt className="text-sm text-slate-300">{i === 0 ? "General & employers" : "Careers"}</dt>
+                  <dt className="text-sm text-slate-300">{label}</dt>
                   <dd>
                     <a
                       href={`mailto:${email}`}
@@ -306,13 +332,17 @@ const Footer = () => {
               to="/contact"
               className={`mt-8 inline-flex min-h-[48px] items-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-[#0c1c38] transition-colors hover:bg-[#e6eef9] ${focusRing}`}
             >
-              Send us a message <ArrowUpRight size={16} aria-hidden />
+              <span {...editable("footer.ctaLabel")}>{f.ctaLabel}</span> <ArrowUpRight size={16} aria-hidden />
             </Link>
           </div>
 
           <div className="lg:col-span-7">
-            <h3 className="font-display text-lg font-semibold text-white">Visit us in person</h3>
-            <p className="mb-4 mt-1 text-sm text-slate-300">Two offices in Jaipur. Pick one to see where it is.</p>
+            <h3 className="font-display text-lg font-semibold text-white" {...editable("footer.visitHeading")}>
+              {f.visitHeading}
+            </h3>
+            <p className="mb-4 mt-1 text-sm text-slate-300" {...editable("footer.visitIntro")}>
+              {f.visitIntro}
+            </p>
             <OfficeMap stage={visitStage} />
           </div>
         </section>
@@ -350,8 +380,8 @@ const Footer = () => {
 
         {/* Social + legal */}
         <div className="flex flex-col-reverse gap-6 pb-10 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-slate-300" suppressHydrationWarning>
-            &copy; {new Date().getFullYear()} RecruitKr · Anaagat Humanpower Private Limited
+          <p className="text-sm text-slate-300" suppressHydrationWarning {...editable("footer.copyright")}>
+            &copy; {new Date().getFullYear()} {f.copyright}
           </p>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
             {LEGAL.map((item) => (
@@ -363,19 +393,22 @@ const Footer = () => {
                 {item.label}
               </Link>
             ))}
-            <span className="flex gap-2">
-              {SOCIAL.map(({ icon: Icon, href, label }) => (
+            <span className="flex gap-2" {...editable("footer.social")}>
+              {social.map(({ network, href }) => {
+                const Icon = SOCIAL_ICON[network as keyof typeof SOCIAL_ICON];
+                return (
                 <a
                   key={href}
                   href={href}
                   target="_blank"
                   rel="noreferrer"
-                  aria-label={label}
+                  aria-label={SOCIAL_LABEL[network as keyof typeof SOCIAL_LABEL]}
                   className={`inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.08] text-white transition-colors hover:bg-[#69a44f] ${focusRing}`}
                 >
                   <Icon size={18} aria-hidden />
                 </a>
-              ))}
+                );
+              })}
             </span>
           </div>
         </div>

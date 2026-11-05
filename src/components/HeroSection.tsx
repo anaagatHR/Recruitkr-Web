@@ -4,6 +4,8 @@ import { ArrowRight, ChevronDown } from "lucide-react";
 import { useReducedMotion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@/compat/router";
+import { useSiteContent } from "@/components/site/SiteContentProvider";
+import { editable } from "@/lib/siteContentCore";
 import { displayCompany, fetchJobs, homepageEligible, jobPath, type Job } from "@/lib/jobs";
 import { formatCount, useSiteStats } from "@/lib/stats";
 
@@ -41,6 +43,19 @@ const PHOTOS = [
   { src: "/assets/hero-team-3.jpg", alt: "Recruiter and candidate shaking hands after an interview" },
   { src: "/assets/hero-team-4.jpg", alt: "Candidate signing an offer letter" },
 ];
+
+// Site Studio key `home.hero`: today's copy is the default, published values replace it field by field.
+const HERO_DEFAULTS = {
+  badgeFree: "₹0 for job seekers",
+  headlineStart: "Find me a",
+  headlineMiddle: "job in",
+  headlineEnd: "that’s verified & free.",
+  helper: "Tap the green words to change them. Chat with the recruiter directly once you apply.",
+  buttonPrefix: "Show",
+  searchPlaceholder: "or type a skill, title or company",
+  roles: ROLES.map((name) => ({ name })),
+  photos: PHOTOS as { src: string; alt: string }[],
+};
 
 const CYCLE_MS = 2600;
 
@@ -96,10 +111,13 @@ function Blank({
 
 /** The photo stamp inside the sentence; crossfades with the blanks and
  *  stretches wide on hover so the picture can actually be seen. */
-function PhotoStamp({ index }: { index: number }) {
+function PhotoStamp({ index, photos }: { index: number; photos: { src: string; alt: string }[] }) {
   return (
-    <span className="relative inline-block h-[0.72em] w-[1.75em] cursor-pointer overflow-hidden rounded-full align-[-0.06em] shadow-md ring-2 ring-white transition-[width] duration-500 ease-out hover:w-[3.4em]">
-      {PHOTOS.map((p, i) => (
+    <span
+      className="relative inline-block h-[0.72em] w-[1.75em] cursor-pointer overflow-hidden rounded-full align-[-0.06em] shadow-md ring-2 ring-white transition-[width] duration-500 ease-out hover:w-[3.4em]"
+      {...editable("home.hero.photos")}
+    >
+      {photos.map((p, i) => (
         <Image
           key={p.src}
           src={p.src}
@@ -108,6 +126,8 @@ function PhotoStamp({ index }: { index: number }) {
           sizes="320px"
           quality={70}
           priority={i === 0}
+          // Studio uploads can live on any https host; next/image only optimises known ones.
+          unoptimized={/^https?:/i.test(p.src)}
           className={`object-cover object-center transition-opacity duration-700 ${i === index ? "opacity-100" : "opacity-0"}`}
         />
       ))}
@@ -169,8 +189,16 @@ const HeroSection = () => {
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
   const { stats, loading } = useSiteStats();
+  const hero = useSiteContent("home.hero", HERO_DEFAULTS);
+  const roles = useMemo(() => {
+    const names = hero.roles.map((r) => r.name).filter((n): n is string => Boolean(n));
+    return names.length ? names : ROLES;
+  }, [hero.roles]);
+  const photos = hero.photos.filter((p) => p.src).length ? hero.photos.filter((p) => p.src) : PHOTOS;
 
-  const [role, setRole] = useState(ROLES[0]);
+  const [roleState, setRole] = useState(ROLES[0]);
+  // A Studio edit can remove the role on screen; fall back to the first one.
+  const role = roles.includes(roleState) ? roleState : roles[0];
   const [city, setCity] = useState(FALLBACK_CITIES[0]);
   const [photo, setPhoto] = useState(0);
   const [touched, setTouched] = useState(false);
@@ -190,15 +218,15 @@ const HeroSection = () => {
   useEffect(() => {
     if (touched || reduceMotion) return;
     const id = window.setInterval(() => {
-      setRole((r) => ROLES[(ROLES.indexOf(r) + 1) % ROLES.length]);
+      setRole((r) => roles[(roles.indexOf(r) + 1) % roles.length]);
       setCity((c) => {
         const i = cities.indexOf(c);
         return cities[(i + 1) % cities.length];
       });
-      setPhoto((p) => (p + 1) % PHOTOS.length);
+      setPhoto((p) => (p + 1) % photos.length);
     }, CYCLE_MS);
     return () => window.clearInterval(id);
-  }, [touched, reduceMotion, cities]);
+  }, [touched, reduceMotion, cities, roles, photos.length]);
 
   const pick = (set: (v: string) => void) => (v: string) => {
     setTouched(true);
@@ -231,17 +259,24 @@ const HeroSection = () => {
           <span aria-hidden className="text-[#e59f56]">
             ✦
           </span>
-          <span>₹0 for job seekers</span>
+          <span {...editable("home.hero.badgeFree")}>{hero.badgeFree}</span>
         </p>
 
         <h1 className="group/blank mt-6 max-w-6xl font-heading text-[clamp(2.3rem,8.2vw,6rem)] font-extrabold leading-[1.08] tracking-tight text-[#1c3357] sm:mt-8">
-          Find me a <Blank label="Job role" value={role} options={ROLES} onChange={pick(setRole)} /> job in{" "}
-          <Blank label="City" value={city} options={cities} onChange={pick(setCity)} /> <PhotoStamp index={photo} />{" "}
-          <span className="text-[#69a44f]">that&rsquo;s verified &amp; free.</span>
+          <span {...editable("home.hero.headlineStart")}>{hero.headlineStart}</span>{" "}
+          <span {...editable("home.hero.roles")}>
+            <Blank label="Job role" value={role} options={roles} onChange={pick(setRole)} />
+          </span>{" "}
+          <span {...editable("home.hero.headlineMiddle")}>{hero.headlineMiddle}</span>{" "}
+          <Blank label="City" value={city} options={cities} onChange={pick(setCity)} />{" "}
+          <PhotoStamp index={photo % photos.length} photos={photos} />{" "}
+          <span className="text-[#69a44f]" {...editable("home.hero.headlineEnd")}>
+            {hero.headlineEnd}
+          </span>
         </h1>
 
-        <p className="mt-4 text-sm text-slate-600 sm:text-base">
-          Tap the green words to change them. Chat with the recruiter directly once you apply.
+        <p className="mt-4 text-sm text-slate-600 sm:text-base" {...editable("home.hero.helper")}>
+          {hero.helper}
         </p>
 
         <div className="mt-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-8">
@@ -249,7 +284,10 @@ const HeroSection = () => {
             to={jobsHref(role, city)}
             className="sheen group inline-flex items-center justify-center gap-3 rounded-full bg-[#1c3357] px-7 py-4 text-base font-semibold text-white shadow-lg shadow-[#1c3357]/20 transition-transform duration-300 hover:-translate-y-1 sm:text-lg"
           >
-            Show {role} jobs in {city}
+            {/* One element, like the original text node: the link is a flex row with a gap. */}
+            <span {...editable("home.hero.buttonPrefix")}>
+              {hero.buttonPrefix} {role} jobs in {city}
+            </span>
             <ArrowRight size={20} className="transition-transform duration-300 group-hover:translate-x-1" />
           </Link>
 
@@ -259,7 +297,8 @@ const HeroSection = () => {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && searchKeyword()}
-              placeholder="or type a skill, title or company"
+              placeholder={hero.searchPlaceholder}
+              {...editable("home.hero.searchPlaceholder")}
               enterKeyHint="search"
               autoComplete="off"
               aria-label="Search jobs by skill, title or company"

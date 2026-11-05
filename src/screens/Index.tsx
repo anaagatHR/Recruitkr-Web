@@ -1,7 +1,10 @@
 ﻿"use client";
 
 import dynamic from "next/dynamic";
+import { Fragment, type ReactNode } from "react";
 import Navbar from "@/components/Navbar";
+import { useSiteContent } from "@/components/site/SiteContentProvider";
+import { HOME_SECTION_IDS } from "../../backend/src/shared/siteContentSchema.js";
 import HeroSection from "@/components/HeroSection";
 import Footer from "@/components/Footer";
 import FeaturedJobsSection from "@/components/FeaturedJobsSection";
@@ -57,18 +60,39 @@ function SectionSkeleton({ className }: { className: string }) {
  * it look thin; it returns when the board has depth), and written reviews
  * (rendered nothing until reviews exist).
  */
+// Site Studio key `home.sections` can reorder or hide what follows the hero.
+const SECTIONS: Record<string, () => ReactNode> = {
+  "latest-jobs": () => <FeaturedJobsSection variant="latest" />,
+  "job-showcase": () => <JobShowcase />,
+  "why-us": () => <HomeWhyUs />,
+  placement: () => <Placement />,
+  testimonials: () => <HomeTestimonials />,
+  "closing-cta": () => <HomeClosingCta />,
+};
+const SECTION_DEFAULTS = { order: HOME_SECTION_IDS.map((id) => ({ id, visible: true })) as { id?: string; visible?: boolean }[] };
+
+/** Published order first; any section it doesn't mention keeps showing, after it, in the default order. */
+function sectionOrder(order: { id?: string; visible?: boolean }[]): string[] {
+  const seen = new Set<string>();
+  const shown: string[] = [];
+  for (const { id, visible } of order) {
+    if (!id || !SECTIONS[id] || seen.has(id)) continue;
+    seen.add(id);
+    if (visible !== false) shown.push(id);
+  }
+  return [...shown, ...HOME_SECTION_IDS.filter((id) => !seen.has(id))];
+}
+
 const Index = () => {
+  const { order } = useSiteContent("home.sections", SECTION_DEFAULTS);
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
       <main id="main">
         <HeroSection />
-        <FeaturedJobsSection variant="latest" />
-        <JobShowcase />
-        <HomeWhyUs />
-        <Placement />
-        <HomeTestimonials />
-        <HomeClosingCta />
+        {sectionOrder(order).map((id) => (
+          <Fragment key={id}>{SECTIONS[id]()}</Fragment>
+        ))}
       </main>
       <Footer />
     </div>

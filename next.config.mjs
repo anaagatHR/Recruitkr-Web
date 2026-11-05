@@ -16,6 +16,14 @@ const CRM_ORIGIN = (() => {
 })();
 const wsOrigin = (origin) => origin.replace(/^http/, "ws");
 
+// Site Studio shows the site in a frame for its live preview. Only these exact
+// origins (comma-separated in NEXT_PUBLIC_STUDIO_ORIGIN: the Studio, and the
+// Business OS page that embeds it) may frame it; unset = nobody, as before.
+const STUDIO_FRAME_ORIGINS = (process.env.NEXT_PUBLIC_STUDIO_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/$/, ""))
+  .filter((origin) => /^https?:\/\/[A-Za-z0-9.-]+(:\d+)?$/.test(origin));
+
 /**
  * Content-Security-Policy. 'unsafe-inline' for scripts is required by Next's
  * own bootstrap scripts and the JSON-LD blocks without a nonce pipeline;
@@ -26,7 +34,7 @@ const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
-  "frame-ancestors 'none'",
+  `frame-ancestors ${STUDIO_FRAME_ORIGINS.length ? STUDIO_FRAME_ORIGINS.join(" ") : "'none'"}`,
   "form-action 'self'",
   `script-src 'self' 'unsafe-inline' ${process.env.NODE_ENV === "development" ? "'unsafe-eval'" : ""} https://www.googletagmanager.com https://challenges.cloudflare.com`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
@@ -44,7 +52,9 @@ const contentSecurityPolicy = [
 const securityHeaders = [
   // Two years, subdomains, preload-list eligible.
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-  { key: "X-Frame-Options", value: "DENY" },
+  // X-Frame-Options can't name another origin; with Studio origins set,
+  // frame-ancestors above does the job (browsers prefer it anyway).
+  ...(STUDIO_FRAME_ORIGINS.length ? [] : [{ key: "X-Frame-Options", value: "DENY" }]),
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-DNS-Prefetch-Control", value: "on" },
