@@ -77,8 +77,15 @@ describe('Studio PIN sign-in', () => {
 
   it('refuses forged and expired Studio tokens, and tokens from an old PIN', async () => {
     const forged = `${pin.makeStudioToken().slice(0, -4)}AAAA`;
-    assert.equal((await fetch(`${base}/site-content`, { headers: { Authorization: `Bearer ${forged}` } })).status, 401);
-    assert.equal(pin.verifyStudioToken(pin.makeStudioToken(Date.now() - 9 * 60 * 60 * 1000)), false);
+    assert.equal(
+      (await fetch(`${base}/site-content`, { headers: { Authorization: `Bearer ${forged}` } }))
+        .status,
+      401,
+    );
+    assert.equal(
+      pin.verifyStudioToken(pin.makeStudioToken(Date.now() - 9 * 60 * 60 * 1000)),
+      false,
+    );
     const issued = pin.makeStudioToken();
     env.STUDIO_PIN = '87654321';
     assert.equal(pin.verifyStudioToken(issued), false, 'changing the PIN signs everyone out');
@@ -88,7 +95,6 @@ describe('Studio PIN sign-in', () => {
 
   it('locks PIN sign-in after many wrong guesses, even with the right PIN', async () => {
     for (let i = 0; i < 30; i += 1) {
-       
       await new Promise((resolve) => {
         pin.pinLogin({ body: { pin: 'wrong-pin' } }, {}, resolve);
       });

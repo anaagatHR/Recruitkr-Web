@@ -45,19 +45,27 @@ export const verifyStudioToken = (token, now = Date.now()) => {
 };
 
 export const pinMatches = (pin) =>
-  Boolean(env.STUDIO_PIN) && typeof pin === 'string' && crypto.timingSafeEqual(sha(pin.trim()), sha(env.STUDIO_PIN));
+  Boolean(env.STUDIO_PIN) &&
+  typeof pin === 'string' &&
+  crypto.timingSafeEqual(sha(pin.trim()), sha(env.STUDIO_PIN));
 
 let failures = [];
 
 /** POST /site-content/pin-login { pin } → { token, expiresInMs } */
 export const pinLogin = asyncHandler(async (req, res) => {
   if (!env.STUDIO_PIN) {
-    throw new ApiError(StatusCodes.SERVICE_UNAVAILABLE, 'PIN sign-in is off: STUDIO_PIN is not set on the API');
+    throw new ApiError(
+      StatusCodes.SERVICE_UNAVAILABLE,
+      'PIN sign-in is off: STUDIO_PIN is not set on the API',
+    );
   }
   const now = Date.now();
   failures = failures.filter((t) => now - t < LOCK_WINDOW_MS);
   if (failures.length >= LOCK_AFTER) {
-    throw new ApiError(StatusCodes.TOO_MANY_REQUESTS, 'Too many wrong PINs. Try again in 15 minutes.');
+    throw new ApiError(
+      StatusCodes.TOO_MANY_REQUESTS,
+      'Too many wrong PINs. Try again in 15 minutes.',
+    );
   }
   if (!pinMatches(req.body?.pin)) {
     failures.push(now);
@@ -71,7 +79,9 @@ export const requireStudio = (req, res, next) => {
   const header = req.headers.authorization || '';
   if (header.startsWith(`Bearer ${PREFIX}`)) {
     if (!verifyStudioToken(header.slice(7).trim())) {
-      return next(new ApiError(StatusCodes.UNAUTHORIZED, 'Studio session expired. Enter the PIN again.'));
+      return next(
+        new ApiError(StatusCodes.UNAUTHORIZED, 'Studio session expired. Enter the PIN again.'),
+      );
     }
     req.user = { id: STUDIO_USER_ID, role: 'admin' };
     req.auth = { tokenSource: 'studio-pin' };
