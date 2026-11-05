@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { api, type Member } from "../api";
+import { api, SITE_URL, type Member, type Value } from "../api";
 import { driveEnabled } from "../drive";
 import { Modal, useToast } from "../ui";
 import { importDrive, MediaLibrary, useUpload } from "./MediaLibrary";
@@ -8,13 +8,49 @@ import { importDrive, MediaLibrary, useUpload } from "./MediaLibrary";
 const EMPTY: Omit<Member, "id" | "displayOrder" | "active"> = { name: "", role: "", summary: "", image: "", video: "", linkedin: "", email: "" };
 
 /** Team cards: drag to reorder, click to edit, hide/show. Nobody is ever deleted (the CRM may point at them). */
-export function TeamPanel({ onChanged }: { onChanged: () => void }) {
+const absolute = (url: unknown) => {
+  const u = typeof url === "string" ? url.trim() : "";
+  return u.startsWith("/") ? `${SITE_URL}${u}` : u;
+};
+
+export function TeamPanel({ onChanged, siteTeam = [] }: { onChanged: () => void; siteTeam?: Value[] }) {
   const toast = useToast();
   const qc = useQueryClient();
   const team = useQuery({ queryKey: ["team"], queryFn: () => api<Member[]>("/studio/team") });
   const [order, setOrder] = useState<Member[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Member | "new" | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  /** Copy the people the site shows by default into the team list, in the same order. */
+  const importSiteTeam = async () => {
+    setImporting(true);
+    try {
+      for (const m of siteTeam) {
+        // One at a time so they keep the site's order.
+        // eslint-disable-next-line no-await-in-loop
+        await api("/studio/team", {
+          method: "POST",
+          body: {
+            name: String(m.name ?? ""),
+            role: String(m.role ?? ""),
+            summary: String(m.summary ?? ""),
+            image: absolute(m.image),
+            video: absolute(m.video),
+            linkedin: String(m.linkedin ?? ""),
+            email: String(m.email ?? ""),
+          },
+        });
+      }
+      toast.ok(`Imported ${siteTeam.length} people. You can edit, reorder or hide them now.`);
+      refresh();
+    } catch (err) {
+      toast.error(err);
+      refresh();
+    } finally {
+      setImporting(false);
+    }
+  };
 
   useEffect(() => setOrder(team.data ?? []), [team.data]);
 
@@ -64,6 +100,21 @@ export function TeamPanel({ onChanged }: { onChanged: () => void }) {
           + Add member
         </button>
       </div>
+      {team.isSuccess && !order.length ? (
+        <div className="mb-3 rounded-lg border border-amber-400/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+          <p className="font-medium">The team list here is empty, so the Our Team page shows its built-in people{siteTeam.length ? ` (${siteTeam.length})` : ""}.</p>
+          <p className="mt-1 text-xs text-amber-200/80">
+            As soon as one person is added here, the page shows only this list. Import the built-in people first so nobody disappears.
+          </p>
+          {siteTeam.length ? (
+            <button type="button" className="btn-primary mt-2" disabled={importing} onClick={importSiteTeam}>
+              {importing ? "Importing…" : `Import the ${siteTeam.length} people shown on the site`}
+            </button>
+          ) : (
+            <p className="mt-2 text-xs">Waiting for the Our Team page to load in the preview…</p>
+          )}
+        </div>
+      ) : null}
       {team.isLoading ? <p className="text-sm text-slate-400">Loading team…</p> : null}
       {team.isError ? <p className="text-sm text-rose-300">Could not load the team.</p> : null}
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">

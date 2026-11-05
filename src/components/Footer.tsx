@@ -135,6 +135,30 @@ const LEGAL: FooterLink[] = [
   { label: "Delete Account", to: "/delete-account" },
 ];
 
+// Site Studio: the link columns and bottom links are editable. Today's columns are the
+// defaults; a published list replaces them, grouped into columns by column name.
+type EditableLink = { column?: string; label?: string; href?: string };
+const FOOTER_FULL_DEFAULTS = {
+  ...FOOTER_DEFAULTS,
+  links: LINK_SECTIONS.flatMap((s) => s.links.map((l) => ({ column: s.title, label: l.label, href: l.to }))) as EditableLink[],
+  legal: LEGAL.map((l) => ({ label: l.label, href: l.to })) as EditableLink[],
+};
+
+/** Published links back into columns, in the order the columns first appear. */
+function toSections(links: EditableLink[]): Array<{ title: string; links: FooterLink[]; wide?: boolean }> {
+  const byTitle = new Map<string, FooterLink[]>();
+  for (const l of links) {
+    if (!l.label || !l.href) continue;
+    const title = l.column?.trim() || "Links";
+    if (!byTitle.has(title)) byTitle.set(title, []);
+    byTitle.get(title)!.push({ label: l.label, to: l.href });
+  }
+  // Long columns flow into two, like Services and Jobs by city today.
+  return Array.from(byTitle, ([title, list]) => ({ title, links: list, wide: list.length > 8 }));
+}
+
+const isExternal = (to: string) => /^https?:\/\//i.test(to);
+
 const focusRing =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8fc46f] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(216_52%_11%)]";
 
@@ -251,15 +275,26 @@ function OfficeMap({ stage }: { stage: "idle" | "armed" | "in" }) {
 function LinkList({ links }: { links: FooterLink[] }) {
   return (
     <ul className="grid gap-0.5">
-      {links.map((item) => (
-        <li key={item.to}>
-          <Link
-            to={item.to}
-            prefetch={false}
-            className={`-mx-2 inline-flex min-h-[36px] items-center rounded-md px-2 text-sm text-slate-300 transition-colors hover:text-white ${focusRing}`}
-          >
-            {item.label}
-          </Link>
+      {links.map((item, i) => (
+        <li key={`${item.to}-${i}`}>
+          {isExternal(item.to) ? (
+            <a
+              href={item.to}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`-mx-2 inline-flex min-h-[36px] items-center rounded-md px-2 text-sm text-slate-300 transition-colors hover:text-white ${focusRing}`}
+            >
+              {item.label}
+            </a>
+          ) : (
+            <Link
+              to={item.to}
+              prefetch={false}
+              className={`-mx-2 inline-flex min-h-[36px] items-center rounded-md px-2 text-sm text-slate-300 transition-colors hover:text-white ${focusRing}`}
+            >
+              {item.label}
+            </Link>
+          )}
         </li>
       ))}
     </ul>
@@ -271,7 +306,9 @@ const Footer = () => {
   const markRef = useRef<HTMLDivElement>(null);
   const visitStage = useReveal(visitRef, 0.2);
   const markStage = useReveal(markRef, 0.35);
-  const f = useSiteContent("footer", FOOTER_DEFAULTS);
+  const f = useSiteContent("footer", FOOTER_FULL_DEFAULTS);
+  const sections = f.links === FOOTER_FULL_DEFAULTS.links ? LINK_SECTIONS : toSections(f.links);
+  const legal = f.legal.filter((l) => l.label && l.href).map((l) => ({ label: l.label as string, to: l.href as string }));
   const phones = f.phones.filter((p) => p.tel && p.display);
   const emails = f.emails.filter((e) => e.email);
   const social = f.social.filter((s) => s.href && s.network && SOCIAL_ICON[s.network]);
@@ -348,9 +385,9 @@ const Footer = () => {
         </section>
 
         {/* Links: grid on desktop, accordion on phones (CSS-switched, no hydration flash) */}
-        <nav aria-label="Footer" className="pb-12">
+        <nav aria-label="Footer" className="pb-12" {...editable("footer.links")}>
           <div className="hidden gap-10 rounded-3xl bg-white/[0.04] p-8 md:grid md:grid-cols-2 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1.6fr)_minmax(0,1.6fr)] lg:p-10">
-            {LINK_SECTIONS.map((section) => (
+            {sections.map((section) => (
               <div key={section.title}>
                 <h2 className="heading-plain mb-3 text-sm font-semibold text-white">{section.title}</h2>
                 {section.wide ? (
@@ -365,7 +402,7 @@ const Footer = () => {
           </div>
 
           <Accordion type="single" collapsible className="grid gap-2 md:hidden">
-            {LINK_SECTIONS.map((section) => (
+            {sections.map((section) => (
               <AccordionItem key={section.title} value={section.title} className="rounded-2xl border-0 bg-white/[0.05] px-4">
                 <AccordionTrigger className="min-h-[52px] py-3 text-left text-base font-semibold text-white no-underline hover:no-underline">
                   {section.title}
@@ -384,15 +421,29 @@ const Footer = () => {
             &copy; {new Date().getFullYear()} {f.copyright}
           </p>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            {LEGAL.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`inline-flex min-h-[44px] items-center text-sm text-slate-300 underline-offset-4 transition-colors hover:text-white hover:underline ${focusRing}`}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {legal.map((item, i) =>
+              isExternal(item.to) ? (
+                <a
+                  key={`${item.to}-${i}`}
+                  href={item.to}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex min-h-[44px] items-center text-sm text-slate-300 underline-offset-4 transition-colors hover:text-white hover:underline ${focusRing}`}
+                  {...editable("footer.legal")}
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link
+                  key={`${item.to}-${i}`}
+                  to={item.to}
+                  className={`inline-flex min-h-[44px] items-center text-sm text-slate-300 underline-offset-4 transition-colors hover:text-white hover:underline ${focusRing}`}
+                  {...editable("footer.legal")}
+                >
+                  {item.label}
+                </Link>
+              ),
+            )}
             <span className="flex gap-2" {...editable("footer.social")}>
               {social.map(({ network, href }) => {
                 const Icon = SOCIAL_ICON[network as keyof typeof SOCIAL_ICON];

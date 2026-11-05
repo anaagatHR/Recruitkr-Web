@@ -11,30 +11,49 @@ type Props = {
   onChange: (v: unknown) => void;
   pickMedia: PickMedia;
   highlight?: boolean;
+  changed?: boolean; // differs from what is live
+  onUndo?: () => void; // back to the live value
 };
 
 const isEmpty = (v: unknown) => v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 
 /** One editable field, shaped by its registry type. Empty = the site's built-in default. */
-export function FieldEditor({ name, spec, value, fallback, onChange, pickMedia, highlight }: Props) {
+export function FieldEditor({ name, spec, value, fallback, onChange, pickMedia, highlight, changed, onUndo }: Props) {
   const id = `f-${name}`;
   const hint = !isEmpty(fallback) && typeof fallback !== "object" ? String(fallback) : "";
   const wrap = (control: ReactNode, extra?: ReactNode) => (
-    <div id={`field-${name}`} className={`rounded-lg p-2 transition-colors ${highlight ? "bg-violet-500/15 ring-1 ring-violet-400" : ""}`}>
+    <div
+      id={`field-${name}`}
+      className={`rounded-lg p-2 transition-colors ${highlight ? "bg-violet-500/15 ring-1 ring-violet-400" : changed ? "bg-amber-500/5 ring-1 ring-amber-400/30" : ""}`}
+    >
       <div className="flex items-baseline justify-between gap-2">
         <label htmlFor={id} className="label">
           {spec.label}
+          {changed ? <span className="ml-2 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">changed</span> : null}
         </label>
-        {!isEmpty(value) && spec.type !== "toggle" ? (
-          <button
-            type="button"
-            className="text-[11px] text-slate-400 underline-offset-2 hover:text-white hover:underline"
-            onClick={() => onChange(undefined)}
-          >
-            Reset to default
-          </button>
-        ) : null}
+        <span className="flex gap-3">
+          {changed && onUndo ? (
+            <button
+              type="button"
+              className="text-[11px] text-amber-200 underline-offset-2 hover:text-white hover:underline"
+              onClick={onUndo}
+              title="Back to what visitors see now"
+            >
+              Undo
+            </button>
+          ) : null}
+          {!isEmpty(value) && spec.type !== "toggle" ? (
+            <button
+              type="button"
+              className="text-[11px] text-slate-400 underline-offset-2 hover:text-white hover:underline"
+              onClick={() => onChange(undefined)}
+              title="Use the site's built-in text or image"
+            >
+              Reset to default
+            </button>
+          ) : null}
+        </span>
       </div>
       {control}
       {extra}
@@ -68,6 +87,7 @@ export function FieldEditor({ name, spec, value, fallback, onChange, pickMedia, 
     }
     case "url":
     case "path":
+    case "link":
     case "email":
     case "tel":
       return wrap(
@@ -76,7 +96,15 @@ export function FieldEditor({ name, spec, value, fallback, onChange, pickMedia, 
           className="input"
           type={spec.type === "email" ? "email" : spec.type === "tel" ? "tel" : "text"}
           value={str(value)}
-          placeholder={hint ? `Site default: ${hint}` : spec.type === "path" ? "/page-on-this-site" : "https://"}
+          placeholder={
+            hint
+              ? `Site default: ${hint}`
+              : spec.type === "path"
+                ? "/page-on-this-site"
+                : spec.type === "link"
+                  ? "/jobs or https://…"
+                  : "https://"
+          }
           onChange={(e) => onChange(e.target.value)}
         />,
       );

@@ -3,6 +3,7 @@ import { startTransition, useEffect, useRef, useState, type MutableRefObject } f
 import { motion, MotionConfig, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import { BriefcaseBusiness, Linkedin, Mail, Play, Volume2, VolumeX } from "lucide-react";
 
+import { useReportDefaults } from "@/components/site/SiteContentProvider";
 import TeamConstellation from "@/components/team/TeamConstellation";
 import { useCentreItem } from "@/hooks/useCentreItem";
 import { fetchTeamMembers, getCachedTeamMembers, type TeamMember } from "@/lib/team";
@@ -23,6 +24,8 @@ const DUMMY_TEAM: TeamMember[] = [
   { _id: "team-aarti", name: "Aarti", role: "Data management", summary: "Keeps every candidate's profile, skills, salary and notice period in one place, so an urgent client role is matched with a single search.", image: "/team/aarti.jpg", video: "/team/aarti.mp4", linkedin: "", email: "" },
   { _id: "team-ayush", name: "Ayush", role: "Social media intern", summary: "Plans posts, creates reels and schedules the week's content for RecruitKr's social channels, and keeps an eye on comments and engagement.", image: "/team/ayush.jpg", video: "/team/ayush.mp4", linkedin: "", email: "" },
 ];
+
+const BUILT_IN_TEAM = { members: DUMMY_TEAM };
 
 const getInitials = (name: string) =>
   name
@@ -271,6 +274,8 @@ const TeamSection = () => {
   const [visibleCount, setVisibleCount] = useState(INITIAL_TEAM_COUNT);
   const cardRefs = useRef<Array<HTMLElement | null>>([]);
   const centred = useCentreItem(cardRefs);
+  // Site Studio preview: offer the built-in people for import into the team list.
+  useReportDefaults("team", BUILT_IN_TEAM);
 
   useEffect(() => {
     const cachedTeamMembers = getCachedTeamMembers();

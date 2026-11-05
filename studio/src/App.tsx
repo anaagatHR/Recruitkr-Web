@@ -20,6 +20,11 @@ type Panel = (typeof PANELS)[number]["id"];
 const DEVICES = { desktop: "100%", tablet: "820px", mobile: "390px" } as const;
 const PAGES = ["/", "/about", "/contact", "/employers", "/candidates", "/our-team", "/services"];
 // What the site uses when no theme is published (src/index.css), so pickers start from the real colours.
+// Which page of the site shows a part, so picking it opens that page in the preview.
+// Parts on every page (menu, footer) and site-wide ones (theme, brand) keep the current page.
+const PAGE_FOR: Record<string, string> = { "home.hero": "/", "home.sections": "/" };
+const PANEL_PAGE: Partial<Record<Panel, string>> = { team: "/our-team" };
+const PAGE_NAME: Record<string, string> = { "/": "Home page", "/our-team": "Our Team page" };
 const THEME_FALLBACK: Value = { primary: "#264a7f", secondary: "#69a44f", background: "#ffffff", foreground: "#1b2a3e", fontBody: "Inter", fontDisplay: "Sora", radius: 0.85 };
 
 export default function App() {
@@ -95,7 +100,8 @@ function Studio() {
   });
 
   const [panel, setPanel] = useState<Panel>("pages");
-  const [selectedKey, setSelectedKey] = useState("home.hero");
+  const [selectedKey, setSelectedKey] = useState<string | null>(null); // null = overview of all parts
+  const [confirmDiscard, setConfirmDiscard] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<string | null>(null);
   const [device, setDevice] = useState<keyof typeof DEVICES>("desktop");
   const [path, setPath] = useState("/");
@@ -123,7 +129,7 @@ function Studio() {
         if (!hit) return;
         const group = schema[hit.key].group;
         setPanel(group === "Theme" ? "theme" : group === "Brand" ? "brand" : "pages");
-        setSelectedKey(hit.key);
+        setSelectedKey(hit.key); // the clicked page is already showing: no navigation
         setHighlight(hit.field ? `${hit.key}:${hit.field}` : null);
         if (hit.field) setTimeout(() => document.getElementById(`field-${hit.key}.${hit.field}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
       } else if (e.data.type === "rk:defaults" && typeof e.data.key === "string") {
@@ -202,7 +208,138 @@ function Studio() {
 
   const pickMedia = (kind: "image" | "video") => new Promise<string | null>((resolve) => setMediaPick({ kind, resolve }));
 
-  const changed = Object.entries(items).filter(([, it]) => it.hasChanges).map(([key]) => key);
+  /** Unpublished changes in a part: fields whose draft (saved or still typing) differs from what is live. */
+  const changesIn = (key: string) => changedFields(valueOf(key), items[key]?.published ?? {});
+  const changed = Object.keys(schema).filter((key) => changesIn(key).length > 0);
+
+  const openPanel = (p: Panel) => {
+    setPanel(p);
+    setConfirmDiscard(null);
+    if (PANEL_PAGE[p]) setPath(PANEL_PAGE[p]!);
+  };
+  const openSection = (key: string) => {
+    const group = schema[key]?.group;
+    setPanel(group === "Theme" ? "theme" : group === "Brand" ? "brand" : "pages");
+    setSelectedKey(key);
+    setHighlight(null);
+    setConfirmDiscard(null);
+    if (PAGE_FOR[key] && PAGE_FOR[key] !== path) setPath(PAGE_FOR[key]);
+  };
+  const closeSection = () => {
+    setSelectedKey(null);
+    setHighlight(null);
+    setConfirmDiscard(null);
+    if (panel !== "pages") setPanel("pages");
+  };
+
+  /** Throw away a part's unpublished changes: back to exactly what is live. */
+  const discard = async (key: string) => {
+    if (timers.current[key]) {
+      window.clearTimeout(timers.current[key]);
+      delete timers.current[key];
+      setPending((p) => Math.max(0, p - 1));
+    }
+    setEdits(({ [key]: _, ...rest }) => rest);
+    setErrors((e) => ({ ...e, [key]: [] }));
+    setConfirmDiscard(null);
+    try {
+      if (items[key]) await api(`/site-content/${encodeURIComponent(key)}/discard`, { method: "POST" });
+      await qc.invalidateQueries({ queryKey: ["content"] });
+      post({ type: "rk:reload" });
+      toast.ok(`Changes to ${schema[key]?.label ?? key} discarded. The live version is back.`);
+    } catch (err) {
+      toast.error(err);
+    }
+  };
+
+  /** Header of an open part: what it is, where it shows, what is unpublished, discard and close. */
+  const sectionHeader = (key: string) => {
+    const spec = schema[key];
+    const fields = changesIn(key);
+    const where = PAGE_FOR[key] ? PAGE_NAME[PAGE_FOR[key]] : spec?.group === "Pages" ? "Every page" : "Whole site";
+    return (
+      <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-3 border-b border-white/10 bg-slate-950/95 px-4 py-3 backdrop-blur">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-wider text-slate-500">Editing · {where}</p>
+            <h2 className="truncate text-base font-semibold text-white">{spec?.label ?? key}</h2>
+          </div>
+          <button type="button" className="btn-ghost min-h-[32px] px-2" onClick={closeSection} aria-label="Close this editor" title="Close (nothing is lost)">
+            ✕
+          </button>
+        </div>
+        {fields.length ? (
+          <div className="mt-2 rounded-lg bg-amber-500/10 p-2 text-xs text-amber-100">
+            <p className="font-medium">
+              {fields.length} unpublished change{fields.length === 1 ? "" : "s"}: {fields.map((f) => spec?.fields[f]?.label ?? f).join(", ")}
+            </p>
+            <p className="mt-0.5 text-amber-200/70">Saved as a draft. Visitors see it only after you publish.</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {confirmDiscard === key ? (
+                <>
+                  <span className="self-center">Throw these changes away?</span>
+                  <button type="button" className="btn-danger min-h-[30px]" onClick={() => discard(key)}>
+                    Yes, discard
+                  </button>
+                  <button type="button" className="btn-ghost min-h-[30px]" onClick={() => setConfirmDiscard(null)}>
+                    Keep them
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="btn-ghost min-h-[30px]" onClick={() => setConfirmDiscard(key)}>
+                    Discard changes
+                  </button>
+                  <button type="button" className="btn-primary min-h-[30px]" onClick={() => setPublishing(true)} disabled={pending > 0}>
+                    Review &amp; publish
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="mt-2 text-xs text-emerald-300/90">No unpublished changes: this is what visitors see.</p>
+        )}
+      </div>
+    );
+  };
+
+  /** Nothing open: every editable part, where it shows, and how many changes wait in it. */
+  const overview = () => (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-base font-semibold text-white">What do you want to change?</h2>
+        <p className="mt-1 text-sm text-slate-400">Click any outlined text in the preview, or pick a part below. Opening a part changes nothing until you type.</p>
+      </div>
+      {changed.length ? (
+        <div className="rounded-lg bg-amber-500/10 p-3 text-xs text-amber-100">
+          <p className="font-medium">
+            {changed.length} part{changed.length === 1 ? "" : "s"} with unpublished changes
+          </p>
+          <button type="button" className="btn-primary mt-2 min-h-[30px]" onClick={() => setPublishing(true)} disabled={pending > 0}>
+            Review &amp; publish
+          </button>
+        </div>
+      ) : null}
+      <ul className="space-y-2">
+        {Object.entries(schema).map(([key, spec]) => {
+          const n = changesIn(key).length;
+          const where = PAGE_FOR[key] ? PAGE_NAME[PAGE_FOR[key]] : spec.group === "Pages" ? "Every page" : "Whole site";
+          return (
+            <li key={key}>
+              <button type="button" onClick={() => openSection(key)} className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 p-3 text-left hover:border-violet-400/60 hover:bg-white/5">
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-white">{spec.label}</span>
+                  <span className="block text-[11px] text-slate-500">{where}</span>
+                </span>
+                {n ? <span className="shrink-0 rounded-full bg-amber-500/20 px-2 py-0.5 text-[11px] text-amber-200">{n} change{n === 1 ? "" : "s"}</span> : <span className="shrink-0 text-[11px] text-slate-600">live</span>}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
   const iframeSrc = preview.data ? `${SITE_URL}${path}?studio=${encodeURIComponent(preview.data.token)}` : `${SITE_URL}${path}`;
 
   const editorFor = (key: string, fallback?: Value) => {
@@ -210,6 +347,8 @@ function Studio() {
     if (!spec) return null;
     const value = valueOf(key);
     const defaults = fallback ?? siteDefaults[key] ?? {};
+    const live = items[key]?.published ?? {};
+    const changedNow = new Set(changesIn(key));
     return (
       <div className="space-y-1">
         {Object.entries(spec.fields).map(([field, fs]) => (
@@ -222,6 +361,8 @@ function Studio() {
             onChange={(v) => setField(key, field, v)}
             pickMedia={pickMedia}
             highlight={highlight === `${key}:${field}`}
+            changed={changedNow.has(field)}
+            onUndo={() => setField(key, field, live[field])}
           />
         ))}
         {errors[key]?.length ? (
@@ -268,7 +409,7 @@ function Studio() {
               key={p.id}
               type="button"
               aria-current={panel === p.id ? "page" : undefined}
-              onClick={() => setPanel(p.id)}
+              onClick={() => openPanel(p.id)}
               className={`btn justify-start ${panel === p.id ? "bg-violet-600/30 text-white" : "text-slate-300 hover:bg-white/5"}`}
             >
               {p.label}
@@ -318,26 +459,20 @@ function Studio() {
           {content.isError ? <p className="text-sm text-rose-300">Could not load content. Is the API reachable?</p> : null}
 
           {panel === "pages" && content.data ? (
-            <>
-              <label className="label" htmlFor="section">Section</label>
-              <select id="section" className="input mb-3" value={selectedKey} onChange={(e) => setSelectedKey(e.target.value)}>
-                {Object.entries(schema)
-                  .filter(([, s]) => s.group === "Pages")
-                  .map(([key, s]) => (
-                    <option key={key} value={key}>
-                      {s.label}
-                      {items[key]?.hasChanges ? " •" : ""}
-                    </option>
-                  ))}
-              </select>
-              {editorFor(selectedKey)}
-            </>
+            selectedKey && schema[selectedKey] ? (
+              <>
+                {sectionHeader(selectedKey)}
+                {editorFor(selectedKey)}
+              </>
+            ) : (
+              overview()
+            )
           ) : null}
 
           {panel === "theme" && content.data ? (
             <>
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-white">Theme</h2>
+              {sectionHeader("theme")}
+              <div className="mb-3 flex justify-end">
                 <button type="button" className="btn-ghost" onClick={() => setValue("theme", {})}>
                   Reset all to default
                 </button>
@@ -356,8 +491,18 @@ function Studio() {
             </>
           ) : null}
 
-          {panel === "brand" && content.data ? editorFor("brand") : null}
-          {panel === "team" ? <TeamPanel onChanged={() => post({ type: "rk:reload" })} /> : null}
+          {panel === "brand" && content.data ? (
+            <>
+              {sectionHeader("brand")}
+              {editorFor("brand")}
+            </>
+          ) : null}
+          {panel === "team" ? (
+            <TeamPanel
+              siteTeam={(siteDefaults.team?.members as Value[] | undefined) ?? []}
+              onChanged={() => post({ type: "rk:reload" })}
+            />
+          ) : null}
           {panel === "media" ? <MediaLibrary /> : null}
           {panel === "history" && content.data ? <History schema={schema} onRestored={() => post({ type: "rk:reload" })} /> : null}
         </aside>

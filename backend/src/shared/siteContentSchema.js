@@ -52,6 +52,8 @@ const number = (label, min, max, step = 1, unit = '') => ({
 });
 const url = (label) => ({ type: 'url', label });
 const path = (label) => ({ type: 'path', label });
+// A page on this site (/jobs) or another website (https://…).
+const link = (label) => ({ type: 'link', label });
 const email = (label) => ({ type: 'email', label });
 const tel = (label) => ({ type: 'tel', label });
 const select = (label, options) => ({ type: 'select', label, options });
@@ -146,6 +148,18 @@ export const SITE_CONTENT_SCHEMA = {
         },
         3,
       ),
+      // Links are grouped into columns by their column name, in the order the
+      // columns first appear; a new name makes a new column.
+      links: list(
+        'Footer link columns',
+        {
+          column: text('Column (e.g. Company)', 30),
+          label: text('Link text', 40),
+          href: link('Goes to (/page or https://…)'),
+        },
+        80,
+      ),
+      legal: list('Bottom links (privacy, terms…)', { label: text('Link text', 40), href: link('Goes to') }, 6),
     },
   },
 };
@@ -237,6 +251,12 @@ const checkField = (spec, raw) => {
       return v !== null && v.length <= 2048 && HTTP_URL.test(v)
         ? { ok: true, value: v }
         : { ok: false, error: 'must be an http(s) link' };
+    }
+    case 'link': {
+      const v = typeof raw === 'string' ? raw.trim() : null;
+      return v !== null && v.length <= 2048 && (INTERNAL_LINK.test(v) || HTTP_URL.test(v))
+        ? { ok: true, value: v }
+        : { ok: false, error: 'must be a page on this site (/jobs) or an http(s) link' };
     }
     case 'path': {
       const v = typeof raw === 'string' ? raw.trim() : null;

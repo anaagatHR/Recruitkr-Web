@@ -108,6 +108,18 @@ export function useSiteContent<T extends Record<string, unknown>>(key: string, d
   return useMemo(() => getContent(content, key, defaults), [content, key]);
 }
 
+/**
+ * Tell the Studio (in preview only) what a part of the page shows by default,
+ * for parts that are not Site Studio content, e.g. the built-in team list, so
+ * the Studio can offer to import it. Does nothing for visitors.
+ */
+export function useReportDefaults(key: string, value: Record<string, unknown>) {
+  const register = useContext(RegisterCtx);
+  // value is a module-level constant at the call site.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => register?.(key, value), [register, key]);
+}
+
 /** Wraps children in an element marked for the Studio's click-to-edit. Prefer spreading `editable(id)` onto an existing element. */
 export function Editable({ id, as: Tag = "span", className, children }: { id: string; as?: ElementType; className?: string; children: ReactNode }) {
   return (
