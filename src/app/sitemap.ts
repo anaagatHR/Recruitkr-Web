@@ -43,6 +43,7 @@ const staticRoutes: Array<{ path: string; priority: number; changeFrequency: Met
   { path: "/training", priority: 0.6, changeFrequency: "monthly" },
   { path: "/assessment", priority: 0.6, changeFrequency: "monthly" },
   { path: "/partners", priority: 0.5, changeFrequency: "monthly" },
+  { path: "/partners/apply", priority: 0.5, changeFrequency: "yearly" },
   { path: "/our-team", priority: 0.5, changeFrequency: "monthly" },
   { path: "/faqs", priority: 0.5, changeFrequency: "monthly" },
   { path: "/blog", priority: 0.7, changeFrequency: "daily" },

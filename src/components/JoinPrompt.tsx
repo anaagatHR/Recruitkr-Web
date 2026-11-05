@@ -30,6 +30,8 @@ const SUPPRESSED_PREFIXES = [
   "/reset-password",
   // Legal pages are checked by Google Play reviewers; nothing may cover them.
   "/privacy-policy",
+  // Never interrupt someone filling in the partner enquiry.
+  "/partners/apply",
   "/terms",
   "/delete-account",
 ];

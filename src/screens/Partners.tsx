@@ -10,7 +10,7 @@ export default function Partners() {
       title="Grow together with RecruitKr"
       highlight="together"
       subtitle="Partner with us as a staffing agency, training institute, college, channel partner or freelancer — and reach more talent and employers across India."
-      primaryCta={{ label: "Become a partner", to: "/contact" }}
+      primaryCta={{ label: "Become a partner", to: "/partners/apply" }}
       secondaryCta={{ label: "Success stories", to: "/success-stories" }}
       stats={[
         { value: "100+", label: "Active partners" },
