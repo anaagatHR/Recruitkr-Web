@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { api, ApiFail, getSession, login, logout, SITE_URL, type ContentList, type Revision, type Value } from "./api";
+import { api, ApiFail, getSession, loginWithPin, logout, SITE_URL, type ContentList, type Revision, type Value } from "./api";
 import { FieldEditor } from "./components/FieldEditor";
 import { MediaLibrary } from "./components/MediaLibrary";
 import { TeamPanel } from "./components/TeamPanel";
@@ -27,8 +27,7 @@ export default function App() {
 }
 
 function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const submit = async (e: FormEvent) => {
@@ -36,10 +35,19 @@ function Login() {
     setBusy(true);
     setError("");
     try {
-      await login(email, password);
+      await loginWithPin(pin);
       window.location.reload();
     } catch (err) {
-      setError(err instanceof ApiFail && err.status === 401 ? "Wrong email or password." : err instanceof Error ? err.message : "Sign-in failed.");
+      setPin("");
+      setError(
+        err instanceof ApiFail && err.status === 401
+          ? "Wrong PIN."
+          : err instanceof TypeError
+            ? "Can't reach the website API. Check your connection, or ask the developer to allow this Studio on the API."
+            : err instanceof Error
+              ? err.message
+              : "Sign-in failed.",
+      );
     } finally {
       setBusy(false);
     }
@@ -49,19 +57,26 @@ function Login() {
       <form onSubmit={submit} className="card w-full max-w-sm space-y-4 p-6">
         <div>
           <h1 className="text-lg font-semibold text-white">RecruitKr Site Studio</h1>
-          <p className="mt-1 text-sm text-slate-400">Sign in with your recruitkr.com admin account.</p>
+          <p className="mt-1 text-sm text-slate-400">Enter the Studio PIN.</p>
         </div>
         <div>
-          <label className="label" htmlFor="email">Email</label>
-          <input id="email" className="input" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
-        <div>
-          <label className="label" htmlFor="password">Password</label>
-          <input id="password" className="input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <label className="label" htmlFor="pin">PIN</label>
+          <input
+            id="pin"
+            className="input text-center font-mono text-lg tracking-[0.4em]"
+            type="password"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={12}
+            required
+            autoFocus
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+          />
         </div>
         {error ? <p role="alert" className="text-sm text-rose-300">{error}</p> : null}
-        <button type="submit" className="btn-primary w-full" disabled={busy}>
-          {busy ? "Signing in…" : "Sign in"}
+        <button type="submit" className="btn-primary w-full" disabled={busy || pin.length < 6}>
+          {busy ? "Checking…" : "Open Studio"}
         </button>
       </form>
     </main>
@@ -234,7 +249,7 @@ function Studio() {
     <div className="flex h-screen flex-col">
       <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-2">
         <h1 className="text-sm font-semibold text-white">Site Studio</h1>
-        <span className="text-xs text-slate-500">{getSession()?.email}</span>
+        <span className="text-xs text-slate-500">{getSession()?.email || "Signed in with PIN"}</span>
         <span className="ml-auto text-xs text-slate-400" aria-live="polite">
           {pending > 0 ? "Saving draft…" : "Drafts saved"}
         </span>

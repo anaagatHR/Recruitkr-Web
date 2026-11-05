@@ -3,6 +3,7 @@
 A no-code editor for www.recruitkr.com. Admins change the site's text, theme, logo, team and media, see the change live on the real site, and publish when it looks right. In Business OS it opens from the Super Admin's **⚠ TOUCH IF WANT TO LAY OFF** menu item.
 
 **The rule:** nothing an editor does can break the site.
+- **Sign-in is a PIN**, checked by the API against `STUDIO_PIN` (set on the API only, never in this repo). A right PIN opens the Studio for 8 hours; changing `STUDIO_PIN` signs everyone out; 30 wrong PINs in 15 minutes lock PIN sign-in for the rest of that window. A website admin login also still works.
 - The Studio never touches code. It saves data, and the API checks every value against `backend/src/shared/siteContentSchema.js` on save and again on publish.
 - The site falls back to its built-in text and images for anything missing or invalid, and when the API is down or slow (2s timeout).
 - Every publish is a revision, and **History → Restore** puts any older version back with one click.
@@ -58,13 +59,14 @@ Checks: `npm run build` (typecheck + build) and `npm test` (helper tests).
 
 | Variable | Example | Needed |
 | --- | --- | --- |
-| `VITE_API_BASE_URL` | `https://api.recruitkr.com/api/v1` | yes |
+| `VITE_API_BASE_URL` | `https://www.recruitkr.com/api/v1` (the site's proxy) | yes |
 | `VITE_SITE_URL` | `https://www.recruitkr.com` | yes |
 | `VITE_GOOGLE_CLIENT_ID` | OAuth client ID (Web) | for "From Google Drive" |
 | `VITE_GOOGLE_API_KEY` | API key with the Picker API enabled | for "From Google Drive" |
 
 **API** (`backend/.env`):
 - `CORS_ORIGIN` must include the Studio origin, e.g. `https://recruitkr-site-studio.pages.dev`.
+- `STUDIO_PIN`: the PIN that opens the Studio (6-12 digits).
 - `STUDIO_PREVIEW_SECRET`: any random 32+ characters.
 - `SITE_REVALIDATE_URL=https://www.recruitkr.com/api/revalidate`.
 - `REVALIDATE_SECRET`: 16+ characters, the same value as on the website.

@@ -8,7 +8,7 @@
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1").replace(/\/$/, "");
 export const SITE_URL = (import.meta.env.VITE_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
 
-type Session = { accessToken: string; refreshToken: string; email: string };
+type Session = { accessToken: string; refreshToken?: string; email?: string };
 const KEY = "rk_site_studio";
 
 export const getSession = (): Session | null => {
@@ -37,16 +37,16 @@ const failFrom = async (res: Response) => {
   return new ApiFail(body.message || `Request failed (${res.status})`, res.status, details);
 };
 
-export async function login(email: string, password: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/auth/login`, {
+/** Sign in with the Studio PIN. The API checks it (STUDIO_PIN); the PIN is never stored here. */
+export async function loginWithPin(pin: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/site-content/pin-login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, role: "admin" }),
+    body: JSON.stringify({ pin }),
   });
   if (!res.ok) throw await failFrom(res);
   const { data } = await res.json();
-  if (data?.user?.role !== "admin") throw new ApiFail("Only website admins can use Site Studio.", 403);
-  setSession({ accessToken: data.accessToken, refreshToken: data.refreshToken, email: data.user.email });
+  setSession({ accessToken: data.token });
 }
 
 export function logout() {
@@ -58,7 +58,7 @@ let refreshing: Promise<boolean> | null = null;
 const refresh = () =>
   (refreshing ??= (async () => {
     const s = getSession();
-    if (!s) return false;
+    if (!s?.refreshToken) return false; // a PIN session simply ends; enter the PIN again
     try {
       const res = await fetch(`${API_BASE}/auth/refresh`, {
         method: "POST",
