@@ -17,6 +17,11 @@ export const contactSchema = z
     // Cloudflare Turnstile response token; verified server-side when the
     // secret is configured.
     turnstileToken: z.string().trim().max(2048).optional().or(z.literal('')),
+    // Which page sent it. Business OS lists these as Client Queries and filters
+    // by page; the partners form sends "partners". Absent = the contact page.
+    source: z.enum(['contact', 'partners']).optional(),
+    company: z.string().trim().max(120).optional().or(z.literal('')),
+    subject: z.string().trim().max(120).optional().or(z.literal('')),
   })
   .strict();
 
