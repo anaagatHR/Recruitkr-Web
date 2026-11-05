@@ -40,3 +40,6 @@ Claude outputs/
 
 # Uploaded / temp archives — source assets, not build artifacts
 *.zip
+
+# Local MCP connections (contain per-user secrets, e.g. the Framer MCP URL)
+.mcp.json

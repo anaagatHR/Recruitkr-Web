@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+import { useCentreItem } from "@/hooks/useCentreItem";
 import { type LucideIcon, ArrowRight, CheckCircle2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -70,6 +72,9 @@ export default function MarketingPage({
   closingTitle,
   closingSubtitle,
 }: MarketingPageProps) {
+  const featureRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const centreCard = useCentreItem(featureRefs);
+
   // The whole headline is plain white on the navy hero.
   //
   // The highlighted words are still marked up separately, but they carry no
@@ -169,26 +174,23 @@ export default function MarketingPage({
               const accent = ACCENTS[i % ACCENTS.length];
               return (
                 <RevealItem key={f.title} className="h-full">
+                  {/* Lit by hover on desktop, and on phones by scrolling it to the
+                      middle of the screen (data-active, see useCentreItem). */}
                   <div
+                    ref={(el) => {
+                      featureRefs.current[i] = el;
+                    }}
+                    data-active={centreCard === i}
                     style={{ "--accent": accent } as React.CSSProperties}
-                    className="group relative flex h-full items-center gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-2.5 transition-all duration-300 hover:-translate-y-1.5 hover:border-[color:var(--accent)] hover:shadow-[0_22px_45px_-26px_var(--accent)] sm:block sm:rounded-3xl sm:p-5"
+                    className="group relative flex h-full items-center gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-2.5 transition-all duration-300 hover:-translate-y-1.5 hover:border-[color:var(--accent)] hover:shadow-[0_22px_45px_-26px_var(--accent)] data-[active=true]:border-[color:var(--accent)] data-[active=true]:shadow-[0_18px_40px_-24px_var(--accent)] motion-reduce:hover:translate-y-0 sm:block sm:rounded-3xl sm:p-5"
                   >
                     <span
                       aria-hidden
-                      className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-[color:var(--accent)] opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-[0.14]"
+                      className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-[color:var(--accent)] opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-[0.14] group-data-[active=true]:opacity-[0.14]"
                     />
-                    {/* The index marker would collide with the text in the
-                        single-row phone layout, so it only appears once the
-                        card stacks. */}
-                    <span
-                      aria-hidden
-                      className="pointer-events-none absolute right-4 top-3 hidden font-heading text-xl font-extrabold text-slate-900/[0.07] sm:block"
-                    >
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
 
                     <span
-                      className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-transform duration-300 group-hover:scale-110 sm:mb-3.5 sm:h-12 sm:w-12 sm:rounded-2xl"
+                      className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-transform duration-300 group-hover:scale-110 group-data-[active=true]:scale-110 motion-reduce:!scale-100 sm:mb-3.5 sm:h-12 sm:w-12 sm:rounded-2xl"
                       style={{
                         backgroundColor: `${accent}14`,
                         color: accent,
@@ -205,6 +207,15 @@ export default function MarketingPage({
                       <p className="mt-0.5 line-clamp-1 text-xs leading-[1.45] text-slate-600 sm:mt-1.5 sm:line-clamp-none sm:text-sm sm:leading-6">
                         {f.description}
                       </p>
+                    </span>
+                    {/* Index marker: ends the row on a phone, sits in the top
+                        corner once the card stacks. Faint at rest, lit in the
+                        card's accent on hover / when centred. */}
+                    <span
+                      aria-hidden
+                      className="pointer-events-none relative shrink-0 self-center font-heading text-sm font-extrabold tabular-nums text-slate-900/[0.14] transition-colors duration-300 group-hover:text-[color:var(--accent)] group-data-[active=true]:text-[color:var(--accent)] sm:absolute sm:right-4 sm:top-3 sm:text-xl sm:text-slate-900/[0.07]"
+                    >
+                      {String(i + 1).padStart(2, "0")}
                     </span>
                   </div>
                 </RevealItem>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Handshake, Building2, GraduationCap, Network, Megaphone, BadgePercent } from "lucide-react";
+import { Handshake, Building2, GraduationCap, Network, Megaphone, Laptop } from "lucide-react";
 import MarketingPage from "@/components/MarketingPage";
 
 export default function Partners() {
@@ -9,7 +9,7 @@ export default function Partners() {
       eyebrow="Partners"
       title="Grow together with RecruitKr"
       highlight="together"
-      subtitle="Partner with us as a staffing agency, training institute, college or channel partner — and reach more talent and employers across India."
+      subtitle="Partner with us as a staffing agency, training institute, college, channel partner or freelancer — and reach more talent and employers across India."
       primaryCta={{ label: "Become a partner", to: "/contact" }}
       secondaryCta={{ label: "Success stories", to: "/success-stories" }}
       stats={[
@@ -23,7 +23,7 @@ export default function Partners() {
         { icon: GraduationCap, title: "Training institutes", description: "Connect your trained learners directly to hiring companies." },
         { icon: Network, title: "Colleges & campuses", description: "Run campus drives and give students access to verified opportunities." },
         { icon: Megaphone, title: "Channel partners", description: "Refer employers and candidates and earn through our partner program." },
-        { icon: BadgePercent, title: "Revenue share", description: "Transparent, win-win commercials that grow with your contribution." },
+        { icon: Laptop, title: "Freelancers", description: "Recruit on your own schedule from anywhere: source candidates for our open roles and earn for every successful placement." },
         { icon: Handshake, title: "Dedicated support", description: "A partner success team and tooling to help you scale." },
       ]}
       steps={[

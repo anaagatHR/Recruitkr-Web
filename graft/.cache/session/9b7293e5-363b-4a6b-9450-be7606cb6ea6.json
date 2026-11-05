@@ -1,6 +1,6 @@
 {
   "graftReads": 1,
-  "sourceReads": 117,
+  "sourceReads": 129,
   "savedTokens": 0,
   "injectedPointers": [
     "src/components/HomeJobSearch.tsx:L13-L15",
@@ -19,14 +19,17 @@
     "src/screens/ClientDashboard.tsx:L683-L698",
     "backend/src/controllers/seo.controller.js:L39-L87",
     "src/app/jobs-sitemap.xml/route.ts:L13-L14",
-    "src/app/sitemap.ts:L88-L167"
+    "src/app/sitemap.ts:L88-L167",
+    "src/components/TeamSection.tsx:L265-L399",
+    "backend/src/controllers/teamController.js",
+    "src/components/team/TeamConstellation.tsx:L15-L195"
   ],
   "nudges": 2,
   "host": "claude-code",
-  "lastBillingUuid": "a352d286-58b6-4516-8d11-24a8a6ef433f",
-  "inputCostMicros": 124235991,
-  "inputTokensBilled": 224346277,
-  "promptAsks": 21,
+  "lastBillingUuid": "7958a28d-5ab3-4daa-a30b-f7552d8a6848",
+  "inputCostMicros": 151794898,
+  "inputTokensBilled": 270908433,
+  "promptAsks": 24,
   "summarized": true,
   "turnUsedGraft": false,
   "graftTurns": 1,

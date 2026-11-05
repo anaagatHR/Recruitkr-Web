@@ -13,9 +13,10 @@ const OurTeam = () => (
       type="website"
     />
     <Navbar />
-    <div className="pt-24">
+    {/* No top padding: the navy hero runs up under the fixed navbar itself. */}
+    <main id="main">
       <TeamSection />
-    </div>
+    </main>
     <Footer />
   </div>
 );
