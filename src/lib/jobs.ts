@@ -1,5 +1,5 @@
 import { apiGet, apiPost } from "@/lib/api";
-import { salaryLabel } from "@/lib/format";
+import { MAX_PLAUSIBLE_LPA, salaryLabel } from "@/lib/format";
 
 /**
  * Apply to a job, safely re-sendable. The Idempotency-Key is derived from the
@@ -130,7 +130,7 @@ export const isExpired = (job: Pick<Job, "applicationDeadline">) => {
 export const isOpen = (job: Job) => !isExpired(job) && job.canApply !== false;
 
 /** Above 200 LPA (₹2 crore) is a data-entry error, e.g. a monthly ₹25,000 typed into the LPA field. */
-export const MAX_PLAUSIBLE_LPA = 200;
+export { MAX_PLAUSIBLE_LPA };
 const plausibleLpa = (lpa?: number) => (lpa != null && lpa > 0 && lpa <= MAX_PLAUSIBLE_LPA ? lpa : undefined);
 export const plausibleSalary = (job: Pick<Job, "salaryMin" | "salaryMax">) => ({
   min: plausibleLpa(job.salaryMin),

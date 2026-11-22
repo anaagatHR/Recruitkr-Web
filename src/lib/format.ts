@@ -11,9 +11,15 @@ export function relativeTime(iso: string): string {
   return `${months}mo ago`;
 }
 
-export function salaryLabel(min?: number, max?: number): string {
+/** Salary is in LPA. Above 200 LPA (₹2 crore) is a typing mistake, e.g. a monthly ₹14,000 typed as 14000. */
+export const MAX_PLAUSIBLE_LPA = 200;
+const plausible = (n?: number) => (n != null && n > 0 && n <= MAX_PLAUSIBLE_LPA ? n : undefined);
+
+export function salaryLabel(rawMin?: number, rawMax?: number): string {
+  // A wrong value is never shown ("₹14000L PA" went live once); the OS form now refuses it too.
+  const min = plausible(rawMin), max = plausible(rawMax);
   if (min == null && max == null) return "Not disclosed";
-  const fmt = (n: number) => (n < 1 ? `₹${Math.round(n * 100)}K` : `₹${n}L`);
+  const fmt = (n: number) => (n < 1 ? `₹${Math.round(n * 100)}K` : `₹${+n.toFixed(2)}L`);
   if (min != null && max != null) return `${fmt(min)} - ${fmt(max)} PA`;
   return `${fmt((min ?? max) as number)} PA`;
 }
